@@ -1,4 +1,12 @@
 /*
+ * Reuse all the basic block machinery and compilation logic from
+ * compile.c but emit register instructions. To begin with, all
+ * Py(AST|Node|Compile)* names are made private and gain a trailing
+ * "R" to represent register mode. I'm sure this will change over
+ * time, but allows me to have both compilers active.
+ */
+
+/*
  * This file compiles an abstract syntax tree (AST) into Python bytecode.
  *
  * The primary entry point is PyAST_Compile(), which returns a
@@ -31,6 +39,7 @@
 #include "opcode.h"
 #include "wordcode_helpers.h"
 
+#include "compile.h"
 #include "compcommon.h"
 
 static int compiler_enter_scope(struct compiler *, identifier, int, void *, int);
@@ -79,75 +88,7 @@ static int compiler_async_comprehension_generator(
 static PyCodeObject *assemble(struct compiler *, int addNone);
 static PyObject *__doc__, *__annotations__;
 
-#define CAPSULE_NAME "compile.c compiler unit"
-
-PyObject *
-_Py_Mangle(PyObject *privateobj, PyObject *ident)
-{
-    /* Name mangling: __private becomes _classname__private.
-       This is independent from how the name is used. */
-    PyObject *result;
-    size_t nlen, plen, ipriv;
-    Py_UCS4 maxchar;
-    if (privateobj == NULL || !PyUnicode_Check(privateobj) ||
-        PyUnicode_READ_CHAR(ident, 0) != '_' ||
-        PyUnicode_READ_CHAR(ident, 1) != '_') {
-        Py_INCREF(ident);
-        return ident;
-    }
-    nlen = PyUnicode_GET_LENGTH(ident);
-    plen = PyUnicode_GET_LENGTH(privateobj);
-    /* Don't mangle __id__ or names with dots.
-
-       The only time a name with a dot can occur is when
-       we are compiling an import statement that has a
-       package name.
-
-       TODO(jhylton): Decide whether we want to support
-       mangling of the module name, e.g. __M.X.
-    */
-    if ((PyUnicode_READ_CHAR(ident, nlen-1) == '_' &&
-         PyUnicode_READ_CHAR(ident, nlen-2) == '_') ||
-        PyUnicode_FindChar(ident, '.', 0, nlen, 1) != -1) {
-        Py_INCREF(ident);
-        return ident; /* Don't mangle __whatever__ */
-    }
-    /* Strip leading underscores from class name */
-    ipriv = 0;
-    while (PyUnicode_READ_CHAR(privateobj, ipriv) == '_')
-        ipriv++;
-    if (ipriv == plen) {
-        Py_INCREF(ident);
-        return ident; /* Don't mangle if class is just underscores */
-    }
-    plen -= ipriv;
-
-    if (plen + nlen >= PY_SSIZE_T_MAX - 1) {
-        PyErr_SetString(PyExc_OverflowError,
-                        "private identifier too large to be mangled");
-        return NULL;
-    }
-
-    maxchar = PyUnicode_MAX_CHAR_VALUE(ident);
-    if (PyUnicode_MAX_CHAR_VALUE(privateobj) > maxchar)
-        maxchar = PyUnicode_MAX_CHAR_VALUE(privateobj);
-
-    result = PyUnicode_New(1 + nlen + plen, maxchar);
-    if (!result)
-        return 0;
-    /* ident = "_" + priv[ipriv:] + ident # i.e. 1+plen+nlen bytes */
-    PyUnicode_WRITE(PyUnicode_KIND(result), PyUnicode_DATA(result), 0, '_');
-    if (PyUnicode_CopyCharacters(result, 1, privateobj, ipriv, plen) < 0) {
-        Py_DECREF(result);
-        return NULL;
-    }
-    if (PyUnicode_CopyCharacters(result, plen+1, ident, 0, nlen) < 0) {
-        Py_DECREF(result);
-        return NULL;
-    }
-    assert(_PyUnicode_CheckConsistency(result, 1));
-    return result;
-}
+#define CAPSULE_NAME "regcompile.c compiler unit"
 
 static int
 compiler_init(struct compiler *c)
@@ -169,8 +110,8 @@ compiler_init(struct compiler *c)
 }
 
 PyCodeObject *
-PyAST_CompileObject(mod_ty mod, PyObject *filename, PyCompilerFlags *flags,
-                   int optimize, PyArena *arena)
+_PyAST_CompileObjectR(mod_ty mod, PyObject *filename, PyCompilerFlags *flags,
+                      int optimize, PyArena *arena)
 {
     struct compiler c;
     PyCodeObject *co = NULL;
@@ -227,22 +168,22 @@ PyAST_CompileObject(mod_ty mod, PyObject *filename, PyCompilerFlags *flags,
 }
 
 PyCodeObject *
-PyAST_CompileEx(mod_ty mod, const char *filename_str, PyCompilerFlags *flags,
-                int optimize, PyArena *arena)
+_PyAST_CompileExR(mod_ty mod, const char *filename_str, PyCompilerFlags *flags,
+                  int optimize, PyArena *arena)
 {
     PyObject *filename;
     PyCodeObject *co;
     filename = PyUnicode_DecodeFSDefault(filename_str);
     if (filename == NULL)
         return NULL;
-    co = PyAST_CompileObject(mod, filename, flags, optimize, arena);
+    co = _PyAST_CompileObjectR(mod, filename, flags, optimize, arena);
     Py_DECREF(filename);
     return co;
 
 }
 
 PyCodeObject *
-PyNode_Compile(struct _node *n, const char *filename)
+_PyNode_CompileR(struct _node *n, const char *filename)
 {
     PyCodeObject *co = NULL;
     mod_ty mod;
@@ -251,7 +192,7 @@ PyNode_Compile(struct _node *n, const char *filename)
         return NULL;
     mod = PyAST_FromNode(n, NULL, filename, arena);
     if (mod)
-        co = PyAST_Compile(mod, filename, NULL, arena);
+        co = _PyAST_CompileR(mod, filename, NULL, arena);
     PyArena_Free(arena);
     return co;
 }
@@ -985,13 +926,13 @@ stack_effect(int opcode, int oparg, int jump)
 }
 
 int
-PyCompile_OpcodeStackEffectWithJump(int opcode, int oparg, int jump)
+_PyCompile_OpcodeStackEffectWithJumpR(int opcode, int oparg, int jump)
 {
     return stack_effect(opcode, oparg, jump);
 }
 
 int
-PyCompile_OpcodeStackEffect(int opcode, int oparg)
+_PyCompile_OpcodeStackEffectR(int opcode, int oparg)
 {
     return stack_effect(opcode, oparg, -1);
 }
@@ -5933,10 +5874,10 @@ assemble(struct compiler *c, int addNone)
     return co;
 }
 
-#undef PyAST_Compile
+#undef _PyAST_CompileR
 PyCodeObject *
-PyAST_Compile(mod_ty mod, const char *filename, PyCompilerFlags *flags,
-              PyArena *arena)
+_PyAST_CompileR(mod_ty mod, const char *filename, PyCompilerFlags *flags,
+                PyArena *arena)
 {
-    return PyAST_CompileEx(mod, filename, flags, -1, arena);
+    return _PyAST_CompileExR(mod, filename, flags, -1, arena);
 }
