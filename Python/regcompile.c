@@ -1,9 +1,10 @@
 /*
- * Reuse all the basic block machinery and compilation logic from
- * compile.c but emit register instructions. To begin with, all
- * Py(AST|Node|Compile)* names are made private and gain a trailing
- * "R" to represent register mode. I'm sure this will change over
- * time, but allows me to have both compilers active.
+ * Reuse all the basic block machinery and compilation logic from the
+ * original compile.c but emit register instructions (well, that's the
+ * goal). To begin with, all Py(AST|Node|Compile)* names are made
+ * private and gain a trailing "R" to represent register mode. I'm
+ * sure this will change over time, but allows me to have both
+ * compilers active.
  */
 
 /*
