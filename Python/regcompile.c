@@ -10,7 +10,7 @@
 /*
  * This file compiles an abstract syntax tree (AST) into Python bytecode.
  *
- * The primary entry point is PyAST_Compile(), which returns a
+ * The primary entry point is _PyAST_CompileR(), which returns a
  * PyCodeObject.  The compiler makes several passes to build the code
  * object:
  *   1. Checks for future statements.  See future.c
@@ -28,6 +28,26 @@
  * which needs to be released. Code blocks are OK, as the compiler
  * structure takes care of releasing those.  Use the arena to manage
  * objects.
+ */
+
+/*
+ * Instructions which don't appear to use the stack:
+ * - NOP
+ * - SETUP_ANNOTATIONS
+ * - JUMP_FORWARD
+ * - JUMP_ABSOLUTE
+ * - EXTENDED_ARG
+ *
+ * Instructions which aren't needed by the register virtual machine:
+ * - POP_TOP
+ * - ROT_TWO
+ * - ROT_THREE
+ * - ROT_FOUR
+ * - DUP_TOP
+ * - DUP_TOP_TWO
+ *
+ * That leaves us with 108 instructions which must be reproduced in
+ * some form in the register virtual machine.
  */
 
 #include "Python.h"
