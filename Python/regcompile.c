@@ -52,8 +52,8 @@
 
 #include "Python.h"
 
-#include "Python-ast.h"
 #include "pycore_pystate.h"   /* _PyInterpreterState_GET_UNSAFE() */
+#include "Python-ast.h"
 #include "ast.h"
 #include "code.h"
 #include "symtable.h"
@@ -826,10 +826,6 @@ stack_effect(int opcode, int oparg, int jump)
         case BUILD_SET:
         case BUILD_STRING:
             return 1-oparg;
-        case BUILD_LIST_UNPACK:
-        case BUILD_TUPLE_UNPACK:
-        case BUILD_TUPLE_UNPACK_WITH_CALL:
-        case BUILD_SET_UNPACK:
         case BUILD_MAP_UNPACK:
         case BUILD_MAP_UNPACK_WITH_CALL:
             return 1 - oparg;
@@ -840,7 +836,11 @@ stack_effect(int opcode, int oparg, int jump)
         case LOAD_ATTR:
             return 0;
         case COMPARE_OP:
+        case IS_OP:
+        case CONTAINS_OP:
             return -1;
+        case JUMP_IF_NOT_EXC_MATCH:
+            return -2;
         case IMPORT_NAME:
             return -1;
         case IMPORT_FROM:
@@ -940,6 +940,11 @@ stack_effect(int opcode, int oparg, int jump)
             return 1;
         case LOAD_ASSERTION_ERROR:
             return 1;
+        case LIST_TO_TUPLE:
+            return 0;
+        case LIST_EXTEND:
+        case SET_UPDATE:
+            return -1;
         default:
             return PY_INVALID_STACK_EFFECT;
     }
@@ -1318,6 +1323,12 @@ compiler_addop_j(struct compiler *c, int opcode, basicblock *b, int absolute)
 
 #define ADDOP_JREL(C, OP, O) { \
     if (!compiler_addop_j((C), (OP), (O), 0)) \
+        return 0; \
+}
+
+
+#define ADDOP_COMPARE(C, CMP) { \
+    if (!compiler_addcompare((C), (cmpop_ty)(CMP))) \
         return 0; \
 }
 
@@ -2252,34 +2263,48 @@ check_compare(struct compiler *c, expr_ty e)
     return 1;
 }
 
-static int
-cmpop(cmpop_ty op)
+static int compiler_addcompare(struct compiler *c, cmpop_ty op)
 {
+    int cmp;
     switch (op) {
     case Eq:
-        return PyCmp_EQ;
+        cmp = Py_EQ;
+        break;
     case NotEq:
-        return PyCmp_NE;
+        cmp = Py_NE;
+        break;
     case Lt:
-        return PyCmp_LT;
+        cmp = Py_LT;
+        break;
     case LtE:
-        return PyCmp_LE;
+        cmp = Py_LE;
+        break;
     case Gt:
-        return PyCmp_GT;
+        cmp = Py_GT;
+        break;
     case GtE:
-        return PyCmp_GE;
+        cmp = Py_GE;
+        break;
     case Is:
-        return PyCmp_IS;
+        ADDOP_I(c, IS_OP, 0);
+        return 1;
     case IsNot:
-        return PyCmp_IS_NOT;
+        ADDOP_I(c, IS_OP, 1);
+        return 1;
     case In:
-        return PyCmp_IN;
+        ADDOP_I(c, CONTAINS_OP, 0);
+        return 1;
     case NotIn:
-        return PyCmp_NOT_IN;
+        ADDOP_I(c, CONTAINS_OP, 1);
+        return 1;
     default:
-        return PyCmp_BAD;
+        Py_UNREACHABLE();
     }
+    ADDOP_I(c, COMPARE_OP, cmp);
+    return 1;
 }
+
+
 
 static int
 compiler_jump_if(struct compiler *c, expr_ty e, basicblock *next, int cond)
@@ -2345,14 +2370,12 @@ compiler_jump_if(struct compiler *c, expr_ty e, basicblock *next, int cond)
                     (expr_ty)asdl_seq_GET(e->v.Compare.comparators, i));
                 ADDOP(c, DUP_TOP);
                 ADDOP(c, ROT_THREE);
-                ADDOP_I(c, COMPARE_OP,
-                    cmpop((cmpop_ty)(asdl_seq_GET(e->v.Compare.ops, i))));
+                ADDOP_COMPARE(c, asdl_seq_GET(e->v.Compare.ops, i));
                 ADDOP_JABS(c, POP_JUMP_IF_FALSE, cleanup);
                 NEXT_BLOCK(c);
             }
             VISIT(c, expr, (expr_ty)asdl_seq_GET(e->v.Compare.comparators, n));
-            ADDOP_I(c, COMPARE_OP,
-                   cmpop((cmpop_ty)(asdl_seq_GET(e->v.Compare.ops, n))));
+            ADDOP_COMPARE(c, asdl_seq_GET(e->v.Compare.ops, n));
             ADDOP_JABS(c, cond ? POP_JUMP_IF_TRUE : POP_JUMP_IF_FALSE, next);
             basicblock *end = compiler_new_block(c);
             if (end == NULL)
@@ -2795,8 +2818,7 @@ compiler_try_finally(struct compiler *c, stmt_ty s)
 
    [tb, val, exc]       L1:     DUP                             )
    [tb, val, exc, exc]          <evaluate E1>                   )
-   [tb, val, exc, exc, E1]      COMPARE_OP      EXC_MATCH       ) only if E1
-   [tb, val, exc, 1-or-0]       POP_JUMP_IF_FALSE       L2      )
+   [tb, val, exc, exc, E1]      JUMP_IF_NOT_EXC_MATCH L2        ) only if E1
    [tb, val, exc]               POP
    [tb, val]                    <assign to V1>  (or POP if no V1)
    [tb]                         POP
@@ -2848,8 +2870,7 @@ compiler_try_except(struct compiler *c, stmt_ty s)
         if (handler->v.ExceptHandler.type) {
             ADDOP(c, DUP_TOP);
             VISIT(c, expr, handler->v.ExceptHandler.type);
-            ADDOP_I(c, COMPARE_OP, PyCmp_EXC_MATCH);
-            ADDOP_JABS(c, POP_JUMP_IF_FALSE, except);
+            ADDOP_JABS(c, JUMP_IF_NOT_EXC_MATCH, except);
         }
         ADDOP(c, POP_TOP);
         if (handler->v.ExceptHandler.name) {
@@ -3474,11 +3495,11 @@ compiler_boolop(struct compiler *c, expr_ty e)
 }
 
 static int
-starunpack_helper(struct compiler *c, asdl_seq *elts,
-                  int single_op, int inner_op, int outer_op)
+starunpack_helper(struct compiler *c, asdl_seq *elts, int pushed,
+                  int build, int add, int extend, int tuple)
 {
     Py_ssize_t n = asdl_seq_LEN(elts);
-    Py_ssize_t i, nsubitems = 0, nseen = 0;
+    Py_ssize_t i, seen_star = 0;
     if (n > 2 && are_all_items_const(elts, 0, n)) {
         PyObject *folded = PyTuple_New(n);
         if (folded == NULL) {
@@ -3490,41 +3511,63 @@ starunpack_helper(struct compiler *c, asdl_seq *elts,
             Py_INCREF(val);
             PyTuple_SET_ITEM(folded, i, val);
         }
-        if (outer_op == BUILD_SET_UNPACK) {
-            Py_SETREF(folded, PyFrozenSet_New(folded));
-            if (folded == NULL) {
-                return 0;
+        if (tuple) {
+            ADDOP_LOAD_CONST_NEW(c, folded);
+        } else {
+            if (add == SET_ADD) {
+                Py_SETREF(folded, PyFrozenSet_New(folded));
+                if (folded == NULL) {
+                    return 0;
+                }
             }
+            ADDOP_I(c, build, pushed);
+            ADDOP_LOAD_CONST_NEW(c, folded);
+            ADDOP_I(c, extend, 1);
         }
-        ADDOP_LOAD_CONST_NEW(c, folded);
-        ADDOP_I(c, outer_op, 1);
         return 1;
     }
+
     for (i = 0; i < n; i++) {
         expr_ty elt = asdl_seq_GET(elts, i);
         if (elt->kind == Starred_kind) {
-            if (nseen) {
-                ADDOP_I(c, inner_op, nseen);
-                nseen = 0;
-                nsubitems++;
+            seen_star = 1;
+        }
+    }
+    if (seen_star) {
+        seen_star = 0;
+        for (i = 0; i < n; i++) {
+            expr_ty elt = asdl_seq_GET(elts, i);
+            if (elt->kind == Starred_kind) {
+                if (seen_star == 0) {
+                    ADDOP_I(c, build, i+pushed);
+                    seen_star = 1;
+                }
+                VISIT(c, expr, elt->v.Starred.value);
+                ADDOP_I(c, extend, 1);
             }
-            VISIT(c, expr, elt->v.Starred.value);
-            nsubitems++;
+            else {
+                VISIT(c, expr, elt);
+                if (seen_star) {
+                    ADDOP_I(c, add, 1);
+                }
+            }
         }
-        else {
+        assert(seen_star);
+        if (tuple) {
+            ADDOP(c, LIST_TO_TUPLE);
+        }
+    }
+    else {
+        for (i = 0; i < n; i++) {
+            expr_ty elt = asdl_seq_GET(elts, i);
             VISIT(c, expr, elt);
-            nseen++;
+        }
+        if (tuple) {
+            ADDOP_I(c, BUILD_TUPLE, n+pushed);
+        } else {
+            ADDOP_I(c, build, n+pushed);
         }
     }
-    if (nsubitems) {
-        if (nseen) {
-            ADDOP_I(c, inner_op, nseen);
-            nsubitems++;
-        }
-        ADDOP_I(c, outer_op, nsubitems);
-    }
-    else
-        ADDOP_I(c, single_op, nseen);
     return 1;
 }
 
@@ -3566,8 +3609,8 @@ compiler_list(struct compiler *c, expr_ty e)
         return assignment_helper(c, elts);
     }
     else if (e->v.List.ctx == Load) {
-        return starunpack_helper(c, elts,
-                                 BUILD_LIST, BUILD_TUPLE, BUILD_LIST_UNPACK);
+        return starunpack_helper(c, elts, 0, BUILD_LIST,
+                                 LIST_APPEND, LIST_EXTEND, 0);
     }
     else
         VISIT_SEQ(c, expr, elts);
@@ -3582,8 +3625,8 @@ compiler_tuple(struct compiler *c, expr_ty e)
         return assignment_helper(c, elts);
     }
     else if (e->v.Tuple.ctx == Load) {
-        return starunpack_helper(c, elts,
-                                 BUILD_TUPLE, BUILD_TUPLE, BUILD_TUPLE_UNPACK);
+        return starunpack_helper(c, elts, 0, BUILD_LIST,
+                                 LIST_APPEND, LIST_EXTEND, 1);
     }
     else
         VISIT_SEQ(c, expr, elts);
@@ -3593,8 +3636,8 @@ compiler_tuple(struct compiler *c, expr_ty e)
 static int
 compiler_set(struct compiler *c, expr_ty e)
 {
-    return starunpack_helper(c, e->v.Set.elts, BUILD_SET,
-                             BUILD_SET, BUILD_SET_UNPACK);
+    return starunpack_helper(c, e->v.Set.elts, 0, BUILD_SET,
+                             SET_ADD, SET_UPDATE, 0);
 }
 
 static int
@@ -3692,8 +3735,7 @@ compiler_compare(struct compiler *c, expr_ty e)
     n = asdl_seq_LEN(e->v.Compare.ops) - 1;
     if (n == 0) {
         VISIT(c, expr, (expr_ty)asdl_seq_GET(e->v.Compare.comparators, 0));
-        ADDOP_I(c, COMPARE_OP,
-            cmpop((cmpop_ty)(asdl_seq_GET(e->v.Compare.ops, 0))));
+        ADDOP_COMPARE(c, asdl_seq_GET(e->v.Compare.ops, 0));
     }
     else {
         basicblock *cleanup = compiler_new_block(c);
@@ -3704,14 +3746,12 @@ compiler_compare(struct compiler *c, expr_ty e)
                 (expr_ty)asdl_seq_GET(e->v.Compare.comparators, i));
             ADDOP(c, DUP_TOP);
             ADDOP(c, ROT_THREE);
-            ADDOP_I(c, COMPARE_OP,
-                cmpop((cmpop_ty)(asdl_seq_GET(e->v.Compare.ops, i))));
+            ADDOP_COMPARE(c, asdl_seq_GET(e->v.Compare.ops, i));
             ADDOP_JABS(c, JUMP_IF_FALSE_OR_POP, cleanup);
             NEXT_BLOCK(c);
         }
         VISIT(c, expr, (expr_ty)asdl_seq_GET(e->v.Compare.comparators, n));
-        ADDOP_I(c, COMPARE_OP,
-            cmpop((cmpop_ty)(asdl_seq_GET(e->v.Compare.ops, n))));
+        ADDOP_COMPARE(c, asdl_seq_GET(e->v.Compare.ops, n));
         basicblock *end = compiler_new_block(c);
         if (end == NULL)
             return 0;
@@ -3986,57 +4026,65 @@ compiler_call_helper(struct compiler *c,
                      asdl_seq *keywords)
 {
     Py_ssize_t i, nseen, nelts, nkwelts;
-    int mustdictunpack = 0;
-
-    /* the number of tuples and dictionaries on the stack */
-    Py_ssize_t nsubargs = 0, nsubkwargs = 0;
 
     nelts = asdl_seq_LEN(args);
     nkwelts = asdl_seq_LEN(keywords);
 
-    for (i = 0; i < nkwelts; i++) {
-        keyword_ty kw = asdl_seq_GET(keywords, i);
-        if (kw->arg == NULL) {
-            mustdictunpack = 1;
-            break;
-        }
-    }
-
-    nseen = n;  /* the number of positional arguments on the stack */
     for (i = 0; i < nelts; i++) {
         expr_ty elt = asdl_seq_GET(args, i);
         if (elt->kind == Starred_kind) {
-            /* A star-arg. If we've seen positional arguments,
-               pack the positional arguments into a tuple. */
-            if (nseen) {
-                ADDOP_I(c, BUILD_TUPLE, nseen);
-                nseen = 0;
-                nsubargs++;
-            }
-            VISIT(c, expr, elt->v.Starred.value);
-            nsubargs++;
+            goto ex_call;
         }
-        else {
-            VISIT(c, expr, elt);
-            nseen++;
+    }
+    for (i = 0; i < nkwelts; i++) {
+        keyword_ty kw = asdl_seq_GET(keywords, i);
+        if (kw->arg == NULL) {
+            goto ex_call;
         }
     }
 
-    /* Same dance again for keyword arguments */
-    if (nsubargs || mustdictunpack) {
-        if (nseen) {
-            /* Pack up any trailing positional arguments. */
-            ADDOP_I(c, BUILD_TUPLE, nseen);
-            nsubargs++;
+    /* No * or ** args, so can use faster calling sequence */
+    for (i = 0; i < nelts; i++) {
+        expr_ty elt = asdl_seq_GET(args, i);
+        assert(elt->kind != Starred_kind);
+        VISIT(c, expr, elt);
+    }
+    if (nkwelts) {
+        PyObject *names;
+        VISIT_SEQ(c, keyword, keywords);
+        names = PyTuple_New(nkwelts);
+        if (names == NULL) {
+            return 0;
         }
-        if (nsubargs > 1) {
-            /* If we ended up with more than one stararg, we need
-               to concatenate them into a single sequence. */
-            ADDOP_I(c, BUILD_TUPLE_UNPACK_WITH_CALL, nsubargs);
+        for (i = 0; i < nkwelts; i++) {
+            keyword_ty kw = asdl_seq_GET(keywords, i);
+            Py_INCREF(kw->arg);
+            PyTuple_SET_ITEM(names, i, kw->arg);
         }
-        else if (nsubargs == 0) {
-            ADDOP_I(c, BUILD_TUPLE, 0);
-        }
+        ADDOP_LOAD_CONST_NEW(c, names);
+        ADDOP_I(c, CALL_FUNCTION_KW, n + nelts + nkwelts);
+        return 1;
+    }
+    else {
+        ADDOP_I(c, CALL_FUNCTION, n + nelts);
+        return 1;
+    }
+
+ex_call:
+
+    /* Do positional arguments. */
+    if (n ==0 && nelts == 1 && ((expr_ty)asdl_seq_GET(args, 0))->kind == Starred_kind) {
+        VISIT(c, expr, ((expr_ty)asdl_seq_GET(args, 0))->v.Starred.value);
+    }
+    else if (starunpack_helper(c, args, n, BUILD_LIST,
+                                 LIST_APPEND, LIST_EXTEND, 1) == 0) {
+        return 0;
+    }
+    /* Then keyword arguments */
+    if (nkwelts) {
+        /* the number of dictionaries on the stack */
+        Py_ssize_t nsubkwargs = 0;
+
         nseen = 0;  /* the number of keyword arguments on the stack following */
         for (i = 0; i < nkwelts; i++) {
             keyword_ty kw = asdl_seq_GET(keywords, i);
@@ -4065,29 +4113,9 @@ compiler_call_helper(struct compiler *c,
             /* Pack it all up */
             ADDOP_I(c, BUILD_MAP_UNPACK_WITH_CALL, nsubkwargs);
         }
-        ADDOP_I(c, CALL_FUNCTION_EX, nsubkwargs > 0);
-        return 1;
     }
-    else if (nkwelts) {
-        PyObject *names;
-        VISIT_SEQ(c, keyword, keywords);
-        names = PyTuple_New(nkwelts);
-        if (names == NULL) {
-            return 0;
-        }
-        for (i = 0; i < nkwelts; i++) {
-            keyword_ty kw = asdl_seq_GET(keywords, i);
-            Py_INCREF(kw->arg);
-            PyTuple_SET_ITEM(names, i, kw->arg);
-        }
-        ADDOP_LOAD_CONST_NEW(c, names);
-        ADDOP_I(c, CALL_FUNCTION_KW, n + nelts + nkwelts);
-        return 1;
-    }
-    else {
-        ADDOP_I(c, CALL_FUNCTION, n + nelts);
-        return 1;
-    }
+    ADDOP_I(c, CALL_FUNCTION_EX, nkwelts > 0);
+    return 1;
 }
 
 
