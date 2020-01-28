@@ -641,8 +641,6 @@ frame_dealloc(PyFrameObject *f)
             Py_XDECREF(*p);
     }
 
-    /* TBD - Need to clear registers here as well. */
-
     Py_XDECREF(f->f_back);
     Py_DECREF(f->f_builtins);
     Py_DECREF(f->f_globals);
@@ -689,8 +687,6 @@ frame_traverse(PyFrameObject *f, visitproc visit, void *arg)
             Py_VISIT(*p);
     }
 
-    /* TBD - Need to Py_VISIT registers as well. */
-
     return 0;
 }
 
@@ -722,8 +718,6 @@ frame_tp_clear(PyFrameObject *f)
         for (p = f->f_valuestack; p < oldtop; p++)
             Py_CLEAR(*p);
     }
-
-    /* TBD - Need to Py_CLEAR registers as well. */
 
     return 0;
 }
@@ -904,8 +898,6 @@ _PyFrame_New_NoTrack(PyThreadState *tstate, PyCodeObject *code,
         }
 
         f->f_code = code;
-        /* TBD - extras (by whatever name it's spelled - slots in
-           frame_tp_clear) also needs to consider the register count. */
         extras = code->co_nlocals + ncells + nfrees;
         f->f_valuestack = f->f_localsplus + extras;
         for (i=0; i<extras; i++)
