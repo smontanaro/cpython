@@ -50,6 +50,24 @@
  * some form in the register virtual machine.
  */
 
+/*
+ * Looking back at my old rattlesnake optimizer which functioned as a
+ * peephole optimizer that converted stack code into register
+ * code... That didn't need a separate register file, as the storage
+ * necessary could never grow larger than the stack could. I recall
+ * this is something Tim Peters told me, but try though I might, I
+ * have not been able to track down that message (or even more
+ * usefully, the entire email thread related to rattlesnake).
+ *
+ * Long story short, I don't think I should need a separate register
+ * file. Compute the maximum stack level (maxlevel = stackdepth()) and
+ * during code generation, simulate the pushes and pops required by
+ * stack based opcodes which tell you where to find sources and
+ * destinations for the register based opcodes. At any point, you can
+ * assert that the compiler's simulated stack doesn't exceed the
+ * calculated maxlevel.
+ */
+
 #include "Python.h"
 
 #include "pycore_pystate.h"   /* _PyInterpreterState_GET_UNSAFE() */
