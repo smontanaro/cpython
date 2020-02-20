@@ -24,6 +24,8 @@ footer = """
 
 #define HAS_ARG(op) ((op) >= HAVE_ARGUMENT)
 
+#define HAS_REGISTERS(op) ((op) >= HAVE_REGISTERS)
+
 #ifdef __cplusplus
 }
 #endif
@@ -49,6 +51,9 @@ def main(opcode_py, outfile='Include/opcode.h'):
             if name == 'POP_EXCEPT': # Special entry for HAVE_ARGUMENT
                 fobj.write("#define %-23s %3d\n" %
                             ('HAVE_ARGUMENT', opcode['HAVE_ARGUMENT']))
+            elif name == 'DICT_UPDATE': # Special entry for HAVE_REGISTERS
+                fobj.write("#define %-23s %3d\n" %
+                            ('HAVE_REGISTERS', opcode['HAVE_REGISTERS']))
         fobj.write(footer)
 
     print("%s regenerated from %s" % (outfile, opcode_py))
