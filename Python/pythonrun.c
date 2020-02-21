@@ -28,8 +28,6 @@
 #include "osdefs.h"
 #include <locale.h>
 
-#include "regcompile.h"
-
 #ifdef HAVE_SIGNAL_H
 #include <signal.h>
 #endif
