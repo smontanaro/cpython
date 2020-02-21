@@ -203,7 +203,7 @@ _Instruction.offset.__doc__ = "Start index of operation within bytecode sequence
 _Instruction.starts_line.__doc__ = "Line started by this opcode (if any), otherwise None"
 _Instruction.is_jump_target.__doc__ = "True if other code jumps to here, otherwise False"
 
-_OPNAME_WIDTH = 20
+_OPNAME_WIDTH = 23
 _OPARG_WIDTH = 5
 
 class Instruction(_Instruction):
