@@ -324,7 +324,6 @@ PYTHON_OBJS=	\
 		Python/ceval.o \
 		Python/codecs.o \
 		Python/compile.o \
-		Python/regcompile.o \
 		Python/context.o \
 		Python/dynamic_annotations.o \
 		Python/errors.o \
