@@ -17,6 +17,12 @@ PyAPI_FUNC(PyCodeObject *) _PyAST_CompileObjectR(
     int optimize,
     PyArena *arena);
 
+PyAPI_FUNC(PyObject *) _Py_CompileStringObjectR(
+    const char *str,
+    PyObject *filename, int start,
+    PyCompilerFlags *flags,
+    int optimize);
+
 #ifdef __cplusplus
 }
 #endif

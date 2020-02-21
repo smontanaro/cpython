@@ -101,6 +101,8 @@ static int compiler_annassign(struct compiler *, stmt_ty);
 static int compiler_visit_slice(struct compiler *, slice_ty,
                                 expr_context_ty);
 
+static int compiler_visit_reg_expr(struct compiler *, expr_ty, int);
+
 static int inplace_binop(struct compiler *, operator_ty);
 static int are_all_items_const(asdl_seq *, Py_ssize_t, Py_ssize_t);
 static int expr_constant(expr_ty);
@@ -128,6 +130,28 @@ static PyCodeObject *assemble(struct compiler *, int addNone);
 static PyObject *__doc__, *__annotations__;
 
 #define CAPSULE_NAME "regcompile.c compiler unit"
+
+static int
+u_push(struct compiler *c)
+{
+    struct compiler_unit *u = c->u;
+
+    u->u_stacklevel++;
+    if (u->u_stacklevel > u->u_maxstacklevel) {
+        u->u_maxstacklevel = u->u_stacklevel;
+    }
+    return u->u_stacklevel - 1;
+}
+
+static int
+u_pop(struct compiler *c)
+{
+    struct compiler_unit *u = c->u;
+
+    u->u_stacklevel--;
+    assert(u->u_stacklevel >= PyDict_GET_SIZE(u->u_varnames) || PyErr_Occurred());
+    return u->u_stacklevel;
+}
 
 static int
 compiler_init(struct compiler *c)
@@ -432,6 +456,9 @@ compiler_enter_scope(struct compiler *c, identifier name,
             return 0;
         }
     }
+
+    u->u_stacklevel = PyDict_GET_SIZE(u->u_varnames);
+    u->u_maxstacklevel = u->u_stacklevel;
 
     u->u_freevars = dictbytype(u->u_ste->ste_symbols, FREE, DEF_FREE_CLASS,
                                PyDict_GET_SIZE(u->u_cellvars));
@@ -748,6 +775,7 @@ stack_effect(int opcode, int oparg, int jump)
             return -2;
 
         /* Binary operators */
+            /* non-reg variants should disappear */
         case BINARY_POWER:
         case BINARY_MULTIPLY:
         case BINARY_MATRIX_MULTIPLY:
@@ -757,7 +785,16 @@ stack_effect(int opcode, int oparg, int jump)
         case BINARY_SUBSCR:
         case BINARY_FLOOR_DIVIDE:
         case BINARY_TRUE_DIVIDE:
+        case BINARY_POWER_REG:
+        case BINARY_MULTIPLY_REG:
+        case BINARY_MODULO_REG:
+        case BINARY_ADD_REG:
+        case BINARY_SUBTRACT_REG:
+        case BINARY_SUBSCR_REG:
+        case BINARY_FLOOR_DIVIDE_REG:
+        case BINARY_TRUE_DIVIDE_REG:
             return -1;
+
         case INPLACE_FLOOR_DIVIDE:
         case INPLACE_TRUE_DIVIDE:
             return -1;
@@ -991,6 +1028,31 @@ compiler_addop(struct compiler *c, int opcode)
     struct instr *i;
     int off;
     assert(!HAS_ARG(opcode));
+    if (c->c_do_not_emit_bytecode) {
+        return 1;
+    }
+    off = compiler_next_instr(c, c->u->u_curblock);
+    if (off < 0)
+        return 0;
+    b = c->u->u_curblock;
+    i = &b->b_instr[off];
+    i->i_opcode = opcode;
+    i->i_oparg = 0;
+    if (opcode == RETURN_VALUE)
+        b->b_return = 1;
+    compiler_set_lineno(c, off);
+    return 1;
+}
+
+/* add a register binary opcode dst <- src1 opcode src2 */
+
+static int
+compiler_addop_dss(struct compiler *c, int opcode, int dst, int src1, int src2)
+{
+    basicblock *b;
+    struct instr *i;
+    int off;
+    assert(HAS_REGISTERS(opcode));
     if (c->c_do_not_emit_bytecode) {
         return 1;
     }
@@ -1280,11 +1342,19 @@ compiler_addop_j(struct compiler *c, int opcode, basicblock *b, int absolute)
 }
 
 #define ADDOP(C, OP) { \
+    /*fprintf(stderr, "ADD %d\n", (OP)); */ \
     if (!compiler_addop((C), (OP))) \
         return 0; \
 }
 
+#define ADDOP_DSS(C, OP, DST, SRC1, SRC2) { \
+    fprintf(stderr, "ADD %d %d %d %d\n", (OP), (DST), (SRC1), (SRC2)); \
+    if (!compiler_addop_dss((C), (OP), (DST), (SRC1), (SRC2))) \
+        return 0; \
+}
+
 #define ADDOP_IN_SCOPE(C, OP) { \
+    fprintf(stderr, "ADD %d (in scope)\n", (OP));      \
     if (!compiler_addop((C), (OP))) { \
         compiler_exit_scope(c); \
         return 0; \
@@ -1292,6 +1362,7 @@ compiler_addop_j(struct compiler *c, int opcode, basicblock *b, int absolute)
 }
 
 #define ADDOP_LOAD_CONST(C, O) { \
+    /* fprintf(stderr, "LOAD_CONST\n"); */ \
     if (!compiler_addop_load_const((C), (O))) \
         return 0; \
 }
@@ -1355,6 +1426,11 @@ compiler_addop_j(struct compiler *c, int opcode, basicblock *b, int absolute)
 
 #define VISIT(C, TYPE, V) {\
     if (!compiler_visit_ ## TYPE((C), (V))) \
+        return 0; \
+}
+
+#define VISIT_REG(C, TYPE, V, R) {            \
+    if (!compiler_visit_reg_ ## TYPE((C), (V), (R)))    \
         return 0; \
 }
 
@@ -3282,19 +3358,19 @@ binop(struct compiler *c, operator_ty op)
 {
     switch (op) {
     case Add:
-        return BINARY_ADD;
+        return BINARY_ADD_REG;
     case Sub:
-        return BINARY_SUBTRACT;
+        return BINARY_SUBTRACT_REG;
     case Mult:
-        return BINARY_MULTIPLY;
+        return BINARY_MULTIPLY_REG;
     case MatMult:
         return BINARY_MATRIX_MULTIPLY;
     case Div:
-        return BINARY_TRUE_DIVIDE;
+        return BINARY_TRUE_DIVIDE_REG;
     case Mod:
-        return BINARY_MODULO;
+        return BINARY_MODULO_REG;
     case Pow:
-        return BINARY_POWER;
+        return BINARY_POWER_REG;
     case LShift:
         return BINARY_LSHIFT;
     case RShift:
@@ -3306,7 +3382,7 @@ binop(struct compiler *c, operator_ty op)
     case BitAnd:
         return BINARY_AND;
     case FloorDiv:
-        return BINARY_FLOOR_DIVIDE;
+        return BINARY_FLOOR_DIVIDE_REG;
     default:
         PyErr_Format(PyExc_SystemError,
             "binary op %d should not be possible", op);
@@ -4758,8 +4834,13 @@ compiler_with(struct compiler *c, stmt_ty s, int pos)
 static int
 compiler_visit_expr1(struct compiler *c, expr_ty e)
 {
+    int src;
+    int src1;
+    int src2;
+    int dst;
     switch (e->kind) {
     case NamedExpr_kind:
+        src = u_push(c);
         VISIT(c, expr, e->v.NamedExpr.value);
         ADDOP(c, DUP_TOP);
         VISIT(c, expr, e->v.NamedExpr.target);
@@ -4767,9 +4848,12 @@ compiler_visit_expr1(struct compiler *c, expr_ty e)
     case BoolOp_kind:
         return compiler_boolop(c, e);
     case BinOp_kind:
-        VISIT(c, expr, e->v.BinOp.left);
-        VISIT(c, expr, e->v.BinOp.right);
-        ADDOP(c, binop(c, e->v.BinOp.op));
+        src2 = u_pop(c);
+        src1 = u_pop(c);
+        dst = u_push(c);
+        VISIT_REG(c, expr, e->v.BinOp.left, src1);
+        VISIT_REG(c, expr, e->v.BinOp.right, src2);
+        ADDOP_DSS(c, binop(c, e->v.BinOp.op), dst, src1, src2);
         break;
     case UnaryOp_kind:
         VISIT(c, expr, e->v.UnaryOp.operand);
@@ -4941,6 +5025,209 @@ compiler_visit_expr(struct compiler *c, expr_ty e)
     c->u->u_col_offset = e->col_offset;
 
     int res = compiler_visit_expr1(c, e);
+
+    if (old_lineno != c->u->u_lineno) {
+        c->u->u_lineno = old_lineno;
+        c->u->u_lineno_set = 0;
+    }
+    c->u->u_col_offset = old_col_offset;
+    return res;
+}
+
+static int
+compiler_visit_reg_expr1(struct compiler *c, expr_ty e, int reg)
+{
+    int src;
+    int src1;
+    int src2;
+    int dst;
+    switch (e->kind) {
+    case NamedExpr_kind:
+        src = u_push(c);
+        VISIT(c, expr, e->v.NamedExpr.value);
+        ADDOP(c, DUP_TOP);
+        VISIT(c, expr, e->v.NamedExpr.target);
+        break;
+    case BoolOp_kind:
+        return compiler_boolop(c, e);
+    case BinOp_kind:
+        src2 = u_pop(c);
+        src1 = u_pop(c);
+        dst = u_push(c);
+        VISIT_REG(c, expr, e->v.BinOp.left, src1);
+        VISIT_REG(c, expr, e->v.BinOp.right, src2);
+        ADDOP_DSS(c, binop(c, e->v.BinOp.op), dst, src1, src2);
+        break;
+    case UnaryOp_kind:
+        VISIT(c, expr, e->v.UnaryOp.operand);
+        ADDOP(c, unaryop(e->v.UnaryOp.op));
+        break;
+    case Lambda_kind:
+        return compiler_lambda(c, e);
+    case IfExp_kind:
+        return compiler_ifexp(c, e);
+    case Dict_kind:
+        return compiler_dict(c, e);
+    case Set_kind:
+        return compiler_set(c, e);
+    case GeneratorExp_kind:
+        return compiler_genexp(c, e);
+    case ListComp_kind:
+        return compiler_listcomp(c, e);
+    case SetComp_kind:
+        return compiler_setcomp(c, e);
+    case DictComp_kind:
+        return compiler_dictcomp(c, e);
+    case Yield_kind:
+        if (c->u->u_ste->ste_type != FunctionBlock)
+            return compiler_error(c, "'yield' outside function");
+        if (e->v.Yield.value) {
+            VISIT(c, expr, e->v.Yield.value);
+        }
+        else {
+            ADDOP_LOAD_CONST(c, Py_None);
+        }
+        ADDOP(c, YIELD_VALUE);
+        break;
+    case YieldFrom_kind:
+        if (c->u->u_ste->ste_type != FunctionBlock)
+            return compiler_error(c, "'yield' outside function");
+
+        if (c->u->u_scope_type == COMPILER_SCOPE_ASYNC_FUNCTION)
+            return compiler_error(c, "'yield from' inside async function");
+
+        VISIT(c, expr, e->v.YieldFrom.value);
+        ADDOP(c, GET_YIELD_FROM_ITER);
+        ADDOP_LOAD_CONST(c, Py_None);
+        ADDOP(c, YIELD_FROM);
+        break;
+    case Await_kind:
+        if (!(c->c_flags->cf_flags & PyCF_ALLOW_TOP_LEVEL_AWAIT)){
+            if (c->u->u_ste->ste_type != FunctionBlock){
+                return compiler_error(c, "'await' outside function");
+            }
+
+            if (c->u->u_scope_type != COMPILER_SCOPE_ASYNC_FUNCTION &&
+                    c->u->u_scope_type != COMPILER_SCOPE_COMPREHENSION){
+                return compiler_error(c, "'await' outside async function");
+            }
+        }
+
+        VISIT(c, expr, e->v.Await.value);
+        ADDOP(c, GET_AWAITABLE);
+        ADDOP_LOAD_CONST(c, Py_None);
+        ADDOP(c, YIELD_FROM);
+        break;
+    case Compare_kind:
+        return compiler_compare(c, e);
+    case Call_kind:
+        return compiler_call(c, e);
+    case Constant_kind:
+        ADDOP_LOAD_CONST(c, e->v.Constant.value);
+        break;
+    case JoinedStr_kind:
+        return compiler_joined_str(c, e);
+    case FormattedValue_kind:
+        return compiler_formatted_value(c, e);
+    /* The following exprs can be assignment targets. */
+    case Attribute_kind:
+        if (e->v.Attribute.ctx != AugStore)
+            VISIT(c, expr, e->v.Attribute.value);
+        switch (e->v.Attribute.ctx) {
+        case AugLoad:
+            ADDOP(c, DUP_TOP);
+            /* Fall through */
+        case Load:
+            ADDOP_NAME(c, LOAD_ATTR, e->v.Attribute.attr, names);
+            break;
+        case AugStore:
+            ADDOP(c, ROT_TWO);
+            /* Fall through */
+        case Store:
+            ADDOP_NAME(c, STORE_ATTR, e->v.Attribute.attr, names);
+            break;
+        case Del:
+            ADDOP_NAME(c, DELETE_ATTR, e->v.Attribute.attr, names);
+            break;
+        case Param:
+        default:
+            PyErr_SetString(PyExc_SystemError,
+                            "param invalid in attribute expression");
+            return 0;
+        }
+        break;
+    case Subscript_kind:
+        switch (e->v.Subscript.ctx) {
+        case AugLoad:
+            VISIT(c, expr, e->v.Subscript.value);
+            VISIT_SLICE(c, e->v.Subscript.slice, AugLoad);
+            break;
+        case Load:
+            if (!check_subscripter(c, e->v.Subscript.value)) {
+                return 0;
+            }
+            if (!check_index(c, e->v.Subscript.value, e->v.Subscript.slice)) {
+                return 0;
+            }
+            VISIT(c, expr, e->v.Subscript.value);
+            VISIT_SLICE(c, e->v.Subscript.slice, Load);
+            break;
+        case AugStore:
+            VISIT_SLICE(c, e->v.Subscript.slice, AugStore);
+            break;
+        case Store:
+            VISIT(c, expr, e->v.Subscript.value);
+            VISIT_SLICE(c, e->v.Subscript.slice, Store);
+            break;
+        case Del:
+            VISIT(c, expr, e->v.Subscript.value);
+            VISIT_SLICE(c, e->v.Subscript.slice, Del);
+            break;
+        case Param:
+        default:
+            PyErr_SetString(PyExc_SystemError,
+                "param invalid in subscript expression");
+            return 0;
+        }
+        break;
+    case Starred_kind:
+        switch (e->v.Starred.ctx) {
+        case Store:
+            /* In all legitimate cases, the Starred node was already replaced
+             * by compiler_list/compiler_tuple. XXX: is that okay? */
+            return compiler_error(c,
+                "starred assignment target must be in a list or tuple");
+        default:
+            return compiler_error(c,
+                "can't use starred expression here");
+        }
+    case Name_kind:
+        return compiler_nameop(c, e->v.Name.id, e->v.Name.ctx);
+    /* child nodes of List and Tuple will have expr_context set */
+    case List_kind:
+        return compiler_list(c, e);
+    case Tuple_kind:
+        return compiler_tuple(c, e);
+    }
+    return 1;
+}
+
+static int
+compiler_visit_reg_expr(struct compiler *c, expr_ty e, int reg)
+{
+    /* If expr e has a different line number than the last expr/stmt,
+       set a new line number for the next instruction.
+    */
+    int old_lineno = c->u->u_lineno;
+    int old_col_offset = c->u->u_col_offset;
+    if (e->lineno != c->u->u_lineno) {
+        c->u->u_lineno = e->lineno;
+        c->u->u_lineno_set = 0;
+    }
+    /* Updating the column offset is always harmless. */
+    c->u->u_col_offset = e->col_offset;
+
+    int res = compiler_visit_reg_expr1(c, e, reg);
 
     if (old_lineno != c->u->u_lineno) {
         c->u->u_lineno = old_lineno;
@@ -5410,7 +5697,7 @@ stackdepth(struct compiler *c)
             int effect = stack_effect(instr->i_opcode, instr->i_oparg, 0);
             if (effect == PY_INVALID_STACK_EFFECT) {
                 fprintf(stderr, "opcode = %d\n", instr->i_opcode);
-                Py_FatalError("PyCompile_OpcodeStackEffect()");
+                Py_FatalError("_PyCompile_OpcodeStackEffectR()");
             }
             int new_depth = depth + effect;
             if (new_depth > maxdepth) {

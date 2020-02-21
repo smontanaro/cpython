@@ -818,7 +818,7 @@ builtin_regcompile_impl(PyObject *module, PyObject *source,
     if (str == NULL)
         goto error;
 
-    result = Py_CompileStringObject(str, filename, start[compile_mode], &cf, optimize);
+    result = _Py_CompileStringObjectR(str, filename, start[compile_mode], &cf, optimize);
     Py_XDECREF(source_copy);
     goto finally;
 

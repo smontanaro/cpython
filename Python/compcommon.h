@@ -109,6 +109,9 @@ struct compiler_unit {
     int u_col_offset;      /* the offset of the current stmt */
     int u_lineno_set;  /* boolean to indicate whether instr
                           has been generated with current lineno */
+
+    int u_stacklevel;  /* waxing and waning of stack during compile */
+    int u_maxstacklevel;        /* max value c_stacklevel reaches */
 };
 
 /* This struct captures the global state of a compilation.
