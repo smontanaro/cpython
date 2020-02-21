@@ -1195,44 +1195,6 @@ error:
 }
 
 PyObject *
-_Py_CompileStringObjectR(const char *str, PyObject *filename, int start,
-                         PyCompilerFlags *flags, int optimize)
-{
-    PyCodeObject *co;
-    mod_ty mod;
-    PyArena *arena = PyArena_New();
-    if (arena == NULL)
-        return NULL;
-
-    mod = PyParser_ASTFromStringObject(str, filename, start, flags, arena);
-    if (mod == NULL) {
-        PyArena_Free(arena);
-        return NULL;
-    }
-    if (flags && (flags->cf_flags & PyCF_ONLY_AST)) {
-        PyObject *result = PyAST_mod2obj(mod);
-        PyArena_Free(arena);
-        return result;
-    }
-    co = _PyAST_CompileObjectR(mod, filename, flags, optimize, arena);
-    PyArena_Free(arena);
-    return (PyObject *)co;
-}
-
-PyObject *
-_Py_CompileStringExFlagsR(const char *str, const char *filename_str, int start,
-                          PyCompilerFlags *flags, int optimize)
-{
-    PyObject *filename, *co;
-    filename = PyUnicode_DecodeFSDefault(filename_str);
-    if (filename == NULL)
-        return NULL;
-    co = _Py_CompileStringObjectR(str, filename, start, flags, optimize);
-    Py_DECREF(filename);
-    return co;
-}
-
-PyObject *
 Py_CompileStringObject(const char *str, PyObject *filename, int start,
                        PyCompilerFlags *flags, int optimize)
 {
