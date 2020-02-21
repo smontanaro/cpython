@@ -214,4 +214,23 @@ def_op('SET_UPDATE', 163)
 def_op('DICT_MERGE', 164)
 def_op('DICT_UPDATE', 165)
 
+# register instructions after here (until we run out of space and have
+# to get more crafty)
+
+HAVE_REGISTERS = 166              # Opcodes from here have an argument:
+
+def_op('BINARY_POWER_REG', 166)
+def_op('BINARY_MULTIPLY_REG', 167)
+
+def_op('BINARY_MODULO_REG', 168)
+def_op('BINARY_ADD_REG', 169)
+def_op('BINARY_SUBTRACT_REG', 170)
+def_op('BINARY_SUBSCR_REG', 171)
+def_op('BINARY_FLOOR_DIVIDE_REG', 172)
+def_op('BINARY_TRUE_DIVIDE_REG', 173)
+
+def_op('RETURN_VALUE_REG', 174)
+def_op('LOAD_CONST_REG', 175)
+def_op('LOAD_GLOBAL_REG', 176)
+
 del def_op, name_op, jrel_op, jabs_op

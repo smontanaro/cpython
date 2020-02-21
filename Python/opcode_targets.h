@@ -30,7 +30,7 @@ static void *opcode_targets[256] = {
     &&TARGET_INPLACE_FLOOR_DIVIDE,
     &&TARGET_INPLACE_TRUE_DIVIDE,
     &&_unknown_opcode,
-    &&TARGET_BINARY_ADD_REG,
+    &&_unknown_opcode,
     &&_unknown_opcode,
     &&_unknown_opcode,
     &&_unknown_opcode,
@@ -164,18 +164,18 @@ static void *opcode_targets[256] = {
     &&TARGET_LIST_EXTEND,
     &&TARGET_SET_UPDATE,
     &&TARGET_DICT_MERGE,
-    &&TARGET_DICT_UPDATE,
+    &&TARGET_DICT_UPDATE,       /* 165 */
+    &&_unknown_opcode,          /* 166 */
+    &&_unknown_opcode,          /* 167 */
+    &&_unknown_opcode,          /* 168 */
+    &&TARGET_BINARY_ADD_REG,    /* 169 */
     &&_unknown_opcode,
     &&_unknown_opcode,
     &&_unknown_opcode,
     &&_unknown_opcode,
-    &&_unknown_opcode,
-    &&_unknown_opcode,
-    &&_unknown_opcode,
-    &&_unknown_opcode,
-    &&_unknown_opcode,
-    &&_unknown_opcode,
-    &&_unknown_opcode,
+    &&TARGET_RETURN_VALUE_REG,  /* 174 */
+    &&TARGET_LOAD_CONST_REG,    /* 175 */
+    &&TARGET_LOAD_GLOBAL_REG,   /* 176 */
     &&_unknown_opcode,
     &&_unknown_opcode,
     &&_unknown_opcode,

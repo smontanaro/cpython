@@ -127,6 +127,18 @@ extern "C" {
 #define SET_UPDATE              163
 #define DICT_MERGE              164
 #define DICT_UPDATE             165
+#define HAVE_REGISTERS          166
+#define BINARY_POWER_REG        166
+#define BINARY_MULTIPLY_REG     167
+#define BINARY_MODULO_REG       168
+#define BINARY_ADD_REG          169
+#define BINARY_SUBTRACT_REG     170
+#define BINARY_SUBSCR_REG       171
+#define BINARY_FLOOR_DIVIDE_REG 172
+#define BINARY_TRUE_DIVIDE_REG  173
+#define RETURN_VALUE_REG        174
+#define LOAD_CONST_REG          175
+#define LOAD_GLOBAL_REG         176
 
 /* EXCEPT_HANDLER is a special, implicit block type which is created when
    entering an except handler. It is not an opcode but we define it here
@@ -135,6 +147,8 @@ extern "C" {
 #define EXCEPT_HANDLER 257
 
 #define HAS_ARG(op) ((op) >= HAVE_ARGUMENT)
+
+#define HAS_REGISTERS(op) ((op) >= HAVE_REGISTERS)
 
 #ifdef __cplusplus
 }

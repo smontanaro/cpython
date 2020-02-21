@@ -872,6 +872,18 @@ _PyEval_EvalFrameDefault(PyFrameObject *f, int throwflag)
 #define DISPATCH() continue
 #endif
 
+/* register versions just bump next_instr before calling the regular macros */
+#define REG_FAST_DISPATCH() \
+    { \
+        next_instr++; /* advance past 2nd & 3rd opargs */ \
+        FAST_DISPATCH(); \
+    }
+#define REG_DISPATCH() \
+    { \
+        next_instr++; /* advance past 2nd & 3rd opargs */ \
+        DISPATCH(); \
+    }
+
 
 /* Tuple access macros */
 
@@ -894,6 +906,29 @@ _PyEval_EvalFrameDefault(PyFrameObject *f, int throwflag)
     } while (0)
 #define JUMPTO(x)       (next_instr = first_instr + (x) / sizeof(_Py_CODEUNIT))
 #define JUMPBY(x)       (next_instr += (x) / sizeof(_Py_CODEUNIT))
+
+/* Set register opargs - reg0, reg1, reg2 */
+#define REGARGS1() do { \
+        _Py_CODEUNIT word = *next_instr; \
+        reg0 = _Py_OPARG(word); \
+    } while (0)
+
+#define REGARGS2() do { \
+        _Py_CODEUNIT word = *next_instr; \
+        reg0 = _Py_OPARG(word); \
+        word = *(next_instr + 1);  \
+        /* Yes, _Py_OPCODE... */ \
+        reg1 = _Py_OPCODE(word); \
+    } while (0)
+
+#define REGARGS3() do { \
+        _Py_CODEUNIT word = *next_instr; \
+        reg0 = _Py_OPARG(word); \
+        word = *(next_instr + 1);  \
+        /* Yes, _Py_OPCODE... */ \
+        reg1 = _Py_OPCODE(word); \
+        reg2 = _Py_OPARG(word); \
+    } while (0)
 
 /* OpCode prediction macros
     Some opcodes tend to come in pairs thus making it possible to
@@ -3564,6 +3599,132 @@ main_loop:
             goto dispatch_opcode;
         }
 
+        case TARGET(BINARY_ADD_REG): {
+            int reg0, reg1, reg2;
+            PyObject *left, *right, *sum;
+            REGARGS3();
+            left = GETLOCAL(reg1);
+            right = GETLOCAL(reg2);
+            if (PyUnicode_CheckExact(left) &&
+                     PyUnicode_CheckExact(right)) {
+                sum = unicode_concatenate(tstate, left, right, f, next_instr);
+                /* unicode_concatenate consumed the ref to left */
+            }
+            else {
+                sum = PyNumber_Add(left, right);
+                Py_DECREF(left);
+            }
+            Py_DECREF(right);
+            SETLOCAL(reg0, sum);
+            if (sum == NULL)
+                goto error;
+            REG_DISPATCH();
+        }
+
+        case TARGET(RETURN_VALUE_REG): {
+            int reg0;
+            REGARGS1();
+            retval = GETLOCAL(reg0);
+            assert(f->f_iblock == 0);
+            goto exiting;
+        }
+
+        case TARGET(LOAD_CONST_REG): {
+            int reg0, reg1;
+            REGARGS2();
+            PyObject *value = GETITEM(consts, reg1);
+            Py_INCREF(value);
+            SETLOCAL(reg0, value);
+            REG_DISPATCH();
+        }
+
+        case TARGET(LOAD_GLOBAL_REG): {
+            int reg0, reg1;
+            REGARGS2();
+            PyObject *name;
+            PyObject *v;
+            if (PyDict_CheckExact(f->f_globals)
+                && PyDict_CheckExact(f->f_builtins))
+            {
+                OPCACHE_CHECK();
+                if (co_opcache != NULL && co_opcache->optimized > 0) {
+                    _PyOpcache_LoadGlobal *lg = &co_opcache->u.lg;
+
+                    if (lg->globals_ver ==
+                            ((PyDictObject *)f->f_globals)->ma_version_tag
+                        && lg->builtins_ver ==
+                           ((PyDictObject *)f->f_builtins)->ma_version_tag)
+                    {
+                        PyObject *ptr = lg->ptr;
+                        OPCACHE_STAT_GLOBAL_HIT();
+                        assert(ptr != NULL);
+                        Py_INCREF(ptr);
+                        SETLOCAL(reg0, ptr);
+                        DISPATCH();
+                    }
+                }
+
+                name = GETITEM(names, reg1);
+                v = _PyDict_LoadGlobal((PyDictObject *)f->f_globals,
+                                       (PyDictObject *)f->f_builtins,
+                                       name);
+                if (v == NULL) {
+                    if (!_PyErr_OCCURRED()) {
+                        /* _PyDict_LoadGlobal() returns NULL without raising
+                         * an exception if the key doesn't exist */
+                        format_exc_check_arg(tstate, PyExc_NameError,
+                                             NAME_ERROR_MSG, name);
+                    }
+                    goto error;
+                }
+
+                if (co_opcache != NULL) {
+                    _PyOpcache_LoadGlobal *lg = &co_opcache->u.lg;
+
+                    if (co_opcache->optimized == 0) {
+                        /* Wasn't optimized before. */
+                        OPCACHE_STAT_GLOBAL_OPT();
+                    } else {
+                        OPCACHE_STAT_GLOBAL_MISS();
+                    }
+
+                    co_opcache->optimized = 1;
+                    lg->globals_ver =
+                        ((PyDictObject *)f->f_globals)->ma_version_tag;
+                    lg->builtins_ver =
+                        ((PyDictObject *)f->f_builtins)->ma_version_tag;
+                    lg->ptr = v; /* borrowed */
+                }
+
+                Py_INCREF(v);
+            }
+            else {
+                /* Slow-path if globals or builtins is not a dict */
+
+                /* namespace 1: globals */
+                name = GETITEM(names, reg1);
+                v = PyObject_GetItem(f->f_globals, name);
+                if (v == NULL) {
+                    if (!_PyErr_ExceptionMatches(tstate, PyExc_KeyError)) {
+                        goto error;
+                    }
+                    _PyErr_Clear(tstate);
+
+                    /* namespace 2: builtins */
+                    v = PyObject_GetItem(f->f_builtins, name);
+                    if (v == NULL) {
+                        if (_PyErr_ExceptionMatches(tstate, PyExc_KeyError)) {
+                            format_exc_check_arg(
+                                        tstate, PyExc_NameError,
+                                        NAME_ERROR_MSG, name);
+                        }
+                        goto error;
+                    }
+                }
+            }
+            SETLOCAL(reg0, v);
+            REG_DISPATCH();
+        }
 
 #if USE_COMPUTED_GOTOS
         _unknown_opcode:
