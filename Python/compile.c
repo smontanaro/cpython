@@ -1127,6 +1127,23 @@ stack_effect(int opcode, int oparg, int jump)
         case DICT_MERGE:
         case DICT_UPDATE:
             return -1;
+        /* Ideally, everything >= HAVE_REGISTERS would result in a
+           stack effect of 0, but the way test__opcode.py is
+           (currently) written we must enumerate each instruction. */
+        case BINARY_POWER_REG:
+        case BINARY_MULTIPLY_REG:
+
+        case BINARY_MODULO_REG:
+        case BINARY_ADD_REG:
+        case BINARY_SUBTRACT_REG:
+        case BINARY_SUBSCR_REG:
+        case BINARY_FLOOR_DIVIDE_REG:
+        case BINARY_TRUE_DIVIDE_REG:
+
+        case RETURN_VALUE_REG:
+        case LOAD_CONST_REG:
+        case LOAD_GLOBAL_REG:
+            return 0;
         default:
             return PY_INVALID_STACK_EFFECT;
     }
