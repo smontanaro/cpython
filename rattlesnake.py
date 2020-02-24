@@ -1,10 +1,19 @@
+"""
 ### NOTE: This comes from the old Rattlesnake compiler. It's useful
-### here only as documentation of how I did things way back when.
+### here initially as documentation of how I did things way back
+### when. The more I struggle with the current compiler, the more I
+### think I will revert to this method.
+"""
 
+import dis
+import importlib
+import math
+import os
+#import pprint
+import sys
+import types
 
-import types, os, string, operator, sys, opcodes
-
-import time, pprint                     # for debugging
+import opcodes
 
 __version__ = "0.3"
 
@@ -12,6 +21,7 @@ __version__ = "0.3"
 # later by the value of the OPTLEVEL environment variable
 
 def optimize0(code):
+    "no-op(timize)"
     return code
 
 
@@ -33,11 +43,11 @@ class Block:
     def set_stacklevel(self, level):
         if self.stacklevel != -1:
             if self.stacklevel == level:
-                print "Warning: Setting stacklevel to", level,
-                print "multiple times."
+                print("Warning: Setting stacklevel to", level, end=' ')
+                print("multiple times.")
             else:
-                raise ValueError, ("Already set stacklevel to %d "
-                                   "for this block" % self.stacklevel)
+                raise ValueError("Already set stacklevel to %d "
+                                 "for this block" % self.stacklevel)
         else:
             self.stacklevel = level
 
@@ -68,8 +78,8 @@ class Block:
     def __getslice__(self, i, j):
         return self.block[i:j]
 
-    def __setslice__(self, i, j, list):
-        self.block[i:j] = list
+    def __setslice__(self, i, j, lst):
+        self.block[i:j] = lst
 
     def __delslice__(self, i, j):
         del self.block[i:j]
@@ -87,7 +97,7 @@ OptimizeFilter instance. varnames and constants args are just placeholders
 for the future."""
         self.code_ = code
         self.iset = opcodes.stack
-        if type(code) == types.CodeType:
+        if isinstance(code, types.CodeType):
             self.input = self.blocks(code.co_code)
             self.varnames = code.co_varnames
             self.names = code.co_names
@@ -115,17 +125,17 @@ for the future."""
         while i < n:
             op = ord(code[i])
             i = i+1
-            format = self.iset.format(op)
-            if format:
-                nbytes = len(format)
-                args = map(ord, code[i:i+nbytes])
+            fmt = self.iset.format(op)
+            if fmt:
+                nbytes = len(fmt)
+                args = [ord(x) for x in code[i:i+nbytes]]
                 addr = args[0]|(args[1]<<8)
-                if 'a' in format:
+                if 'a' in fmt:
                     labels[i + addr + nbytes] = 1
-                elif 'A' in format:
+                elif 'A' in fmt:
                     labels[addr] = 1
                 i = i + nbytes
-        labels = labels.keys()
+        labels = list(labels.keys())
         labels.sort()
         #print ">> labels (OptimizeFilter.findlabels):", labels
         return labels
@@ -140,21 +150,18 @@ for the future."""
             if opcodes.stack.has_argument(op):
                 try:
                     oparg = ord(code[i]) + ord(code[i+1])*256
-                except IndexError:
-                    print "<%02d> %d" % (op, i)
-                    raise IndexError
-                except TypeError:
-                    print "<%02d> %d" % (op, i)
-                    raise IndexError
-                i = i+2
-                label = -1
-                if is_abs_jump(op):
-                    label = oparg
-                elif is_jump(op):
-                    label = i+oparg
-                if label >= 0:
-                    labels[label] = 1
-        labels = labels.keys()
+                except (TypeError, IndexError):
+                    raise IndexError("<%02d> %d" % (op, i))
+                else:
+                    i = i+2
+                    label = -1
+                    if is_abs_jump(op):
+                        label = oparg
+                    elif is_jump(op):
+                        label = i+oparg
+                    if label >= 0:
+                        labels[label] = 1
+        labels = list(labels.keys())
         labels.sort()
         return labels
 
@@ -162,12 +169,8 @@ for the future."""
         """Optimize each block in the input blocks."""
         blocks = self.input
         self.output = [None]*len(blocks)
-        #print self.__class__,          # for testing
-        #t = time.clock()               # for testing
         for i in range(len(blocks)):
-            self.this_blockaddr = i
             self.output[i] = self.optimize_block(blocks[i])
-        #print time.clock()-t           # for testing
 
     def optimize_block(self, block):
         # noop - subclasses will override this
@@ -188,20 +191,20 @@ for the future."""
         #print ">>> labels:", labels
         n = len(code)
         i = 0
-        lastwasjump = 0
         while i < n:
-            if i in labels: blocks.append(Block())
+            if i in labels:
+                blocks.append(Block())
             c = code[i]
             op = ord(c)
-            format = self.iset.format(op)
+            fmt = self.iset.format(op)
             i = i + 1
             if opcodes.stack.has_argument(op):
                 oparg = (ord(code[i]), ord(code[i+1]))
                 argval = oparg[0]+(oparg[1]<<8)
                 i = i + 2
-                if 'A' in format:
+                if 'A' in fmt:
                     blocks[-1].append((op, (labels.index(argval), 0)))
-                elif 'a' in format:
+                elif 'a' in fmt:
                     blocks[-1].append((op, (labels.index(i+argval), 0)))
                 else:
                     blocks[-1].append((op, oparg))
@@ -211,7 +214,7 @@ for the future."""
 
     def code(self):
         """Convert the block form of the code back to a string."""
-        if self.output is None: self.optimize()
+        self._insure_output()
         blockaddrs = [0]
         blockaddr = 0
         for block in self.output:
@@ -229,10 +232,10 @@ for the future."""
                 for inst in block:
                     op = chr(inst[0])
                     codelist.append(op)
-                    format = self.iset.format(inst[0])
-                    #print ">>", (i, self.iset.opname[inst[0]], format),
+                    fmt = self.iset.format(inst[0])
+                    #print ">>", (i, self.iset.opname[inst[0]], fmt),
                     i = i + 1
-                    if 'A' in format:
+                    if 'A' in fmt:
                         arg = inst[1]
                         i = i + len(arg)
                         #print "block:", arg[0]|(arg[1]<<8),
@@ -240,9 +243,10 @@ for the future."""
                         #print "address:", addr,
                         #print "encoded:", (chr(addr&0xff),chr(addr>>8)),
                         codelist.append("%s%s" %
-                                        (chr(addr&0xff),chr(addr>>8)))
-                        for j in arg[2:]: codelist.append(chr(j))
-                    elif 'a' in format:
+                                        (chr(addr&0xff), chr(addr>>8)))
+                        for j in arg[2:]:
+                            codelist.append(chr(j))
+                    elif 'a' in fmt:
                         arg = inst[1]
                         i = i + len(arg)
                         #print "block:", arg[0]|(arg[1]<<8),
@@ -251,26 +255,28 @@ for the future."""
                         #print "offset:", addr,
                         #print "encoded:", (chr(addr&0xff),chr(addr>>8)),
                         codelist.append("%s%s" %
-                                        (chr(addr&0xff),chr(addr>>8)))
-                        for j in arg[2:]: codelist.append(chr(j))
+                                        (chr(addr&0xff), chr(addr>>8)))
+                        for j in arg[2:]:
+                            codelist.append(chr(j))
                     else:
                         i = i + len(inst[1])
-                        for arg in inst[1]: codelist.append(chr(arg))
+                        for arg in inst[1]:
+                            codelist.append(chr(arg))
                     #print
             except ValueError:
-                print (opcodes.stack.opname[inst[0]], inst[1:],
-                       i, blockaddrs[blockaddr])
+                print((opcodes.stack.opname[inst[0]], inst[1:],
+                       i, blockaddrs[blockaddr]))
                 raise
 
-        return string.join(codelist, "")
+        # TBD... This is certainly incorrect. the input and output code strings are byte strings.
+        return "".join(codelist)
 
     def constant_value(self, op):
         if op[0] == opcodes.stack.opmap["LOAD_CONST"]:
             return self.constants[op[1][0]+(op[1][1]<<8)]
-        elif op[0] == opcodes.stack.opmap["LOADI"]:
+        if op[0] == opcodes.stack.opmap["LOADI"]:
             return op[1][0]+(op[1][1]<<8)
-        else:
-            raise ValueError, "Not a load constant opcode: %d"%op[0]
+        raise ValueError("Not a load constant opcode: %d"%op[0])
 
     def find_constant(self, c):
         # return the index of c in self.constants, adding it if it's not there
@@ -281,64 +287,97 @@ for the future."""
             index = self.constants.index(c)
         return index
 
+    def _insure_output(self):
+        if self.output is None:
+            self.optimize()
+
     ## bunch of list-like methods ...
 
     def __getattr__(self, name):
-        if self.output is None: self.optimize()
+        self._insure_output()
         return getattr(self.output, name)
 
     def __repr__(self):
-        if self.output is None: self.optimize()
+        self._insure_output()
         return repr(self.output)
 
-    def __cmp__(self, list):
-        if self.output is None: self.optimize()
-        if type(list) == type(self.output):
-            return cmp(self.output, list)
-        else:
-            return cmp(self.output, list.output)
+    def __eq__(self, lst):
+        self._insure_output()
+        if isinstance(lst, type(self.output)):
+            return self.output == lst
+        return self.output == lst.output
+
+    def __ne__(self, lst):
+        self._insure_output()
+        if isinstance(lst, type(self.output)):
+            return self.output != lst
+        return self.output != lst.output
+
+    def __lt__(self, lst):
+        self._insure_output()
+        if isinstance(lst, type(self.output)):
+            return self.output < lst
+        return self.output < lst.output
+
+    def __le__(self, lst):
+        self._insure_output()
+        if isinstance(lst, type(self.output)):
+            return self.output <= lst
+        return self.output <= lst.output
+
+    def __gt__(self, lst):
+        self._insure_output()
+        if isinstance(lst, type(self.output)):
+            return self.output > lst
+        return self.output > lst.output
+
+    def __ge__(self, lst):
+        self._insure_output()
+        if isinstance(lst, type(self.output)):
+            return self.output >= lst
+        return self.output >= lst.output
 
     def __len__(self):
-        if self.output is None: self.optimize()
+        self._insure_output()
         return len(self.output)
 
     def __getitem__(self, i):
-        if self.output is None: self.optimize()
+        self._insure_output()
         return self.output[i]
 
     def __setitem__(self, i, item):
-        if self.output is None: self.optimize()
+        self._insure_output()
         self.output[i] = item
 
     def __delitem__(self, i):
-        if self.output is None: self.optimize()
+        self._insure_output()
         del self.output[i]
 
     def __getslice__(self, i, j):
-        if self.output is None: self.optimize()
+        self._insure_output()
         return self.__class__(self.output[i:j])
 
-    def __setslice__(self, i, j, list):
-        if self.output is None: self.optimize()
-        if type(list) == type(self.output):
-            self.output[i:j] = list
+    def __setslice__(self, i, j, lst):
+        self._insure_output()
+        if isinstance(lst, type(self.output)):
+            self.output[i:j] = lst
         else:
-            self.output[i:j] = list.output
+            self.output[i:j] = lst.output
 
     def __delslice__(self, i, j):
-        if self.output is None: self.optimize()
+        self._insure_output()
         del self.output[i:j]
 
     def append(self, item):
-        if self.output is None: self.optimize()
+        self._insure_output()
         self.output.append(item)
 
     def insert(self, i, item):
-        if self.output is None: self.optimize()
+        self._insure_output()
         self.output.insert(i, item)
 
     def remove(self, item):
-        if self.output is None: self.optimize()
+        self._insure_output()
         self.output.remove(item)
 
 class InstructionSetConverter(OptimizeFilter):
@@ -365,6 +404,9 @@ class InstructionSetConverter(OptimizeFilter):
         # be able to deduce this from the code object itself.
         # in the meantime, we fudge by setting self.iset appropriately
         self.iset = opcodes.stack
+        self.unhandledops = {}
+        self.skippedops = {}
+        self.stacklevel = 0
         OptimizeFilter.__init__(self, code)
         self.iset = opcodes.register
 
@@ -377,16 +419,16 @@ class InstructionSetConverter(OptimizeFilter):
 
     def has_bad_instructions(self):
         blocks = self.blocks(self.code_.co_code)
-        isbad = self.bad_instructions.has_key
         for block in blocks:
             for i in block:
-                if isbad(i[0]): return 1
-        return 0
+                if i[0] in self.bad_instructions:
+                    return True
+        return False
 
-    def set_block_stacklevel(self, id, level):
+    def set_block_stacklevel(self, id_, level):
         """set the input stack level for particular block"""
-        #print ">> set:", (id, level)
-        self.input[id].set_stacklevel(level)
+        #print ">> set:", (id_, level)
+        self.input[id_].set_stacklevel(level)
 
     def optimize(self):
         self.stacklevel = self.code_.co_nlocals
@@ -417,8 +459,7 @@ class InstructionSetConverter(OptimizeFilter):
     def set_stacklevel(self, level):
         """set stack level explicitly - used to handle jump targets"""
         if level < self.code_.co_nlocals:
-            print "invalid stack level:", level
-            raise ValueError, ("invalid stack level: %d" % level)
+            raise ValueError("invalid stack level: %d" % level)
         self.stacklevel = level
         #print ">> set:", self.stacklevel
         return self.stacklevel
@@ -481,8 +522,10 @@ class InstructionSetConverter(OptimizeFilter):
             na = op[1][0]
             nk = op[1][1]
             src = self.top()
-            for i in range(na): src = self.pop()
-            for i in range(nk*2): src = self.pop()
+            for _ in range(na):
+                src = self.pop()
+            for _ in range(nk*2):
+                src = self.pop()
             return (opcodes.register.opmap['CALL_FUNCTION_REG'],
                     (na, nk, src))
         if op[0] == opcodes.stack.opmap['BUILD_CLASS']:
@@ -614,8 +657,8 @@ class InstructionSetConverter(OptimizeFilter):
         if op[0] in (opcodes.stack.opmap['BUILD_LIST'],
                      opcodes.stack.opmap['BUILD_TUPLE']):
             n = op[1][0]
-            for i in range(n):
-                elt = self.pop()
+            for _ in range(n):
+                self.pop()
             src = self.top()
             dst = self.push()
             return (opcodes.register.opmap[opname], (n, src, dst))
@@ -623,8 +666,8 @@ class InstructionSetConverter(OptimizeFilter):
                      opcodes.stack.opmap['UNPACK_TUPLE']):
             n = op[1][0]
             src = self.pop()
-            for i in range(n):
-                elt = self.push()
+            for _ in range(n):
+                self.push()
             return (opcodes.register.opmap[opname], (n, src))
         return None
     dispatch[opcodes.stack.opmap['BUILD_TUPLE']] = seq_convert
@@ -687,11 +730,7 @@ class InstructionSetConverter(OptimizeFilter):
     def optimize_block(self, block):
         block_stacklevel = block.get_stacklevel()
         if block_stacklevel != -1:
-            save_stacklevel = self.top()
             self.set_stacklevel(block_stacklevel)
-        else:
-            save_stacklevel = -1
-
         newblock = Block()
         for i in block:
             try:
@@ -701,7 +740,7 @@ class InstructionSetConverter(OptimizeFilter):
                     try:
                         self.unhandledops[i[0]] = self.unhandledops[i[0]] + 1
                     except KeyError:
-                        print "unhandled", opcodes.stack.opname[i[0]]
+                        print("unhandled", opcodes.stack.opname[i[0]])
                         self.unhandledops[i[0]] = 1
                 elif newop != ():
                     newblock.append(newop)
@@ -710,7 +749,7 @@ class InstructionSetConverter(OptimizeFilter):
                     self.skippedops[i[0]] = self.skippedops[i[0]] + 1
                 except KeyError:
                     if i[0] != opcodes.stack.opmap['SET_LINENO']:
-                        print "skipping", opcodes.stack.opname[i[0]]
+                        print("skipping", opcodes.stack.opname[i[0]])
                         self.skippedops[i[0]] = 1
 
         return newblock
@@ -753,7 +792,7 @@ def is_jump(op):
             (SETUP_OP_MIN <= op <= SETUP_OP_MAX))
 
 def is_simple_jump(op):
-    return (JUMP_OP_MIN <= op < JUMP_OP_MAX)
+    return JUMP_OP_MIN <= op < JUMP_OP_MAX
 
 def is_abs_jump(op):
     return opcodes.stack.opmap['JUMP_ABSOLUTE'] == op
@@ -786,86 +825,75 @@ def blocklength(block):
 
 
 
-def test():
-    import dis, sys
-    stdout = sys.stdout
-    import pystone
-    orig = open('pystone.out', 'w')
-    opt = open('pystone.opt', 'w')
-    for n in dir(pystone):
-        f = getattr(pystone, n)
-        if type(f) == type(pystone.Proc0):
-            code = f.func_code.co_code
-            varnames = f.func_code.co_varnames
-            names = f.func_code.co_names
-            constants = f.func_code.co_consts
-            sys.stdout = orig
-            print "\n===Function %s:\n" % n
-            dis.dis(f)
-            sys.stdout = opt
-            print "\n===Function %s:\n" % n
-            code = optimize(code, varnames, names, constants)
-            dis.disassemble_string(code,
-                                   varnames=varnames,
-                                   names=names,
-                                   constants=constants)
-    sys.stdout = stdout
+# def test():
+#     stdout = sys.stdout
+#     import pystone
+#     orig = open('pystone.out', 'w')
+#     opt = open('pystone.opt', 'w')
+#     for n in dir(pystone):
+#         f = getattr(pystone, n)
+#         if type(f) == type(pystone.Proc0):
+#             code = f.__code__.co_code
+#             varnames = f.__code__.co_varnames
+#             names = f.__code__.co_names
+#             constants = f.__code__.co_consts
+#             sys.stdout = orig
+#             print("\n===Function %s:\n" % n)
+#             dis.dis(f)
+#             sys.stdout = opt
+#             print("\n===Function %s:\n" % n)
+#             code = optimize(code, varnames, names, constants)
+#             dis.disassemble_string(code,
+#                                    varnames=varnames,
+#                                    names=names,
+#                                    constants=constants)
+#     sys.stdout = stdout
 
 
 def f(a):
-    import math
     b = a * 8.0
-    if b > 24.5: b = b/2
-    else: b = b*3
+    if b > 24.5:
+        b = b/2
+    else:
+        b = b*3
     result = []
-    for i in range(int(b)): result.append(math.sin(i))
-    class foo: pass
-    return (foo, result)
+    for i in range(int(b)):
+        result.append(math.sin(i))
+    class FooClass:
+        "doc"
+    return (FooClass, result)
 
 
 def test_handle(func):
-    import dis
-    print "*"*25, func.func_name, "*"*25
-    print "Stack version:"
+    print("*"*25, func.__name__, "*"*25)
+    print("Stack version:")
     dis.dis(func)
-    isg = InstructionSetConverter(func.func_code)
+    isg = InstructionSetConverter(func.__code__)
     isg.optimize()
-    print
-    print "Register version:"
+    print()
+    print("Register version:")
     d = dis.RegisterDisassembler()
     d.disassemble_string(isg.code())
 
-def test1():
-    import pystone
+def test1(mod=os):
     test_handle(f)
-    for k in pystone.__dict__.keys():
-        func = pystone.__dict__[k]
-        if type(func) == type(f):
+    for k in mod.__dict__:
+        func = mod.__dict__[k]
+        if isinstance(func, types.FunctionType):
             test_handle(func)
 
-def print_counts():
-    print "ConstPopEliminator:", ConstPopEliminator.counter
-    print "ConstantExpressionEvaluator:", ConstantExpressionEvaluator.counter
-    print "ConstantShortcut:", ConstantShortcut.counter
-    print "IdentityShortcut:", IdentityShortcut.counter
-    print "JumpNextEliminator:", JumpNextEliminator.counter
-    print "JumpOptimizer:", JumpOptimizer.counter
-    print "LineNumberRemover:", LineNumberRemover.counter
-    print "LoadStoreCompressor:", LoadStoreCompressor.counter
-    print "MultiLoadEliminator:", MultiLoadEliminator.counter
-    print "SelfGenerator:", SelfGenerator.counter
-    print "SimpleCommuter:", SimpleCommuter.counter
-    print "StoreLoadEliminator:", StoreLoadEliminator.counter
-    print "TupleRearranger:", TupleRearranger.counter
-    print "UnreachableCodeRemover:", UnreachableCodeRemover.counter
+OPTFUNCS = {
+    0: optimize0,
+    5: optimize5,
+}
+OPTLEVEL = os.environ.get('OPTLEVEL', "0")
+optimize = OPTFUNCS.get(OPTLEVEL, 0)
 
-try:
-    func = 'optimize%d'%string.atoi(os.environ['OPTLEVEL'])
-    optimize = eval(func)
-except KeyError:
-    optimize = optimize5
+def main():
+    for name in sys.argv[1:]:
+        mod = importlib.import_module(name)
+        test1(mod)
+    return 0
 
-#import sys
-#sys.exitfunc = print_counts
-
-if __name__ == "__main__": test1()
+if __name__ == "__main__":
+    sys.exit(main())
