@@ -873,8 +873,7 @@ def test_handle(func):
     isg.optimize()
     print()
     print("Register version:")
-    d = dis.RegisterDisassembler()
-    d.disassemble_string(isg.code())
+    dis.dis(isg.code())
 
 def test1(mod=os):
     test_handle(f)
