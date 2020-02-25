@@ -119,7 +119,7 @@ for the future."""
         return tuple(block)
 
     def findlabels(self, code):
-        #print ">>", self.iset
+        #print(">>", self.iset)
         labels = {0:1}
         n = len(code)
         i = 0
@@ -138,7 +138,7 @@ for the future."""
                 i = i + nbytes
         labels = list(labels.keys())
         labels.sort()
-        #print ">> labels (OptimizeFilter.findlabels):", labels
+        #print(">> labels (OptimizeFilter.findlabels):", labels)
         return labels
 
     def findlabelsold(self, code):
@@ -189,7 +189,7 @@ for the future."""
         """Convert code string to block form."""
         blocks = []
         labels = self.findlabels(code)
-        #print ">>> labels:", labels
+        #print(">>> labels:", labels)
         n = len(code)
         i = 0
         while i < n:
@@ -221,9 +221,9 @@ for the future."""
         for block in self.output:
             blockaddrs.append(blocklength(block)+blockaddrs[-1])
 
-        #print ">>> block addresses:", blockaddrs
+        #print(">>> block addresses:", blockaddrs)
         #for i in range(len(self.output)):
-            #print ">> block:", i, "address:", blockaddrs[i]
+            #print(">> block:", i, "address:", blockaddrs[i])
             #pprint.pprint(self.namify(self.output[i]))
 
         codelist = [self.iset.opmap['NEW_VM_REG']]
@@ -234,15 +234,15 @@ for the future."""
                     op = chr(inst[0])
                     codelist.append(op)
                     fmt = self.iset.format(inst[0])
-                    #print ">>", (i, self.iset.opname[inst[0]], fmt),
+                    #print(">>", (i, self.iset.opname[inst[0]], fmt), end=" ")
                     i = i + 1
                     if 'A' in fmt:
                         arg = inst[1]
                         i = i + len(arg)
-                        #print "block:", arg[0]|(arg[1]<<8),
+                        #print("block:", arg[0]|(arg[1]<<8), end=" ")
                         addr = blockaddrs[arg[0]|(arg[1]<<8)]
-                        #print "address:", addr,
-                        #print "encoded:", (chr(addr&0xff),chr(addr>>8)),
+                        #print("address:", addr, end=" ")
+                        #print("encoded:", (chr(addr&0xff),chr(addr>>8)), end=" ")
                         codelist.append("%s%s" %
                                         (chr(addr&0xff), chr(addr>>8)))
                         for j in arg[2:]:
@@ -250,11 +250,11 @@ for the future."""
                     elif 'a' in fmt:
                         arg = inst[1]
                         i = i + len(arg)
-                        #print "block:", arg[0]|(arg[1]<<8),
+                        #print("block:", arg[0]|(arg[1]<<8), end=" ")
                         addr = blockaddrs[arg[0]|(arg[1]<<8)]-i
-                        #print "address:", blockaddrs[arg[0]|(arg[1]<<8)],
-                        #print "offset:", addr,
-                        #print "encoded:", (chr(addr&0xff),chr(addr>>8)),
+                        #print("address:", blockaddrs[arg[0]|(arg[1]<<8)], end=" ")
+                        #print("offset:", addr, end=" ")
+                        #print("encoded:", (chr(addr&0xff),chr(addr>>8)), end=" ")
                         codelist.append("%s%s" %
                                         (chr(addr&0xff), chr(addr>>8)))
                         for j in arg[2:]:
@@ -428,14 +428,14 @@ class InstructionSetConverter(OptimizeFilter):
 
     def set_block_stacklevel(self, id_, level):
         """set the input stack level for particular block"""
-        #print ">> set:", (id_, level)
+        #print(">> set:", (id_, level))
         self.input[id_].set_stacklevel(level)
 
     def optimize(self):
         self.stacklevel = self.code_.co_nlocals
         self.unhandledops = {}
         self.skippedops = {}
-        #print ">> start:", self.stacklevel
+        #print(">> start:", self.stacklevel)
         OptimizeFilter.optimize(self)
 
     # series of operations below mimic the stack changes of various
@@ -443,18 +443,18 @@ class InstructionSetConverter(OptimizeFilter):
     def push(self):
         """increment and return next writable slot on the stack"""
         self.stacklevel = self.stacklevel + 1
-        #print ">> push:", self.stacklevel
+        #print(">> push:", self.stacklevel)
         return self.stacklevel - 1
 
     def pop(self):
         """return top readable slot on the stack and decrement"""
         self.stacklevel = self.stacklevel - 1
-        #print ">> pop:", self.stacklevel
+        #print(">> pop:", self.stacklevel)
         return self.stacklevel
 
     def top(self):
         """return top readable slot on the stack"""
-        #print ">> top:", self.stacklevel
+        #print(">> top:", self.stacklevel)
         return self.stacklevel
 
     def set_stacklevel(self, level):
@@ -462,7 +462,7 @@ class InstructionSetConverter(OptimizeFilter):
         if level < self.code_.co_nlocals:
             raise ValueError("invalid stack level: %d" % level)
         self.stacklevel = level
-        #print ">> set:", self.stacklevel
+        #print(">> set:", self.stacklevel)
         return self.stacklevel
 
 
@@ -735,7 +735,7 @@ class InstructionSetConverter(OptimizeFilter):
         newblock = Block()
         for i in block:
             try:
-                #print ">>", opcodes.stack.opname[i[0]]
+                #print(">>", opcodes.stack.opname[i[0]])
                 newop = self.dispatch[i[0]](self, i)
                 if newop is None:
                     try:
