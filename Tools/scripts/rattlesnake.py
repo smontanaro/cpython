@@ -13,7 +13,8 @@ import os
 import sys
 import types
 
-import opcodes
+# TBD... will change at some point
+import regopcodes as opcodes
 
 __version__ = "0.3"
 
