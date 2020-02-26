@@ -15,6 +15,9 @@ class InstructionSet:
             self.opname[op] = '<' + repr(op) + '>'
         self.opmap = {}
         self.argsmap = {}
+        self.jumps = set()
+        self.abs_jumps = set()
+        self.rel_jumps = set()
 
     def def_op(self, name, op, argfmt=""):
         """Associate an opcode with a name & describe arguments.
@@ -27,7 +30,7 @@ class InstructionSet:
         < - comparison operator
         ? - unknown (just a placeholder to get the byte count correct...)
         A - absolute bytecode address
-       a - relative bytecode address
+        a - relative bytecode address
         c - index in constant list
         I - literal integer
         i - index in small ints cache
@@ -38,6 +41,17 @@ class InstructionSet:
         self.opmap[name] = op
         self.opname[op] = name
         self.argsmap[op] = argfmt
+
+    # More TBD, I'm sure...
+    def jabs_op(self, name, op, argfmt=""):
+        self.jumps.add(op)
+        self.abs_jumps.add(op)
+        return self.def_op(name, op, argfmt)
+    def jrel_op(self, name, op, argfmt=""):
+        self.jumps.add(op)
+        self.rel_jumps.add(op)
+        return self.def_op(name, op, argfmt)
+    name_op = def_op
 
     def argbytes(self, op):
         try:
@@ -51,6 +65,7 @@ class InstructionSet:
             return self.argsmap[op]
         except KeyError:
             print(">> no opcode:", op, oct(op))
+            print(">> argsmap keys:", list(self.argsmap.keys()))
             raise
 
 class StackInstructionSet(InstructionSet):
@@ -81,36 +96,47 @@ class RegisterInstructionSet(InstructionSet):
 
 stack = StackInstructionSet()
 #               name                    opcode          args
-stack.def_op('STOP_CODE', 0, '')
 stack.def_op('POP_TOP', 1, '')
 stack.def_op('ROT_TWO', 2, '')
 stack.def_op('ROT_THREE', 3, '')
 stack.def_op('DUP_TOP', 4, '')
-stack.def_op('LOAD_NONE', 5, '')
+stack.def_op('DUP_TOP_TWO', 5, '')
+stack.def_op('ROT_FOUR', 6, '')
+
+stack.def_op('NOP', 9, '')
 stack.def_op('UNARY_POSITIVE', 10, '')
 stack.def_op('UNARY_NEGATIVE', 11, '')
 stack.def_op('UNARY_NOT', 12, '')
-stack.def_op('UNARY_CONVERT', 13, '')
+
 stack.def_op('UNARY_INVERT', 15, '')
+
+stack.def_op('BINARY_MATRIX_MULTIPLY', 16, '')
+stack.def_op('INPLACE_MATRIX_MULTIPLY', 16, '')
+
 stack.def_op('BINARY_POWER', 19, '')
 stack.def_op('BINARY_MULTIPLY', 20, '')
-stack.def_op('BINARY_DIVIDE', 21, '')
+
 stack.def_op('BINARY_MODULO', 22, '')
 stack.def_op('BINARY_ADD', 23, '')
 stack.def_op('BINARY_SUBTRACT', 24, '')
 stack.def_op('BINARY_SUBSCR', 25, '')
-stack.def_op('SLICE+0', 30, '')
-stack.def_op('SLICE+1', 31, '')
-stack.def_op('SLICE+2', 32, '')
-stack.def_op('SLICE+3', 33, '')
-stack.def_op('STORE_SLICE+0', 40, '')
-stack.def_op('STORE_SLICE+1', 41, '')
-stack.def_op('STORE_SLICE+2', 42, '')
-stack.def_op('STORE_SLICE+3', 43, '')
-stack.def_op('DELETE_SLICE+0', 50, '')
-stack.def_op('DELETE_SLICE+1', 51, '')
-stack.def_op('DELETE_SLICE+2', 52, '')
-stack.def_op('DELETE_SLICE+3', 53, '')
+stack.def_op('BINARY_FLOOR_DIVIDE', 26, '')
+stack.def_op('BINARY_TRUE_DIVIDE', 27, '')
+stack.def_op('INPLACE_FLOOR_DIVIDE', 28, '')
+stack.def_op('INPLACE_TRUE_DIVIDE', 29, '')
+
+stack.def_op('RERAISE', 48, '')
+stack.def_op('WITH_EXCEPT_START', 49, '')
+stack.def_op('GET_AITER', 50, '')
+stack.def_op('GET_ANEXT', 51, '')
+stack.def_op('BEFORE_ASYNC_WITH', 52, '')
+
+stack.def_op('END_ASYNC_FOR', 54, '')
+stack.def_op('INPLACE_ADD', 55, '')
+stack.def_op('INPLACE_SUBTRACT', 56, '')
+stack.def_op('INPLACE_MULTIPLY', 57, '')
+
+stack.def_op('INPLACE_MODULO', 59, '')
 stack.def_op('STORE_SUBSCR', 60, '')
 stack.def_op('DELETE_SUBSCR', 61, '')
 stack.def_op('BINARY_LSHIFT', 62, '')
@@ -118,52 +144,117 @@ stack.def_op('BINARY_RSHIFT', 63, '')
 stack.def_op('BINARY_AND', 64, '')
 stack.def_op('BINARY_XOR', 65, '')
 stack.def_op('BINARY_OR', 66, '')
+stack.def_op('INPLACE_POWER', 67, '')
+stack.def_op('GET_ITER', 68, '')
+stack.def_op('GET_YIELD_FROM_ITER', 69, '')
+
 stack.def_op('PRINT_EXPR', 70, '')
-stack.def_op('PRINT_ITEM', 71, '')
-stack.def_op('PRINT_NEWLINE', 72, '')
-stack.def_op('BREAK_LOOP', 80, '')
-stack.def_op('LOAD_LOCALS', 82, '')
+stack.def_op('LOAD_BUILD_CLASS', 71, '')
+stack.def_op('YIELD_FROM', 72, '')
+stack.def_op('GET_AWAITABLE', 73, '')
+stack.def_op('LOAD_ASSERTION_ERROR', 74, '')
+stack.def_op('INPLACE_LSHIFT', 75, '')
+stack.def_op('INPLACE_RSHIFT', 76, '')
+stack.def_op('INPLACE_AND', 77, '')
+stack.def_op('INPLACE_XOR', 78, '')
+stack.def_op('INPLACE_OR', 79, '')
+
+stack.def_op('LIST_TO_TUPLE', 82, '')
 stack.def_op('RETURN_VALUE', 83, '')
-stack.def_op('EXEC_STMT', 85, '')
+stack.def_op('IMPORT_STAR', 84, '')
+stack.def_op('SETUP_ANNOTATIONS', 85, '')
+stack.def_op('YIELD_VALUE', 86, '')
 stack.def_op('POP_BLOCK', 87, '')
-stack.def_op('END_FINALLY', 88, '')
-stack.def_op('BUILD_CLASS', 89, '')
-stack.def_op('STORE_NAME', 90, 'n+')
-stack.def_op('DELETE_NAME', 91, 'n+')
-stack.def_op('UNPACK_TUPLE', 92, 'I+')
-stack.def_op('UNPACK_LIST', 93, 'I+')
-stack.def_op('STORE_ATTR', 95, 'n+')
-stack.def_op('DELETE_ATTR', 96, 'n+')
-stack.def_op('STORE_GLOBAL', 97, 'n+')
-stack.def_op('DELETE_GLOBAL', 98, 'n+')
+
+stack.def_op('POP_EXCEPT', 89, '')
+
+# Opcodes from here have an argument
+
+stack.name_op('STORE_NAME', 90, 'n+')
+stack.name_op('DELETE_NAME', 91, 'n+')
+stack.def_op('UNPACK_SEQUENCE', 92, 'I+')
+stack.jrel_op('FOR_ITER', 93, '???')
+stack.def_op('UNPACK_EX', 94, '???')
+stack.name_op('STORE_ATTR', 95, 'n+')
+stack.name_op('DELETE_ATTR', 96, 'n+')
+stack.name_op('STORE_GLOBAL', 97, 'n+')
+stack.name_op('DELETE_GLOBAL', 98, 'n+')
 stack.def_op('LOAD_CONST', 100, 'c+')
-stack.def_op('LOAD_NAME', 101, 'n+')
+
+stack.name_op('LOAD_NAME', 101, 'n+')
 stack.def_op('BUILD_TUPLE', 102, 'I+')
 stack.def_op('BUILD_LIST', 103, 'I+')
-stack.def_op('BUILD_MAP', 104, 'I+')
-stack.def_op('LOAD_ATTR', 105, 'n+')
-stack.def_op('COMPARE_OP', 106, '<+')
-stack.def_op('IMPORT_NAME', 107, 'n+')
-stack.def_op('IMPORT_FROM', 108, 'n+')
-stack.def_op('JUMP_FORWARD', 110, 'a+')
-stack.def_op('JUMP_IF_FALSE', 111, 'a+')
-stack.def_op('JUMP_IF_TRUE', 112, 'a+')
-stack.def_op('JUMP_ABSOLUTE', 113, 'A+')
-stack.def_op('FOR_LOOP', 114, 'a+')
-stack.def_op('LOAD_GLOBAL', 116, 'n+')
-stack.def_op('LOAD_ATTR_FAST', 118, 'rn')
-stack.def_op('STORE_ATTR_FAST', 119, 'rn')
-stack.def_op('SETUP_LOOP', 120, 'a+')
-stack.def_op('SETUP_EXCEPT', 121, 'a+')
+stack.def_op('BUILD_SET', 104, 'I+')
+stack.def_op('BUILD_MAP', 105, 'I+')
+stack.name_op('LOAD_ATTR', 106, 'n+')
+stack.def_op('COMPARE_OP', 107, '<+')
+
+stack.name_op('IMPORT_NAME', 108, 'n+')
+stack.name_op('IMPORT_FROM', 109, 'n+')
+
+stack.jrel_op('JUMP_FORWARD', 110, 'a+')
+stack.jabs_op('JUMP_IF_FALSE_OR_POP', 111, 'a+')
+stack.jabs_op('JUMP_IF_TRUE_OR_POP', 112, 'a+')
+stack.jabs_op('JUMP_ABSOLUTE', 113, 'A+')
+stack.jabs_op('POP_JUMP_IF_FALSE', 114, '???')
+stack.jabs_op('POP_JUMP_IF_TRUE', 115, '???')
+
+stack.name_op('LOAD_GLOBAL', 116, 'n+')
+
+stack.def_op('IS_OP', 117, '???')
+stack.def_op('CONTAINS_OP', 118, '???')
+
+stack.def_op('JUMP_IF_NOT_EXC_MATCH', 121, '???')
 stack.def_op('SETUP_FINALLY', 122, 'a+')
+
 stack.def_op('LOAD_FAST', 124, 'r+')
+
 stack.def_op('STORE_FAST', 125, 'r+')
+
 stack.def_op('DELETE_FAST', 126, 'r+')
-stack.def_op('SET_LINENO', 127, 'L+')
+
+
 stack.def_op('RAISE_VARARGS', 130, 'I+')
 stack.def_op('CALL_FUNCTION', 131, 'II')
 stack.def_op('MAKE_FUNCTION', 132, 'I+')
 stack.def_op('BUILD_SLICE', 133, 'I+')
+stack.def_op('LOAD_CLOSURE', 135, '???')
+
+stack.def_op('LOAD_DEREF', 136, '???')
+
+stack.def_op('STORE_DEREF', 137, '???')
+
+stack.def_op('DELETE_DEREF', 138, '???')
+
+
+stack.def_op('CALL_FUNCTION_KW', 141, '???')
+stack.def_op('CALL_FUNCTION_EX', 142, '???')
+
+stack.jrel_op('SETUP_WITH', 143, '???')
+
+stack.def_op('LIST_APPEND', 145, '???')
+stack.def_op('SET_ADD', 146, '???')
+stack.def_op('MAP_ADD', 147, '???')
+
+stack.def_op('LOAD_CLASSDEREF', 148, '???')
+
+
+stack.def_op('EXTENDED_ARG', 144, '???')
+
+
+stack.jrel_op('SETUP_ASYNC_WITH', 154, '???')
+
+stack.def_op('FORMAT_VALUE', 155, '???')
+stack.def_op('BUILD_CONST_KEY_MAP', 156, '???')
+stack.def_op('BUILD_STRING', 157, '???')
+
+stack.name_op('LOAD_METHOD', 160, '???')
+stack.def_op('CALL_METHOD', 161, '???')
+
+stack.def_op('LIST_EXTEND', 162, '???')
+stack.def_op('SET_UPDATE', 163, '???')
+stack.def_op('DICT_MERGE', 164, '???')
+stack.def_op('DICT_UPDATE', 165, '???')
 
 register = RegisterInstructionSet()
 
