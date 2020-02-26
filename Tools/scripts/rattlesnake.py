@@ -119,52 +119,33 @@ for the future."""
         return tuple(block)
 
     def findlabels(self, code):
-        #print(">>", self.iset)
+        print(">>", code)
         labels = {0:1}
         n = len(code)
         i = 0
         while i < n:
             op = code[i]
-            i = i+1
+            opname = opcodes.stack.opname[op]
             fmt = self.iset.format(op)
-            if fmt:
-                # nbytes = len(fmt)
-                nbytes = 2
-                args = code[i:i+nbytes]
-                addr = args[0]|(args[1]<<8)
-                if 'a' in fmt:
-                    labels[i + addr + nbytes] = 1
-                elif 'A' in fmt:
-                    labels[addr] = 1
-                i = i + nbytes
+            print("  ", opname, "fmt:", repr(fmt))
+            nbytes = len(fmt)
+            if nbytes == 1:
+                addr = code[i+1]
+                i += 2
+            else:
+                assert nbytes == 3, (opname, fmt, nbytes)
+                addr = code[i+1] | code[i+2] << 8 | code[i+3] << 16
+                i += 4
+            print("  ", addr)
+            if 'a' in fmt:
+                # relative jump
+                labels[i + addr + nbytes] = 1
+            elif 'A' in fmt:
+                # abs jump
+                labels[addr] = 1
         labels = list(labels.keys())
         labels.sort()
         #print(">> labels (OptimizeFilter.findlabels):", labels)
-        return labels
-
-    def findlabelsold(self, code):
-        labels = {0:1}
-        n = len(code)
-        i = 0
-        while i < n:
-            op = ord(code[i])
-            i = i+1
-            if opcodes.stack.has_argument(op):
-                try:
-                    oparg = ord(code[i]) + ord(code[i+1])*256
-                except (TypeError, IndexError):
-                    raise IndexError("<%02d> %d" % (op, i))
-                else:
-                    i = i+2
-                    label = -1
-                    if is_abs_jump(op):
-                        label = oparg
-                    elif is_jump(op):
-                        label = i+oparg
-                    if label >= 0:
-                        labels[label] = 1
-        labels = list(labels.keys())
-        labels.sort()
         return labels
 
     def optimize(self):
@@ -196,22 +177,26 @@ for the future."""
         while i < n:
             if i in labels:
                 blocks.append(Block())
-            c = code[i]
-            op = ord(c)
+            op = code[i]
+            opname = opcodes.stack.opname[op]
+            oparg = code[i+1]
+            print(opname, op, oparg)
             fmt = self.iset.format(op)
-            i = i + 1
+            i += 2
             if opcodes.stack.has_argument(op):
-                oparg = (ord(code[i]), ord(code[i+1]))
-                argval = oparg[0]+(oparg[1]<<8)
-                i = i + 2
-                if 'A' in fmt:
-                    blocks[-1].append((op, (labels.index(argval), 0)))
-                elif 'a' in fmt:
-                    blocks[-1].append((op, (labels.index(i+argval), 0)))
-                else:
-                    blocks[-1].append((op, oparg))
+                try:
+                    if 'A' in fmt:
+                        blocks[-1].append((op, (labels.index(oparg), 0)))
+                    elif 'a' in fmt:
+                        blocks[-1].append((op, (labels.index(i+1+oparg), 0)))
+                    else:
+                        blocks[-1].append((op, oparg))
+                except ValueError:
+                    print(">>", labels)
+                    raise
             else:
-                blocks[-1].append((op,))
+                assert oparg == 0
+                blocks[-1].append((op, oparg))
         return blocks
 
     def code(self):
@@ -428,8 +413,12 @@ class InstructionSetConverter(OptimizeFilter):
 
     def set_block_stacklevel(self, id_, level):
         """set the input stack level for particular block"""
-        #print(">> set:", (id_, level))
-        self.input[id_].set_stacklevel(level)
+        print(">> set:", (id_, level))
+        try:
+            self.input[id_].set_stacklevel(level)
+        except IndexError:
+            print("!!", id_, level, self.input)
+            raise
 
     def optimize(self):
         self.stacklevel = self.code_.co_nlocals
@@ -548,52 +537,34 @@ class InstructionSetConverter(OptimizeFilter):
     # dispatch[opcodes.stack.opmap['BUILD_CLASS']] = function_convert
 
     def jump_convert(self, op):
+        retval = None
         if op[0] == opcodes.stack.opmap['RETURN_VALUE']:
             val = self.pop()
-            return (opcodes.register.opmap['RETURN_VALUE_REG'], (val,))
-        # Gone...
-        # if op[0] == opcodes.stack.opmap['JUMP_IF_FALSE']:
-        #     tgt1 = op[1][0]
-        #     tgt2 = op[1][1]
-        #     self.set_block_stacklevel(tgt1+(tgt2<<8), self.top())
-        #     return (opcodes.register.opmap['JUMP_IF_FALSE_REG'],
-        #             (tgt1, tgt2, self.top()))
-        # if op[0] == opcodes.stack.opmap['JUMP_IF_TRUE']:
-        #     tgt1 = op[1][0]
-        #     tgt2 = op[1][1]
-        #     self.set_block_stacklevel(tgt1+(tgt2<<8), self.top())
-        #     return (opcodes.register.opmap['JUMP_IF_TRUE_REG'],
-        #             (tgt1, tgt2, self.top()))
-        opname = "%s_REG" % opcodes.stack.opname[op[0]]
-        if op[0] in (opcodes.stack.opmap['JUMP_FORWARD'],
-                     opcodes.stack.opmap['JUMP_ABSOLUTE']):
-            tgt1 = op[1][0]
-            tgt2 = op[1][1]
-            self.set_block_stacklevel(tgt1+(tgt2<<8), self.top())
-            return (opcodes.register.opmap[opname], (tgt1, tgt2))
-        if op[0] == opcodes.stack.opmap['FOR_LOOP']:
-            tgt1 = op[1][0]
-            tgt2 = op[1][1]
-            index = self.pop()
-            obj = self.pop()
-            incr = self.push()
-            self.set_block_stacklevel(tgt1+(tgt2<<8), self.top())
-            return (opcodes.register.opmap['FOR_LOOP_REG'],
-                    (tgt1, tgt2, index, obj, incr))
-        if op[0] == opcodes.stack.opmap['SETUP_LOOP']:
-            tgt1 = op[1][0]
-            tgt2 = op[1][1]
-            lvl = self.top()
-            self.set_block_stacklevel(tgt1+(tgt2<<8), self.top())
-            return (opcodes.register.opmap['SETUP_LOOP_REG'],
-                    (tgt1, tgt2, lvl))
-        if op[0] == opcodes.stack.opmap['BREAK_LOOP']:
-            return (opcodes.register.opmap['BREAK_LOOP_REG'], ())
-        return None
+            retval = (opcodes.register.opmap['RETURN_VALUE_REG'], (val,))
+        elif op[0] == opcodes.stack.opmap['POP_JUMP_IF_FALSE']:
+            tgt = op[1]
+            self.set_block_stacklevel(tgt, self.top())
+            retval = (opcodes.register.opmap['POP_JUMP_IF_FALSE_REG'],
+                      (tgt, self.top()))
+        elif op[0] == opcodes.stack.opmap['POP_JUMP_IF_TRUE']:
+            tgt = op[1]
+            self.set_block_stacklevel(tgt, self.top())
+            retval = (opcodes.register.opmap['POP_JUMP_IF_TRUE_REG'],
+                      (tgt, self.top()))
+        else:
+            opname = "%s_REG" % opcodes.stack.opname[op[0]]
+            if op[0] in (opcodes.stack.opmap['JUMP_FORWARD'],
+                         opcodes.stack.opmap['JUMP_ABSOLUTE']):
+                tgt = op[1]
+                self.set_block_stacklevel(tgt, self.top())
+                retval = (opcodes.register.opmap[opname], (tgt1,))
+        if retval is None:
+            print("!!", "Unhandled opcode:", op)
+        return retval
     dispatch[opcodes.stack.opmap['JUMP_FORWARD']] = jump_convert
     dispatch[opcodes.stack.opmap['JUMP_ABSOLUTE']] = jump_convert
-    # dispatch[opcodes.stack.opmap['JUMP_IF_FALSE']] = jump_convert
-    # dispatch[opcodes.stack.opmap['JUMP_IF_TRUE']] = jump_convert
+    dispatch[opcodes.stack.opmap['POP_JUMP_IF_FALSE']] = jump_convert
+    dispatch[opcodes.stack.opmap['POP_JUMP_IF_TRUE']] = jump_convert
     dispatch[opcodes.stack.opmap['JUMP_ABSOLUTE']] = jump_convert
     # dispatch[opcodes.stack.opmap['FOR_LOOP']] = jump_convert
     # dispatch[opcodes.stack.opmap['SETUP_LOOP']] = jump_convert
@@ -602,15 +573,15 @@ class InstructionSetConverter(OptimizeFilter):
 
     def load_convert(self, op):
         if op[0] == opcodes.stack.opmap['LOAD_FAST']:
-            src = op[1][0]
+            src = op[1]
             dst = self.push()
             return (opcodes.register.opmap['LOAD_FAST_REG'], (src, dst))
         if op[0] == opcodes.stack.opmap['LOAD_CONST']:
-            src = op[1][0]
+            src = op[1]
             dst = self.push()
             return (opcodes.register.opmap['LOAD_CONST_REG'], (src, dst))
         if op[0] == opcodes.stack.opmap['LOAD_GLOBAL']:
-            src = op[1][0]
+            src = op[1]
             dst = self.push()
             return (opcodes.register.opmap['LOAD_GLOBAL_REG'], (src, dst))
         return None
@@ -620,11 +591,11 @@ class InstructionSetConverter(OptimizeFilter):
 
     def store_convert(self, op):
         if op[0] == opcodes.stack.opmap['STORE_FAST']:
-            dst = op[1][0]
+            dst = op[1]
             src = self.pop()
             return (opcodes.register.opmap['LOAD_FAST_REG'], (src, dst))
         if op[0] == opcodes.stack.opmap['STORE_GLOBAL']:
-            dst = op[1][0]
+            dst = op[1]
             src = self.pop()
             return (opcodes.register.opmap['STORE_GLOBAL_REG'], (src, dst))
         return None
@@ -634,17 +605,17 @@ class InstructionSetConverter(OptimizeFilter):
     def attr_convert(self, op):
         if op[0] == opcodes.stack.opmap['LOAD_ATTR']:
             obj = self.pop()
-            attr = op[1][0]
+            attr = op[1]
             dst = self.push()
             return (opcodes.register.opmap['LOAD_ATTR_REG'], (obj, attr, dst))
         if op[0] == opcodes.stack.opmap['STORE_ATTR']:
             obj = self.pop()
-            attr = op[1][0]
+            attr = op[1]
             val = self.pop()
             return (opcodes.register.opmap['STORE_ATTR_REG'], (obj, attr, val))
         if op[0] == opcodes.stack.opmap['DELETE_ATTR']:
             obj = self.pop()
-            attr = op[1][0]
+            attr = op[1]
             return (opcodes.register.opmap['DELETE_ATTR_REG'], (obj, attr))
         return None
     dispatch[opcodes.stack.opmap['STORE_ATTR']] = attr_convert
@@ -658,14 +629,14 @@ class InstructionSetConverter(OptimizeFilter):
         opname = "%s_REG" % opcodes.stack.opname[op[0]]
         if op[0] in (opcodes.stack.opmap['BUILD_LIST'],
                      opcodes.stack.opmap['BUILD_TUPLE']):
-            n = op[1][0]
+            n = op[1]
             for _ in range(n):
                 self.pop()
             src = self.top()
             dst = self.push()
             return (opcodes.register.opmap[opname], (n, src, dst))
         if op[0] == opcodes.stack.opmap['UNPACK_SEQUENCE']:
-            n = op[1][0]
+            n = op[1]
             src = self.pop()
             for _ in range(n):
                 self.push()
@@ -678,7 +649,7 @@ class InstructionSetConverter(OptimizeFilter):
 
     def compare_convert(self, op):
         if op[0] == opcodes.stack.opmap['COMPARE_OP']:
-            cmpop = op[1][0]
+            cmpop = op[1]
             src2 = self.pop()
             src1 = self.pop()
             dst = self.push()
@@ -723,30 +694,25 @@ class InstructionSetConverter(OptimizeFilter):
     dispatch[opcodes.stack.opmap['PRINT_EXPR']] = misc_convert
 
     def optimize_block(self, block):
+        print(">> block:", block.block)
         block_stacklevel = block.get_stacklevel()
         if block_stacklevel != -1:
             self.set_stacklevel(block_stacklevel)
         newblock = Block()
         for i in block:
-            try:
-                #print(">>", opcodes.stack.opname[i[0]])
-                newop = self.dispatch[i[0]](self, i)
-                if newop is None:
-                    try:
-                        self.unhandledops[i[0]] = self.unhandledops[i[0]] + 1
-                    except KeyError:
-                        print("unhandled", opcodes.stack.opname[i[0]])
-                        self.unhandledops[i[0]] = 1
-                elif newop != ():
-                    newblock.append(newop)
-            except KeyError:
+            op = i[0]
+            oparg = i[1]
+            print(">>", opcodes.stack.opname[op])
+            newop = self.dispatch[op](self, i)
+            if newop is None:
                 try:
-                    self.skippedops[i[0]] = self.skippedops[i[0]] + 1
+                    self.unhandledops[op] += + 1
                 except KeyError:
-                    if i[0] != opcodes.stack.opmap['SET_LINENO']:
-                        print("skipping", opcodes.stack.opname[i[0]])
-                        self.skippedops[i[0]] = 1
-
+                    print("unhandled", opcodes.stack.opname[op])
+                    self.unhandledops[op] = 1
+            elif newop:
+                newblock.append(newop)
+        print(">> newblock:", newblock.block)
         return newblock
 
 
