@@ -124,12 +124,13 @@ for the future."""
         n = len(code)
         i = 0
         while i < n:
-            op = ord(code[i])
+            op = code[i]
             i = i+1
             fmt = self.iset.format(op)
             if fmt:
-                nbytes = len(fmt)
-                args = [ord(x) for x in code[i:i+nbytes]]
+                # nbytes = len(fmt)
+                nbytes = 2
+                args = code[i:i+nbytes]
                 addr = args[0]|(args[1]<<8)
                 if 'a' in fmt:
                     labels[i + addr + nbytes] = 1
@@ -396,7 +397,6 @@ class InstructionSetConverter(OptimizeFilter):
                         opcodes.stack.opmap['STORE_NAME']:1,
                         opcodes.stack.opmap['DELETE_NAME']:1,
                         opcodes.stack.opmap['SETUP_FINALLY']:1,
-                        opcodes.stack.opmap['SETUP_EXCEPT']:1,
                         opcodes.stack.opmap['IMPORT_FROM']:1}
     dispatch = {}
 
@@ -475,7 +475,6 @@ class InstructionSetConverter(OptimizeFilter):
     dispatch[opcodes.stack.opmap['UNARY_POSITIVE']] = unary_convert
     dispatch[opcodes.stack.opmap['UNARY_NEGATIVE']] = unary_convert
     dispatch[opcodes.stack.opmap['UNARY_NOT']] = unary_convert
-    dispatch[opcodes.stack.opmap['UNARY_CONVERT']] = unary_convert
 
     def binary_convert(self, op):
         opname = "%s_REG" % opcodes.stack.opname[op[0]]
@@ -485,7 +484,9 @@ class InstructionSetConverter(OptimizeFilter):
         return (opcodes.register.opmap[opname], (src1, src2, dst))
     dispatch[opcodes.stack.opmap['BINARY_POWER']] = binary_convert
     dispatch[opcodes.stack.opmap['BINARY_MULTIPLY']] = binary_convert
-    dispatch[opcodes.stack.opmap['BINARY_DIVIDE']] = binary_convert
+    dispatch[opcodes.stack.opmap['BINARY_MATRIX_MULTIPLY']] = binary_convert
+    dispatch[opcodes.stack.opmap['BINARY_TRUE_DIVIDE']] = binary_convert
+    dispatch[opcodes.stack.opmap['BINARY_FLOOR_DIVIDE']] = binary_convert
     dispatch[opcodes.stack.opmap['BINARY_MODULO']] = binary_convert
     dispatch[opcodes.stack.opmap['BINARY_ADD']] = binary_convert
     dispatch[opcodes.stack.opmap['BINARY_SUBTRACT']] = binary_convert
@@ -529,11 +530,12 @@ class InstructionSetConverter(OptimizeFilter):
                 src = self.pop()
             return (opcodes.register.opmap['CALL_FUNCTION_REG'],
                     (na, nk, src))
-        if op[0] == opcodes.stack.opmap['BUILD_CLASS']:
-            u = self.pop()
-            v = self.pop()
-            w = self.pop()
-            return (opcodes.register.opmap['BUILD_CLASS_REG'], (u, v, w))
+        # TBD - BUILD_CLASS is gone
+        # if op[0] == opcodes.stack.opmap['BUILD_CLASS']:
+        #     u = self.pop()
+        #     v = self.pop()
+        #     w = self.pop()
+        #     return (opcodes.register.opmap['BUILD_CLASS_REG'], (u, v, w))
         if op[0] == opcodes.stack.opmap['MAKE_FUNCTION']:
             code = self.pop()
             n = op[1][0]|(op[1][1]<<8)
@@ -543,24 +545,25 @@ class InstructionSetConverter(OptimizeFilter):
         return None
     dispatch[opcodes.stack.opmap['MAKE_FUNCTION']] = function_convert
     dispatch[opcodes.stack.opmap['CALL_FUNCTION']] = function_convert
-    dispatch[opcodes.stack.opmap['BUILD_CLASS']] = function_convert
+    # dispatch[opcodes.stack.opmap['BUILD_CLASS']] = function_convert
 
     def jump_convert(self, op):
         if op[0] == opcodes.stack.opmap['RETURN_VALUE']:
             val = self.pop()
             return (opcodes.register.opmap['RETURN_VALUE_REG'], (val,))
-        if op[0] == opcodes.stack.opmap['JUMP_IF_FALSE']:
-            tgt1 = op[1][0]
-            tgt2 = op[1][1]
-            self.set_block_stacklevel(tgt1+(tgt2<<8), self.top())
-            return (opcodes.register.opmap['JUMP_IF_FALSE_REG'],
-                    (tgt1, tgt2, self.top()))
-        if op[0] == opcodes.stack.opmap['JUMP_IF_TRUE']:
-            tgt1 = op[1][0]
-            tgt2 = op[1][1]
-            self.set_block_stacklevel(tgt1+(tgt2<<8), self.top())
-            return (opcodes.register.opmap['JUMP_IF_TRUE_REG'],
-                    (tgt1, tgt2, self.top()))
+        # Gone...
+        # if op[0] == opcodes.stack.opmap['JUMP_IF_FALSE']:
+        #     tgt1 = op[1][0]
+        #     tgt2 = op[1][1]
+        #     self.set_block_stacklevel(tgt1+(tgt2<<8), self.top())
+        #     return (opcodes.register.opmap['JUMP_IF_FALSE_REG'],
+        #             (tgt1, tgt2, self.top()))
+        # if op[0] == opcodes.stack.opmap['JUMP_IF_TRUE']:
+        #     tgt1 = op[1][0]
+        #     tgt2 = op[1][1]
+        #     self.set_block_stacklevel(tgt1+(tgt2<<8), self.top())
+        #     return (opcodes.register.opmap['JUMP_IF_TRUE_REG'],
+        #             (tgt1, tgt2, self.top()))
         opname = "%s_REG" % opcodes.stack.opname[op[0]]
         if op[0] in (opcodes.stack.opmap['JUMP_FORWARD'],
                      opcodes.stack.opmap['JUMP_ABSOLUTE']):
@@ -589,13 +592,13 @@ class InstructionSetConverter(OptimizeFilter):
         return None
     dispatch[opcodes.stack.opmap['JUMP_FORWARD']] = jump_convert
     dispatch[opcodes.stack.opmap['JUMP_ABSOLUTE']] = jump_convert
-    dispatch[opcodes.stack.opmap['JUMP_IF_FALSE']] = jump_convert
-    dispatch[opcodes.stack.opmap['JUMP_IF_TRUE']] = jump_convert
+    # dispatch[opcodes.stack.opmap['JUMP_IF_FALSE']] = jump_convert
+    # dispatch[opcodes.stack.opmap['JUMP_IF_TRUE']] = jump_convert
     dispatch[opcodes.stack.opmap['JUMP_ABSOLUTE']] = jump_convert
-    dispatch[opcodes.stack.opmap['FOR_LOOP']] = jump_convert
-    dispatch[opcodes.stack.opmap['SETUP_LOOP']] = jump_convert
+    # dispatch[opcodes.stack.opmap['FOR_LOOP']] = jump_convert
+    # dispatch[opcodes.stack.opmap['SETUP_LOOP']] = jump_convert
     dispatch[opcodes.stack.opmap['RETURN_VALUE']] = jump_convert
-    dispatch[opcodes.stack.opmap['BREAK_LOOP']] = jump_convert
+    # dispatch[opcodes.stack.opmap['BREAK_LOOP']] = jump_convert
 
     def load_convert(self, op):
         if op[0] == opcodes.stack.opmap['LOAD_FAST']:
@@ -611,8 +614,6 @@ class InstructionSetConverter(OptimizeFilter):
             dst = self.push()
             return (opcodes.register.opmap['LOAD_GLOBAL_REG'], (src, dst))
         return None
-    dispatch[opcodes.stack.opmap['LOAD_NONE']] = load_convert
-    dispatch[opcodes.stack.opmap['LOAD_LOCALS']] = load_convert
     dispatch[opcodes.stack.opmap['LOAD_CONST']] = load_convert
     dispatch[opcodes.stack.opmap['LOAD_GLOBAL']] = load_convert
     dispatch[opcodes.stack.opmap['LOAD_FAST']] = load_convert
@@ -663,8 +664,7 @@ class InstructionSetConverter(OptimizeFilter):
             src = self.top()
             dst = self.push()
             return (opcodes.register.opmap[opname], (n, src, dst))
-        if op[0] in (opcodes.stack.opmap['UNPACK_LIST'],
-                     opcodes.stack.opmap['UNPACK_TUPLE']):
+        if op[0] == opcodes.stack.opmap['UNPACK_SEQUENCE']:
             n = op[1][0]
             src = self.pop()
             for _ in range(n):
@@ -674,8 +674,7 @@ class InstructionSetConverter(OptimizeFilter):
     dispatch[opcodes.stack.opmap['BUILD_TUPLE']] = seq_convert
     dispatch[opcodes.stack.opmap['BUILD_LIST']] = seq_convert
     dispatch[opcodes.stack.opmap['BUILD_MAP']] = seq_convert
-    dispatch[opcodes.stack.opmap['UNPACK_TUPLE']] = seq_convert
-    dispatch[opcodes.stack.opmap['UNPACK_LIST']] = seq_convert
+    dispatch[opcodes.stack.opmap['UNPACK_SEQUENCE']] = seq_convert
 
     def compare_convert(self, op):
         if op[0] == opcodes.stack.opmap['COMPARE_OP']:
@@ -716,17 +715,12 @@ class InstructionSetConverter(OptimizeFilter):
             dst = self.push()
             return (opcodes.register.opmap['IMPORT_NAME_REG'], (op[1][0], dst))
         opname = "%s_REG" % opcodes.stack.opname[op[0]]
-        if (op[0] in (opcodes.stack.opmap['PRINT_ITEM'],
-                      opcodes.stack.opmap['PRINT_EXPR'])):
+        if op[0] == opcodes.stack.opmap['PRINT_EXPR']:
             src = self.pop()
             return (opcodes.register.opmap[opname], (src,))
-        if op[0] == opcodes.stack.opmap['PRINT_NEWLINE']:
-            return (opcodes.register.opmap['PRINT_NEWLINE_REG'], ())
         return None
     dispatch[opcodes.stack.opmap['IMPORT_NAME']] = misc_convert
-    dispatch[opcodes.stack.opmap['PRINT_ITEM']] = misc_convert
     dispatch[opcodes.stack.opmap['PRINT_EXPR']] = misc_convert
-    dispatch[opcodes.stack.opmap['PRINT_NEWLINE']] = misc_convert
 
     def optimize_block(self, block):
         block_stacklevel = block.get_stacklevel()
@@ -756,63 +750,11 @@ class InstructionSetConverter(OptimizeFilter):
         return newblock
 
 
-def is_unary_op(op):
-    return ((opcodes.stack.opmap['UNARY_POSITIVE'] <= op <=
-             opcodes.stack.opmap['UNARY_CONVERT']) or
-            op == opcodes.stack.opmap['UNARY_INVERT'])
-
-def is_bin_op(op):
-    return ((opcodes.stack.opmap['BINARY_POWER'] <= op <=
-             opcodes.stack.opmap['BINARY_SUBTRACT']) or
-            (opcodes.stack.opmap['BINARY_LSHIFT'] <= op <=
-             opcodes.stack.opmap['BINARY_OR']))
-
-def is_const_load(op):
-    return (op in (opcodes.stack.opmap['LOAD_CONST'],
-                   opcodes.stack.opmap['LOADI']))
-
-def is_simple_load(op):
-    return (op in (opcodes.stack.opmap['LOAD_FAST'],
-                   opcodes.stack.opmap['LOAD_GLOBAL'],
-                   opcodes.stack.opmap['LOAD_NAME'],
-                   opcodes.stack.opmap['LOAD_CONST'],
-                   opcodes.stack.opmap['LOAD_LOCAL'],
-                   opcodes.stack.opmap['LOADI'],
-                   opcodes.stack.opmap['LOAD_NONE'],
-                   opcodes.stack.opmap['LOAD_ATTR'],
-                   opcodes.stack.opmap['LOAD_ATTR_FAST'],
-                   opcodes.stack.opmap['LOAD_SELF']))
-
-JUMP_OP_MIN = opcodes.stack.opmap['JUMP_FORWARD']
-JUMP_OP_MAX = opcodes.stack.opmap['FOR_LOOP']
-SETUP_OP_MIN = opcodes.stack.opmap['SETUP_LOOP']
-SETUP_OP_MAX = opcodes.stack.opmap['SETUP_FINALLY']
-
 def is_jump(op):
-    return ((JUMP_OP_MIN <= op <= JUMP_OP_MAX) or
-            (SETUP_OP_MIN <= op <= SETUP_OP_MAX))
-
-def is_simple_jump(op):
-    return JUMP_OP_MIN <= op < JUMP_OP_MAX
+    return op in opcodes.stack.jumps
 
 def is_abs_jump(op):
-    return opcodes.stack.opmap['JUMP_ABSOLUTE'] == op
-
-def is_unconditional_transfer(op):
-    return ((op == opcodes.stack.opmap['RETURN_VALUE']) or
-            is_unconditional_jump(op))
-
-def is_unconditional_jump(op):
-    return op in [opcodes.stack.opmap['JUMP_FORWARD'],
-                  opcodes.stack.opmap['JUMP_ABSOLUTE']]
-
-def is_conditional_jump(op):
-    return is_jump(op) and not is_unconditional_jump(op)
-
-def is_simple_store(op):
-    return op in [opcodes.stack.opmap['STORE_FAST'],
-                  opcodes.stack.opmap['STORE_GLOBAL'],
-                  opcodes.stack.opmap['STORE_NAME']]
+    return op in opcodes.stack.abs_jumps
 
 def blocklength(block):
     bl = 0
