@@ -155,12 +155,13 @@ for the future."""
             op = code[i]
             opname = opcodes.stack.opname[op]
             fmt = self.iset.format(op)
-            nbytes = len(fmt)
-            if nbytes == 1:
+            if len(fmt) == 1:
+                # stack
                 addr = code[i+1]
                 i += 2
             else:
-                assert nbytes == 3, (nbytes, opname, fmt, nbytes)
+                # register
+                assert len(fmt) == 3, (opname, fmt, len(fmt))
                 addr = code[i+1] | code[i+2] << 8 | code[i+3] << 16
                 i += 4
             print(f"addr == {addr}")
