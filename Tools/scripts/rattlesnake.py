@@ -6,8 +6,8 @@
 """
 
 import dis
-import importlib
-import math
+#import importlib
+#import math
 import os
 #import pprint
 import sys
@@ -16,6 +16,8 @@ import types
 # TBD... will change at some point
 import regopcodes as opcodes
 
+DEBUG = True
+
 __version__ = "0.3"
 
 # varying stages of optimization - which is called is determined
@@ -23,7 +25,7 @@ __version__ = "0.3"
 
 def optimize0(code):
     "no-op(timize)"
-    return code
+    return code.co_code
 
 
 def optimize5(code):
@@ -35,10 +37,35 @@ def optimize5(code):
         return code.co_code
     return isc.code()
 
+def debug_method(meth):
+    "display input args and returned result."
+    def wrap(*args, **kwds):
+        result = meth(*args, **kwds)
+        if DEBUG:
+            args_str = f"{','.join(repr(arg) for arg in args[1:])}" if args else ""
+            sep = ", " if args and kwds else ""
+            kwds_str = f"**{kwds}" if kwds else ""
+            name = meth.__name__
+            klass = args[0].__class__.__name__
+            print(f"! {klass}.{name}({args_str}{sep}{kwds_str}) -> {result}")
+        return result
+    return wrap
+
+def debug_function(func):
+    "display input args and returned result."
+    def wrap(*args, **kwds):
+        result = func(*args, **kwds)
+        if DEBUG:
+            args_str = f"{','.join(repr(arg) for arg in args)}" if args else ""
+            sep = ", " if args and kwds else ""
+            kwds_str = f"**{kwds}" if kwds else ""
+            print(f"! {func.__name__}({args_str}{sep}{kwds_str}) -> {result}")
+        return result
+    return wrap
+
 class Block:
     """represent a block of code with a single entry point (first instr)"""
     def __init__(self):
-        print(f">> new block {hex(id(self))}")
         self.block = []
         self.stacklevel = -1
 
@@ -119,8 +146,8 @@ for the future."""
             block[i] = (opcodes.stack.opname[block[i][0]],) + block[i][1:]
         return tuple(block)
 
+    @debug_method
     def findlabels(self, code):
-        #print(">>", code)
         labels = {0}
         n = len(code)
         i = 0
@@ -128,7 +155,6 @@ for the future."""
             op = code[i]
             opname = opcodes.stack.opname[op]
             fmt = self.iset.format(op)
-            print("findlabel:", i, opname, "fmt:", repr(fmt), end=" ")
             nbytes = len(fmt)
             if nbytes == 1:
                 addr = code[i+1]
@@ -141,13 +167,12 @@ for the future."""
             if 'a' in fmt:
                 # relative jump
                 labels.add(i + addr)
-                print(i, "labels:", labels)
+                #print(i, "labels:", labels)
             elif 'A' in fmt:
                 # abs jump
                 labels.add(addr)
-                print(i, "labels:", labels)
+                #print(i, "labels:", labels)
         labels = sorted(labels)
-        #print(">> labels (OptimizeFilter.findlabels):", labels)
         return labels
 
     def optimize(self):
@@ -178,6 +203,7 @@ for the future."""
         i = 0
         while i < n:
             if i in labels:
+                print(f">> new block offset={i}")
                 blocks.append(Block())
             op = code[i]
             opname = opcodes.stack.opname[op]
@@ -189,21 +215,21 @@ for the future."""
                     if 'A' in fmt:
                         idx = labels.index(oparg)
                         print(f"  {i:4d} append: {opname} {op} {idx}")
-                        blocks[-1].append((op, (idx, 0)))
+                        block.append((op, idx))
                     elif 'a' in fmt:
                         idx = labels.index(i+2+oparg)
                         print(f"  {i:4d} append: {opname} {op} {idx}")
-                        blocks[-1].append((op, (idx, 0)))
+                        block.append((op, idx))
                     else:
                         print(f"  {i:4d} append: {opname} {op} {oparg}")
-                        blocks[-1].append((op, oparg))
+                        block.append((op, oparg))
                 except ValueError:
                     print(">>", labels)
                     raise
             else:
                 assert oparg == 0
                 print(f"  {i:4d} append: {opname} {op} {oparg}")
-                blocks[-1].append((op, oparg))
+                block.append((op, oparg))
             i += 2
         return blocks
 
@@ -220,13 +246,12 @@ for the future."""
             #print(">> block:", i, "address:", blockaddrs[i])
             #pprint.pprint(self.namify(self.output[i]))
 
-        codelist = [self.iset.opmap['NEW_VM_REG']]
+        codelist = []
         i = 1
         for block in self.output:
             try:
                 for inst in block:
-                    op = chr(inst[0])
-                    codelist.append(op)
+                    codelist.append(inst[0])
                     fmt = self.iset.format(inst[0])
                     #print(">>", (i, self.iset.opname[inst[0]], fmt), end=" ")
                     i = i + 1
@@ -237,10 +262,9 @@ for the future."""
                         addr = blockaddrs[arg[0]|(arg[1]<<8)]
                         #print("address:", addr, end=" ")
                         #print("encoded:", (chr(addr&0xff),chr(addr>>8)), end=" ")
-                        codelist.append("%s%s" %
-                                        (chr(addr&0xff), chr(addr>>8)))
+                        codelist.extend([addr&0xff, addr>>8])
                         for j in arg[2:]:
-                            codelist.append(chr(j))
+                            codelist.append(j)
                     elif 'a' in fmt:
                         arg = inst[1]
                         i = i + len(arg)
@@ -249,22 +273,20 @@ for the future."""
                         #print("address:", blockaddrs[arg[0]|(arg[1]<<8)], end=" ")
                         #print("offset:", addr, end=" ")
                         #print("encoded:", (chr(addr&0xff),chr(addr>>8)), end=" ")
-                        codelist.append("%s%s" %
-                                        (chr(addr&0xff), chr(addr>>8)))
+                        codelist.extend([addr&0xff, addr>>8])
                         for j in arg[2:]:
-                            codelist.append(chr(j))
+                            codelist.append(j)
                     else:
                         i = i + len(inst[1])
                         for arg in inst[1]:
-                            codelist.append(chr(arg))
+                            codelist.append(arg)
                     #print
             except ValueError:
                 print((opcodes.stack.opname[inst[0]], inst[1:],
                        i, blockaddrs[blockaddr]))
                 raise
 
-        # TBD... This is certainly incorrect. the input and output code strings are byte strings.
-        return "".join(codelist)
+        return bytes(codelist)
 
     def constant_value(self, op):
         if op[0] == opcodes.stack.opmap["LOAD_CONST"]:
@@ -419,14 +441,13 @@ class InstructionSetConverter(OptimizeFilter):
                     return True
         return False
 
-    def set_block_stacklevel(self, id_, level):
+    def set_block_stacklevel(self, target, level):
         """set the input stack level for particular block"""
-        print(">> set:", (id_, level))
+        print(">> set:", (target, level))
         try:
-            self.input[id_].set_stacklevel(level)
+            self.input[target].set_stacklevel(level)
         except IndexError:
-            # print("!!", id_, level, len(self.input),
-            #       [inp.block for inp in self.input])
+            print("!!", target, level, len(self.input))
             raise
 
     def optimize(self):
@@ -578,6 +599,7 @@ class InstructionSetConverter(OptimizeFilter):
     dispatch[opcodes.stack.opmap['RETURN_VALUE']] = jump_convert
     # dispatch[opcodes.stack.opmap['BREAK_LOOP']] = jump_convert
 
+    @debug_method
     def load_convert(self, op):
         if op[0] == opcodes.stack.opmap['LOAD_FAST']:
             src = op[1]
@@ -708,7 +730,7 @@ class InstructionSetConverter(OptimizeFilter):
         newblock = Block()
         for i in block:
             op = i[0]
-            oparg = i[1]
+            #oparg = i[1]
             #print(">>", opcodes.stack.opname[op], op, oparg)
             newop = self.dispatch[op](self, i)
             if newop is None:
@@ -768,27 +790,26 @@ def blocklength(block):
 
 def f(a):
     b = a * 8.0
-    if b > 24.5:
-        b = b / 2
-    else:
-        b = b * 3
-    result = []
-    for i in range(int(b)):
-        result.append(math.sin(i))
-    class FooClass:
-        "doc"
-    return (FooClass, result)
-
+    return b
+    # if b > 24.5:
+    #     b = b / 2
+    # else:
+    #     b = b * 3
+    # result = []
+    # for i in range(int(b)):
+    #     result.append(math.sin(i))
+    # class FooClass:
+    #     "doc"
+    # return (FooClass, result)
 
 def test_handle(func):
     print("*"*25, func.__name__, "*"*25)
     print("Stack version:")
     dis.dis(func)
-    isg = InstructionSetConverter(func.__code__)
-    isg.optimize()
+    func.__code__.replace(co_code=optimize(func.__code__))
     print()
-    print("Register version:")
-    dis.dis(isg.code())
+    print("Optimized version:")
+    dis.dis(func)
 
 def test1(mod=os):
     test_handle(f)
@@ -798,16 +819,18 @@ def test1(mod=os):
             test_handle(func)
 
 OPTFUNCS = {
-    0: optimize0,
-    5: optimize5,
+    "0": optimize0,
+    "5": optimize5,
 }
-OPTLEVEL = os.environ.get('OPTLEVEL', "0")
-optimize = OPTFUNCS.get(OPTLEVEL, 0)
+optimize = OPTFUNCS.get(os.environ.get('OPTLEVEL', "0"), optimize0)
+
+print("will optimize using", optimize)
 
 def main():
-    for name in sys.argv[1:]:
-        mod = importlib.import_module(name)
-        test1(mod)
+    test_handle(f)
+    # for name in sys.argv[1:]:
+    #     mod = importlib.import_module(name)
+    #     test1(mod)
     return 0
 
 if __name__ == "__main__":
