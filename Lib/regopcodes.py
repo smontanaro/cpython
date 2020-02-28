@@ -46,17 +46,12 @@ class InstructionSet:
         self.opmap[name] = op
         self.opname[op] = name
         self.argsmap[op] = argfmt
-
-    # More TBD, I'm sure...
-    def jabs_op(self, name, op, argfmt=""):
-        self.jumps.add(op)
-        self.abs_jumps.add(op)
-        return self.def_op(name, op, argfmt)
-    def jrel_op(self, name, op, argfmt=""):
-        self.jumps.add(op)
-        self.rel_jumps.add(op)
-        return self.def_op(name, op, argfmt)
-    name_op = def_op
+        if 'a' in argfmt:
+            self.jumps.add(op)
+            self.rel_jumps.add(op)
+        if 'A' in argfmt:
+            self.jumps.add(op)
+            self.abs_jumps.add(op)
 
     def argbytes(self, op):
         try:
@@ -163,36 +158,36 @@ stack.def_op('POP_EXCEPT', 89, "0")
 
 # Opcodes from here have an argument
 
-stack.name_op('STORE_NAME', 90, 'n')
-stack.name_op('DELETE_NAME', 91, 'n')
+stack.def_op('STORE_NAME', 90, 'n')
+stack.def_op('DELETE_NAME', 91, 'n')
 stack.def_op('UNPACK_SEQUENCE', 92, 'I')
-stack.jrel_op('FOR_ITER', 93, 'a')
+stack.def_op('FOR_ITER', 93, 'a')
 stack.def_op('UNPACK_EX', 94, '?')
-stack.name_op('STORE_ATTR', 95, 'n')
-stack.name_op('DELETE_ATTR', 96, 'n')
-stack.name_op('STORE_GLOBAL', 97, 'n')
-stack.name_op('DELETE_GLOBAL', 98, 'n')
+stack.def_op('STORE_ATTR', 95, 'n')
+stack.def_op('DELETE_ATTR', 96, 'n')
+stack.def_op('STORE_GLOBAL', 97, 'n')
+stack.def_op('DELETE_GLOBAL', 98, 'n')
 stack.def_op('LOAD_CONST', 100, 'c')
 
-stack.name_op('LOAD_NAME', 101, 'n')
+stack.def_op('LOAD_NAME', 101, 'n')
 stack.def_op('BUILD_TUPLE', 102, 'I')
 stack.def_op('BUILD_LIST', 103, 'I')
 stack.def_op('BUILD_SET', 104, 'I')
 stack.def_op('BUILD_MAP', 105, 'I')
-stack.name_op('LOAD_ATTR', 106, 'n')
+stack.def_op('LOAD_ATTR', 106, 'n')
 stack.def_op('COMPARE_OP', 107, '<')
 
-stack.name_op('IMPORT_NAME', 108, 'n')
-stack.name_op('IMPORT_FROM', 109, 'n')
+stack.def_op('IMPORT_NAME', 108, 'n')
+stack.def_op('IMPORT_FROM', 109, 'n')
 
-stack.jrel_op('JUMP_FORWARD', 110, 'a')
-stack.jabs_op('JUMP_IF_FALSE_OR_POP', 111, 'A')
-stack.jabs_op('JUMP_IF_TRUE_OR_POP', 112, 'A')
-stack.jabs_op('JUMP_ABSOLUTE', 113, 'A')
-stack.jabs_op('POP_JUMP_IF_FALSE', 114, 'A')
-stack.jabs_op('POP_JUMP_IF_TRUE', 115, 'A')
+stack.def_op('JUMP_FORWARD', 110, 'a')
+stack.def_op('JUMP_IF_FALSE_OR_POP', 111, 'A')
+stack.def_op('JUMP_IF_TRUE_OR_POP', 112, 'A')
+stack.def_op('JUMP_ABSOLUTE', 113, 'A')
+stack.def_op('POP_JUMP_IF_FALSE', 114, 'A')
+stack.def_op('POP_JUMP_IF_TRUE', 115, 'A')
 
-stack.name_op('LOAD_GLOBAL', 116, 'n')
+stack.def_op('LOAD_GLOBAL', 116, 'n')
 
 stack.def_op('IS_OP', 117, '?')
 stack.def_op('CONTAINS_OP', 118, '?')
@@ -223,7 +218,7 @@ stack.def_op('DELETE_DEREF', 138, '?')
 stack.def_op('CALL_FUNCTION_KW', 141, '?')
 stack.def_op('CALL_FUNCTION_EX', 142, '?')
 
-stack.jrel_op('SETUP_WITH', 143, '?')
+stack.def_op('SETUP_WITH', 143, '?')
 
 stack.def_op('LIST_APPEND', 145, '?')
 stack.def_op('SET_ADD', 146, '?')
@@ -235,13 +230,13 @@ stack.def_op('LOAD_CLASSDEREF', 148, '?')
 stack.def_op('EXTENDED_ARG', 144, 'n')
 
 
-stack.jrel_op('SETUP_ASYNC_WITH', 154, '?')
+stack.def_op('SETUP_ASYNC_WITH', 154, '?')
 
 stack.def_op('FORMAT_VALUE', 155, '?')
 stack.def_op('BUILD_CONST_KEY_MAP', 156, '?')
 stack.def_op('BUILD_STRING', 157, '?')
 
-stack.name_op('LOAD_METHOD', 160, '?')
+stack.def_op('LOAD_METHOD', 160, '?')
 stack.def_op('CALL_METHOD', 161, '?')
 
 stack.def_op('LIST_EXTEND', 162, '?')
@@ -267,7 +262,7 @@ register.def_op('LOAD_CONST_REG', 100, 'rc0')
 # TBD... Rattlesnake had four args. I'm trying not to overflow into
 # another quad word. If I give this opcode a value <= 64 I have room for
 register.def_op('COMPARE_OP_REG', 107, '<rr')
-register.jabs_op('POP_JUMP_IF_FALSE_REG', 114, 'A00')
-register.jabs_op('POP_JUMP_IF_TRUE_REG', 115, 'A00')
+register.def_op('POP_JUMP_IF_FALSE_REG', 114, 'A00')
+register.def_op('POP_JUMP_IF_TRUE_REG', 115, 'A00')
 register.def_op('LOAD_FAST_REG', 124, 'rr0')
 register.def_op('STORE_FAST_REG', 125, 'rr0')
