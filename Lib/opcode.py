@@ -15,6 +15,33 @@ __all__ = ["cmp_op", "hasconst", "hasname", "hasjrel", "hasjabs",
 # Both our chickens and eggs are allayed.
 #     --Larry Hastings, 2013/11/23
 
+# Note on messing with the instruction set...
+#
+# If you modify the instruction set in any way, you will need to do
+# the following:
+#
+# 1. make regen-all
+#
+# 2. find . -name __pycache__ | xargs rm -r # (or words to that effect)
+#
+# 3. rebuild the frozen __hello__ module in Python/frozen.c. This worked
+#    for me (from the top-level directory):
+#
+#    a. python3 Tools/freeze/freeze.py -p . Tools/freeze/flag.py
+#
+#    b. Pluck the frozen module from M___main___.c and use it to replace
+#       the guts of the M___hello___ array in Python/frozen.c.
+#
+#    c. rm M_*.c config.c frozen.c # (or words to that effect)
+#
+#    d. Rerun configure to regenerate Makefile (which freeze.py overwrote).
+#
+# There is probably a cleaner way to regenerate M___main___ which wouldn't
+# require 3d. I stopped looking for a better solution after I got a usable
+# M___hello___ array.
+#
+# -- Skip 2020-02-29
+
 try:
     from _opcode import stack_effect
     __all__.append('stack_effect')
