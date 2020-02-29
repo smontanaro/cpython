@@ -82,187 +82,168 @@ class RegisterInstructionSet(InstructionSet):
         assert len(argfmt) == 3
         return InstructionSet.def_op(self, name, op, argfmt)
 
+op = 0
+
 stack = StackInstructionSet()
 #               name                    opcode          args
-stack.def_op('POP_TOP', 1, "0")
-stack.def_op('ROT_TWO', 2, "0")
-stack.def_op('ROT_THREE', 3, "0")
-stack.def_op('DUP_TOP', 4, "0")
-stack.def_op('DUP_TOP_TWO', 5, "0")
-stack.def_op('ROT_FOUR', 6, "0")
-
-stack.def_op('NOP', 9, "0")
-stack.def_op('UNARY_POSITIVE', 10, "0")
-stack.def_op('UNARY_NEGATIVE', 11, "0")
-stack.def_op('UNARY_NOT', 12, "0")
-
-stack.def_op('UNARY_INVERT', 15, "0")
-
-stack.def_op('BINARY_MATRIX_MULTIPLY', 16, "0")
-stack.def_op('INPLACE_MATRIX_MULTIPLY', 17, "0")
-
-stack.def_op('BINARY_POWER', 19, "0")
-stack.def_op('BINARY_MULTIPLY', 20, "0")
-
-stack.def_op('BINARY_MODULO', 22, "0")
-stack.def_op('BINARY_ADD', 23, "0")
-stack.def_op('BINARY_SUBTRACT', 24, "0")
-stack.def_op('BINARY_SUBSCR', 25, "0")
-stack.def_op('BINARY_FLOOR_DIVIDE', 26, "0")
-stack.def_op('BINARY_TRUE_DIVIDE', 27, "0")
-stack.def_op('INPLACE_FLOOR_DIVIDE', 28, "0")
-stack.def_op('INPLACE_TRUE_DIVIDE', 29, "0")
-
-stack.def_op('RERAISE', 48, "0")
-stack.def_op('WITH_EXCEPT_START', 49, "0")
-stack.def_op('GET_AITER', 50, "0")
-stack.def_op('GET_ANEXT', 51, "0")
-stack.def_op('BEFORE_ASYNC_WITH', 52, "0")
-
-stack.def_op('END_ASYNC_FOR', 54, 'a')
-stack.def_op('INPLACE_ADD', 55, "0")
-stack.def_op('INPLACE_SUBTRACT', 56, "0")
-stack.def_op('INPLACE_MULTIPLY', 57, "0")
-
-stack.def_op('INPLACE_MODULO', 59, "0")
-stack.def_op('STORE_SUBSCR', 60, "0")
-stack.def_op('DELETE_SUBSCR', 61, "0")
-stack.def_op('BINARY_LSHIFT', 62, "0")
-stack.def_op('BINARY_RSHIFT', 63, "0")
-stack.def_op('BINARY_AND', 64, "0")
-stack.def_op('BINARY_XOR', 65, "0")
-stack.def_op('BINARY_OR', 66, "0")
-stack.def_op('INPLACE_POWER', 67, "0")
-stack.def_op('GET_ITER', 68, "0")
-stack.def_op('GET_YIELD_FROM_ITER', 69, "0")
-
-stack.def_op('PRINT_EXPR', 70, "0")
-stack.def_op('LOAD_BUILD_CLASS', 71, "0")
-stack.def_op('YIELD_FROM', 72, "0")
-stack.def_op('GET_AWAITABLE', 73, "0")
-stack.def_op('LOAD_ASSERTION_ERROR', 74, "0")
-stack.def_op('INPLACE_LSHIFT', 75, "0")
-stack.def_op('INPLACE_RSHIFT', 76, "0")
-stack.def_op('INPLACE_AND', 77, "0")
-stack.def_op('INPLACE_XOR', 78, "0")
-stack.def_op('INPLACE_OR', 79, "0")
-
-stack.def_op('LIST_TO_TUPLE', 82, "0")
-stack.def_op('RETURN_VALUE', 83, "0")
-stack.def_op('IMPORT_STAR', 84, "0")
-stack.def_op('SETUP_ANNOTATIONS', 85, "0")
-stack.def_op('YIELD_VALUE', 86, "0")
-stack.def_op('POP_BLOCK', 87, "0")
-
-stack.def_op('POP_EXCEPT', 89, "0")
+stack.def_op('POP_TOP', op, "0") ; op += 1
+stack.def_op('ROT_TWO', op, "0") ; op += 1
+stack.def_op('ROT_THREE', op, "0") ; op += 1
+stack.def_op('DUP_TOP', op, "0") ; op += 1
+stack.def_op('DUP_TOP_TWO', op, "0") ; op += 1
+stack.def_op('ROT_FOUR', op, "0") ; op += 1
+stack.def_op('NOP', op, "0") ; op += 1
+stack.def_op('UNARY_POSITIVE', op, "0") ; op += 1
+stack.def_op('UNARY_NEGATIVE', op, "0") ; op += 1
+stack.def_op('UNARY_NOT', op, "0") ; op += 1
+stack.def_op('UNARY_INVERT', op, "0") ; op += 1
+stack.def_op('BINARY_MATRIX_MULTIPLY', op, "0") ; op += 1
+stack.def_op('INPLACE_MATRIX_MULTIPLY', op, "0") ; op += 1
+stack.def_op('BINARY_POWER', op, "0") ; op += 1
+stack.def_op('BINARY_MULTIPLY', op, "0") ; op += 1
+stack.def_op('BINARY_MODULO', op, "0") ; op += 1
+stack.def_op('BINARY_ADD', op, "0") ; op += 1
+stack.def_op('BINARY_SUBTRACT', op, "0") ; op += 1
+stack.def_op('BINARY_SUBSCR', op, "0") ; op += 1
+stack.def_op('BINARY_FLOOR_DIVIDE', op, "0") ; op += 1
+stack.def_op('BINARY_TRUE_DIVIDE', op, "0") ; op += 1
+stack.def_op('INPLACE_FLOOR_DIVIDE', op, "0") ; op += 1
+stack.def_op('INPLACE_TRUE_DIVIDE', op, "0") ; op += 1
+stack.def_op('RERAISE', op, "0") ; op += 1
+stack.def_op('WITH_EXCEPT_START', op, "0") ; op += 1
+stack.def_op('GET_AITER', op, "0") ; op += 1
+stack.def_op('GET_ANEXT', op, "0") ; op += 1
+stack.def_op('BEFORE_ASYNC_WITH', op, "0") ; op += 1
+stack.def_op('END_ASYNC_FOR', op, 'a') ; op += 1
+stack.def_op('INPLACE_ADD', op, "0") ; op += 1
+stack.def_op('INPLACE_SUBTRACT', op, "0") ; op += 1
+stack.def_op('INPLACE_MULTIPLY', op, "0") ; op += 1
+stack.def_op('INPLACE_MODULO', op, "0") ; op += 1
+stack.def_op('STORE_SUBSCR', op, "0") ; op += 1
+stack.def_op('DELETE_SUBSCR', op, "0") ; op += 1
+stack.def_op('BINARY_LSHIFT', op, "0") ; op += 1
+stack.def_op('BINARY_RSHIFT', op, "0") ; op += 1
+stack.def_op('BINARY_AND', op, "0") ; op += 1
+stack.def_op('BINARY_XOR', op, "0") ; op += 1
+stack.def_op('BINARY_OR', op, "0") ; op += 1
+stack.def_op('INPLACE_POWER', op, "0") ; op += 1
+stack.def_op('GET_ITER', op, "0") ; op += 1
+stack.def_op('GET_YIELD_FROM_ITER', op, "0") ; op += 1
+stack.def_op('PRINT_EXPR', op, "0") ; op += 1
+stack.def_op('LOAD_BUILD_CLASS', op, "0") ; op += 1
+stack.def_op('YIELD_FROM', op, "0") ; op += 1
+stack.def_op('GET_AWAITABLE', op, "0") ; op += 1
+stack.def_op('LOAD_ASSERTION_ERROR', op, "0") ; op += 1
+stack.def_op('INPLACE_LSHIFT', op, "0") ; op += 1
+stack.def_op('INPLACE_RSHIFT', op, "0") ; op += 1
+stack.def_op('INPLACE_AND', op, "0") ; op += 1
+stack.def_op('INPLACE_XOR', op, "0") ; op += 1
+stack.def_op('INPLACE_OR', op, "0") ; op += 1
+stack.def_op('LIST_TO_TUPLE', op, "0") ; op += 1
+stack.def_op('RETURN_VALUE', op, "0") ; op += 1
+stack.def_op('IMPORT_STAR', op, "0") ; op += 1
+stack.def_op('SETUP_ANNOTATIONS', op, "0") ; op += 1
+stack.def_op('YIELD_VALUE', op, "0") ; op += 1
+stack.def_op('POP_BLOCK', op, "0") ; op += 1
+stack.def_op('POP_EXCEPT', op, "0") ; op += 1
 
 # Opcodes from here have an argument
 
-stack.def_op('STORE_NAME', 90, 'n')
-stack.def_op('DELETE_NAME', 91, 'n')
-stack.def_op('UNPACK_SEQUENCE', 92, 'I')
-stack.def_op('FOR_ITER', 93, 'a')
-stack.def_op('UNPACK_EX', 94, '?')
-stack.def_op('STORE_ATTR', 95, 'n')
-stack.def_op('DELETE_ATTR', 96, 'n')
-stack.def_op('STORE_GLOBAL', 97, 'n')
-stack.def_op('DELETE_GLOBAL', 98, 'n')
-stack.def_op('LOAD_CONST', 100, 'c')
+stack.def_op('STORE_NAME', op, 'n') ; op += 1
+stack.def_op('DELETE_NAME', op, 'n') ; op += 1
+stack.def_op('UNPACK_SEQUENCE', op, 'I') ; op += 1
+stack.def_op('FOR_ITER', op, 'a') ; op += 1
+stack.def_op('UNPACK_EX', op, '?') ; op += 1
+stack.def_op('STORE_ATTR', op, 'n') ; op += 1
+stack.def_op('DELETE_ATTR', op, 'n') ; op += 1
+stack.def_op('STORE_GLOBAL', op, 'n') ; op += 1
+stack.def_op('DELETE_GLOBAL', op, 'n') ; op += 1
 
-stack.def_op('LOAD_NAME', 101, 'n')
-stack.def_op('BUILD_TUPLE', 102, 'I')
-stack.def_op('BUILD_LIST', 103, 'I')
-stack.def_op('BUILD_SET', 104, 'I')
-stack.def_op('BUILD_MAP', 105, 'I')
-stack.def_op('LOAD_ATTR', 106, 'n')
-stack.def_op('COMPARE_OP', 107, '<')
+stack.def_op('LOAD_CONST', op, 'c') ; op += 1
+stack.def_op('LOAD_NAME', op, 'n') ; op += 1
+stack.def_op('BUILD_TUPLE', op, 'I') ; op += 1
+stack.def_op('BUILD_LIST', op, 'I') ; op += 1
+stack.def_op('BUILD_SET', op, 'I') ; op += 1
+stack.def_op('BUILD_MAP', op, 'I') ; op += 1
+stack.def_op('LOAD_ATTR', op, 'n') ; op += 1
 
-stack.def_op('IMPORT_NAME', 108, 'n')
-stack.def_op('IMPORT_FROM', 109, 'n')
+stack.def_op('COMPARE_OP', op, '<') ; op += 1
+stack.def_op('IMPORT_NAME', op, 'n') ; op += 1
+stack.def_op('IMPORT_FROM', op, 'n') ; op += 1
+stack.def_op('JUMP_FORWARD', op, 'a') ; op += 1
+stack.def_op('JUMP_IF_FALSE_OR_POP', op, 'A') ; op += 1
+stack.def_op('JUMP_IF_TRUE_OR_POP', op, 'A') ; op += 1
+stack.def_op('JUMP_ABSOLUTE', op, 'A') ; op += 1
+stack.def_op('POP_JUMP_IF_FALSE', op, 'A') ; op += 1
+stack.def_op('POP_JUMP_IF_TRUE', op, 'A') ; op += 1
+stack.def_op('LOAD_GLOBAL', op, 'n') ; op += 1
+stack.def_op('IS_OP', op, '?') ; op += 1
+stack.def_op('CONTAINS_OP', op, '?') ; op += 1
+stack.def_op('JUMP_IF_NOT_EXC_MATCH', op, 'a') ; op += 1
+stack.def_op('SETUP_FINALLY', op, 'a') ; op += 1
 
-stack.def_op('JUMP_FORWARD', 110, 'a')
-stack.def_op('JUMP_IF_FALSE_OR_POP', 111, 'A')
-stack.def_op('JUMP_IF_TRUE_OR_POP', 112, 'A')
-stack.def_op('JUMP_ABSOLUTE', 113, 'A')
-stack.def_op('POP_JUMP_IF_FALSE', 114, 'A')
-stack.def_op('POP_JUMP_IF_TRUE', 115, 'A')
+stack.def_op('LOAD_FAST', op, 'r') ; op += 1
 
-stack.def_op('LOAD_GLOBAL', 116, 'n')
+stack.def_op('STORE_FAST', op, 'r') ; op += 1
 
-stack.def_op('IS_OP', 117, '?')
-stack.def_op('CONTAINS_OP', 118, '?')
+stack.def_op('DELETE_FAST', op, 'r') ; op += 1
 
-stack.def_op('JUMP_IF_NOT_EXC_MATCH', 121, 'a')
-stack.def_op('SETUP_FINALLY', 122, 'a')
+stack.def_op('RAISE_VARARGS', op, 'I') ; op += 1
+stack.def_op('CALL_FUNCTION', op, 'I') ; op += 1
+stack.def_op('MAKE_FUNCTION', op, 'I') ; op += 1
+stack.def_op('BUILD_SLICE', op, 'I') ; op += 1
 
-stack.def_op('LOAD_FAST', 124, 'r')
+stack.def_op('LOAD_CLOSURE', op, '?') ; op += 1
 
-stack.def_op('STORE_FAST', 125, 'r')
+stack.def_op('LOAD_DEREF', op, '?') ; op += 1
 
-stack.def_op('DELETE_FAST', 126, 'r')
+stack.def_op('STORE_DEREF', op, '?') ; op += 1
 
+stack.def_op('DELETE_DEREF', op, '?') ; op += 1
+stack.def_op('CALL_FUNCTION_KW', op, '?') ; op += 1
+stack.def_op('CALL_FUNCTION_EX', op, '?') ; op += 1
+stack.def_op('SETUP_WITH', op, '?') ; op += 1
+stack.def_op('LIST_APPEND', op, '?') ; op += 1
+stack.def_op('SET_ADD', op, '?') ; op += 1
+stack.def_op('MAP_ADD', op, '?') ; op += 1
 
-stack.def_op('RAISE_VARARGS', 130, 'I')
-stack.def_op('CALL_FUNCTION', 131, 'I')
-stack.def_op('MAKE_FUNCTION', 132, 'I')
-stack.def_op('BUILD_SLICE', 133, 'I')
-stack.def_op('LOAD_CLOSURE', 135, '?')
+stack.def_op('LOAD_CLASSDEREF', op, '?') ; op += 1
 
-stack.def_op('LOAD_DEREF', 136, '?')
-
-stack.def_op('STORE_DEREF', 137, '?')
-
-stack.def_op('DELETE_DEREF', 138, '?')
-
-
-stack.def_op('CALL_FUNCTION_KW', 141, '?')
-stack.def_op('CALL_FUNCTION_EX', 142, '?')
-
-stack.def_op('SETUP_WITH', 143, '?')
-
-stack.def_op('LIST_APPEND', 145, '?')
-stack.def_op('SET_ADD', 146, '?')
-stack.def_op('MAP_ADD', 147, '?')
-
-stack.def_op('LOAD_CLASSDEREF', 148, '?')
-
-
-stack.def_op('EXTENDED_ARG', 144, 'n')
-
-
-stack.def_op('SETUP_ASYNC_WITH', 154, '?')
-
-stack.def_op('FORMAT_VALUE', 155, '?')
-stack.def_op('BUILD_CONST_KEY_MAP', 156, '?')
-stack.def_op('BUILD_STRING', 157, '?')
-
-stack.def_op('LOAD_METHOD', 160, '?')
-stack.def_op('CALL_METHOD', 161, '?')
-
-stack.def_op('LIST_EXTEND', 162, '?')
-stack.def_op('SET_UPDATE', 163, '?')
-stack.def_op('DICT_MERGE', 164, '?')
-stack.def_op('DICT_UPDATE', 165, '?')
+stack.def_op('EXTENDED_ARG', op, 'n') ; op += 1
+stack.def_op('SETUP_ASYNC_WITH', op, '?') ; op += 1
+stack.def_op('FORMAT_VALUE', op, '?') ; op += 1
+stack.def_op('BUILD_CONST_KEY_MAP', op, '?') ; op += 1
+stack.def_op('BUILD_STRING', op, '?') ; op += 1
+stack.def_op('LOAD_METHOD', op, '?') ; op += 1
+stack.def_op('CALL_METHOD', op, '?') ; op += 1
+stack.def_op('LIST_EXTEND', op, '?') ; op += 1
+stack.def_op('SET_UPDATE', op, '?') ; op += 1
+stack.def_op('DICT_MERGE', op, '?') ; op += 1
+stack.def_op('DICT_UPDATE', op, '?') ; op += 1
 
 register = RegisterInstructionSet()
 
-register.def_op('NEW_VM_REG', 0, '000')
-register.def_op('BINARY_MATRIX_MULTIPLY_REG', 16, 'rrr')
-register.def_op('INPLACE_MATRIX_MULTIPLY_REG', 17, 'rrr')
-register.def_op('BINARY_POWER_REG', 19, 'rrr')
-register.def_op('BINARY_MULTIPLY_REG', 20, 'rrr')
-register.def_op('BINARY_MODULO_REG', 22, 'rrr')
-register.def_op('BINARY_ADD_REG', 23, 'rrr')
-register.def_op('BINARY_SUBTRACT_REG', 24, 'rrr')
-register.def_op('BINARY_SUBSCR_REG', 25, 'rrr')
-register.def_op('BINARY_FLOOR_DIVIDE_REG', 26, 'rrr')
-register.def_op('BINARY_TRUE_DIVIDE', 27, 'rrr')
-register.def_op('RETURN_VALUE_REG', 83, 'r00')
-register.def_op('LOAD_CONST_REG', 100, 'rc0')
-# TBD... Rattlesnake had four args. I'm trying not to overflow into
-# another quad word. If I give this opcode a value <= 64 I have room for
-register.def_op('COMPARE_OP_REG', 107, '<rr')
-register.def_op('POP_JUMP_IF_FALSE_REG', 114, 'A00')
-register.def_op('POP_JUMP_IF_TRUE_REG', 115, 'A00')
-register.def_op('LOAD_FAST_REG', 124, 'rr0')
-register.def_op('STORE_FAST_REG', 125, 'rr0')
+register.def_op('BINARY_POWER_REG', op, 'rrr') ; op += 1
+register.def_op('BINARY_MULTIPLY_REG', op, 'rrr') ; op += 1
+register.def_op('BINARY_MODULO_REG', op, 'rrr') ; op += 1
+register.def_op('BINARY_ADD_REG', op, 'rrr') ; op += 1
+register.def_op('BINARY_SUBTRACT_REG', op, 'rrr') ; op += 1
+register.def_op('BINARY_SUBSCR_REG', op, 'rrr') ; op += 1
+register.def_op('BINARY_FLOOR_DIVIDE_REG', op, 'rrr') ; op += 1
+register.def_op('BINARY_TRUE_DIVIDE', op, 'rrr') ; op += 1
+register.def_op('RETURN_VALUE_REG', op, 'r00') ; op += 1
+register.def_op('LOAD_CONST_REG', op, 'rc0') ; op += 1
+register.def_op('LOAD_GLOBAL_REG', op, 'nr0') ; op += 1
+# # TBD... Rattlesnake had four args. I'm trying not to overflow into
+# # another quad word. If I give this opcode a value <= 64 I have room for
+# register.def_op('COMPARE_OP_REG', op, '<rr') ; op += 1
+# register.def_op('POP_JUMP_IF_FALSE_REG', op, 'A00') ; op += 1
+# register.def_op('POP_JUMP_IF_TRUE_REG', op, 'A00') ; op += 1
+# register.def_op('LOAD_FAST_REG', op, 'rr0') ; op += 1
+# register.def_op('STORE_FAST_REG', op, 'rr0') ; op += 1
+
+import opcode
+
+assert max(opcode.opmap.values()) == op - 1
+
+del opcode, op
