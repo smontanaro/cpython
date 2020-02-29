@@ -36,6 +36,9 @@ __all__ = ["cmp_op", "hasconst", "hasname", "hasjrel", "hasjabs",
 #
 #    d. Rerun configure to regenerate Makefile (which freeze.py overwrote).
 #
+# 4. Manually regenerate the expected expected_opinfo_* lists in
+#    Lib/test/test_dis.py.
+#
 # There is probably a cleaner way to regenerate M___main___ which wouldn't
 # require 3d. I stopped looking for a better solution after I got a usable
 # M___hello___ array.
