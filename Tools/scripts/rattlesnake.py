@@ -228,7 +228,7 @@ for the future."""
                     print(">>", labels)
                     raise
             else:
-                assert oparg == 0
+                assert oparg == 0, (i, code[i:], oparg)
                 print(f"  {i:4d} append: {opname} {op} {oparg}")
                 block.append((op, oparg))
             i += 2
