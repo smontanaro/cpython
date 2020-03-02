@@ -1,6 +1,8 @@
 
 """opcodes module - shared between dis and optimize"""
 
+import opcode
+
 # range of small_int cache - values must match with those used by intobject.c
 NSMALLPOSINTS = 100
 NSMALLNEGINTS = 1
@@ -70,7 +72,7 @@ class InstructionSet:
 
 class StackInstructionSet(InstructionSet):
     def has_argument(self, op):
-        return op > 90
+        return op >= opcode.HAVE_ARGUMENT
 
 
 class RegisterInstructionSet(InstructionSet):
@@ -242,8 +244,6 @@ register.def_op('LOAD_GLOBAL_REG', op, 'nr0') ; op += 1
 # register.def_op('LOAD_FAST_REG', op, 'rr0') ; op += 1
 # register.def_op('STORE_FAST_REG', op, 'rr0') ; op += 1
 
-import opcode
+assert op <= 256, op
 
-assert max(opcode.opmap.values()) == op - 1
-
-del opcode, op
+del op
