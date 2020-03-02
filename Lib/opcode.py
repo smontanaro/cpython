@@ -226,14 +226,14 @@ def_op('DICT_UPDATE', op) ; op += 1
 
 HAVE_REGISTERS = op
 
-def_op('BINARY_POWER_REG', op) ; op += 1
-def_op('BINARY_MULTIPLY_REG', op) ; op += 1
-def_op('BINARY_MODULO_REG', op) ; op += 1
+#def_op('BINARY_POWER_REG', op) ; op += 1
+#def_op('BINARY_MULTIPLY_REG', op) ; op += 1
+#def_op('BINARY_MODULO_REG', op) ; op += 1
 def_op('BINARY_ADD_REG', op) ; op += 1
-def_op('BINARY_SUBTRACT_REG', op) ; op += 1
-def_op('BINARY_SUBSCR_REG', op) ; op += 1
-def_op('BINARY_FLOOR_DIVIDE_REG', op) ; op += 1
-def_op('BINARY_TRUE_DIVIDE_REG', op) ; op += 1
+#def_op('BINARY_SUBTRACT_REG', op) ; op += 1
+#def_op('BINARY_SUBSCR_REG', op) ; op += 1
+#def_op('BINARY_FLOOR_DIVIDE_REG', op) ; op += 1
+#def_op('BINARY_TRUE_DIVIDE_REG', op) ; op += 1
 def_op('RETURN_VALUE_REG', op) ; op += 1
 def_op('LOAD_CONST_REG', op) ; op += 1
 def_op('LOAD_GLOBAL_REG', op) ; op += 1
