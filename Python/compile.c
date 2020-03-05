@@ -1143,6 +1143,8 @@ stack_effect(int opcode, int oparg, int jump)
         case RETURN_VALUE_REG:
         case LOAD_CONST_REG:
         case LOAD_GLOBAL_REG:
+        case LOAD_FAST_REG:
+        case STORE_FAST_REG:
             return 0;
         default:
             return PY_INVALID_STACK_EFFECT;

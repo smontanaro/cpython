@@ -3630,12 +3630,54 @@ main_loop:
         }
 
         case TARGET(LOAD_CONST_REG): {
+            PREDICTED(LOAD_CONST_REG);
             int reg0, reg1;
             REGARGS2();
             PyObject *value = GETITEM(consts, reg1);
             Py_INCREF(value);
             SETLOCAL(reg0, value);
-            REG_DISPATCH();
+            REG_FAST_DISPATCH();
+        }
+
+        case TARGET(LOAD_FAST_REG): {
+            /* locals and stack are contiguous, so this is a
+               register-to-register copy. Our convention is dst <-
+               src, so reg0 is the destination register and reg1 is
+               the source. */
+            PREDICTED(LOAD_FAST_REG);
+            int reg0, reg1;
+            REGARGS2();
+            PyObject *value = GETLOCAL(reg1);
+            if (value == NULL) {
+                format_exc_check_arg(tstate, PyExc_UnboundLocalError,
+                                     UNBOUNDLOCAL_ERROR_MSG,
+                                     PyTuple_GetItem(co->co_varnames, oparg));
+                goto error;
+            }
+            Py_INCREF(value);
+            SETLOCAL(reg0, value);
+            REG_FAST_DISPATCH();
+        }
+
+        case TARGET(STORE_FAST_REG): {
+            /* locals and stack are contiguous, so this is a
+               register-to-register copy. Our convention is dst <-
+               src, so reg0 is the destination register and reg1 is
+               the source.  Accordingly, LOAD_FAST_REG and
+               STORE_FAST_REG are really the same thing. */
+            PREDICTED(STORE_FAST_REG);
+            int reg0, reg1;
+            REGARGS2();
+            PyObject *value = GETLOCAL(reg1);
+            if (value == NULL) {
+                format_exc_check_arg(tstate, PyExc_UnboundLocalError,
+                                     UNBOUNDLOCAL_ERROR_MSG,
+                                     PyTuple_GetItem(co->co_varnames, oparg));
+                goto error;
+            }
+            Py_INCREF(value);
+            SETLOCAL(reg0, value);
+            REG_FAST_DISPATCH();
         }
 
         case TARGET(LOAD_GLOBAL_REG): {
