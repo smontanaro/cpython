@@ -1,8 +1,55 @@
-"""
-### NOTE: This comes from the old Rattlesnake compiler. It's useful
-### here initially as documentation of how I did things way back
-### when. The more I struggle with the current compiler, the more I
-### think I will revert to this method.
+"""NOTE: This comes from the old Rattlesnake compiler. It's useful
+here initially as documentation of how I did things way back
+when. The more I struggle with the current compiler, the more I
+think I will revert to this method.
+
+In the new formulation, I envision all register instructions being 32
+bits long, though sticking with 16 bits and relying heavily on
+EXTENDED_ARGS is also a possibility.
+
+There are four possibilities for instructions:
+
+* no args - the bytes then being OPCODE 0 0 0 - This encodes as 0 (big
+  surprise).
+
+* one arg - OP ARG 0 0 - e.g. RETURN_VALUE_REG where ARG references
+  the register containing the value to return.
+
+* two args - OP ARG1 ARG2 0 - e.g LOAD_FAST_REG where ARG1 references
+  the destination register and ARG references the source.
+
+* three args - OP ARG1 ARG2 ARG3 - e.g. BINARY_ADD_REG where ARG1
+  references the destination register, ARG2 the left-hand operand
+  register and ARG3 the right-hand operand register.
+
+No matter how many arguments there are, the overall instruction is
+encoded as follows:
+
+* Big endian: (OP << 8 | ARG1) << 16 | (ARG2 << 8 | ARG3)
+
+* Little endian: (OP | ARG1 << 8) << 16 | (ARG2 | ARG3 << 8)
+
+If I was to dispense with quad word opcodes, The two-arg and three-arg
+cases would require, respectively, one or two EXTENDED_ARG opcodes
+ahead of them. I doubt the performance hit would be much, since
+EXTENDED_ARG is so minimal. A couple jumps and increments.
+
+Using EXTENDE_ARG would also (I think) solve my compare_op
+problem. That really requires four arguments, the comparison operator
+as well as destination and two source registers. In the quad-byte
+opcode formulation I could only easily squeeze three operand arg bytes
+into the instruction. I'd just punt and offer up three EXTENDED_ARG
+instructions, something like
+
+EXTENDED_ARG dst
+EXTENDED_ARG src1
+EXTENDED_ARG src2
+COMPARE_OP operator
+
+By the time the COMPARE_OP instruction is executed, I think arg would be
+
+dst << 16 | src1 << 8 | src2
+
 """
 
 import dis
@@ -163,7 +210,7 @@ for the future."""
                 assert len(fmt) == 3, (opname, fmt, len(fmt))
                 addr = code[i+1] | code[i+2] << 8 | code[i+3] << 16
                 i += 4
-            print(f"addr == {addr}")
+            #print(f"addr == {addr}")
             if 'a' in fmt:
                 # relative jump
                 labels.add(i + addr)
@@ -495,9 +542,11 @@ class InstructionSetConverter(OptimizeFilter):
 
     def binary_convert(self, op):
         opname = "%s_REG" % opcodes.ISET.opname[op[0]]
-        src2 = self.pop()
-        src1 = self.pop()
-        dst = self.push()
+        ## TBD... Still not certain I have argument order/byte packing correct.
+        # dst <- src1 OP src2
+        src1 = self.pop()       # left-hand register src
+        src2 = self.pop()       # right-hand register src
+        dst = self.push()       # dst
         return (opcodes.ISET.opmap[opname], (src1, src2, dst))
     dispatch[opcodes.ISET.opmap['BINARY_POWER']] = binary_convert
     dispatch[opcodes.ISET.opmap['BINARY_MULTIPLY']] = binary_convert
@@ -600,17 +649,17 @@ class InstructionSetConverter(OptimizeFilter):
     @debug_method
     def load_convert(self, op):
         if op[0] == opcodes.ISET.opmap['LOAD_FAST']:
-            src = op[1]
-            dst = self.push()
-            return (opcodes.ISET.opmap['LOAD_FAST_REG'], (src, dst))
+            src = op[1]         # offset into localsplus
+            dst = self.push()   # ditto
+            return (opcodes.ISET.opmap['LOAD_FAST_REG'], (dst, src))
         if op[0] == opcodes.ISET.opmap['LOAD_CONST']:
-            src = op[1]
-            dst = self.push()
-            return (opcodes.ISET.opmap['LOAD_CONST_REG'], (src, dst))
+            src = op[1]         # reference into co_consts
+            dst = self.push()   # offset into localsplus
+            return (opcodes.ISET.opmap['LOAD_CONST_REG'], (dst, src))
         if op[0] == opcodes.ISET.opmap['LOAD_GLOBAL']:
-            src = op[1]
-            dst = self.push()
-            return (opcodes.ISET.opmap['LOAD_GLOBAL_REG'], (src, dst))
+            src = op[1]         # global name to be found
+            dst = self.push()   # offset into localsplus
+            return (opcodes.ISET.opmap['LOAD_GLOBAL_REG'], (dst, src))
         return None
     dispatch[opcodes.ISET.opmap['LOAD_CONST']] = load_convert
     dispatch[opcodes.ISET.opmap['LOAD_GLOBAL']] = load_convert
@@ -685,6 +734,7 @@ class InstructionSetConverter(OptimizeFilter):
         return None
     dispatch[opcodes.ISET.opmap['COMPARE_OP']] = compare_convert
 
+    @debug_method
     def stack_convert(self, op):
         if op[0] == opcodes.ISET.opmap['POP_TOP']:
             self.pop()
@@ -720,6 +770,7 @@ class InstructionSetConverter(OptimizeFilter):
     dispatch[opcodes.ISET.opmap['IMPORT_NAME']] = misc_convert
     dispatch[opcodes.ISET.opmap['PRINT_EXPR']] = misc_convert
 
+    @debug_method
     def optimize_block(self, block):
         #print(">> block:", block.block)
         block_stacklevel = block.get_stacklevel()
@@ -786,8 +837,9 @@ def blocklength(block):
 #     sys.stdout = stdout
 
 
-def f(a):
-    b = a * 8.0
+def f(a=4):
+    "Simplified greatly for now. Expand as I increase instruction set."
+    b = a + 8.0
     return b
     # if b > 24.5:
     #     b = b / 2
@@ -804,10 +856,15 @@ def test_handle(func):
     print("*"*25, func.__name__, "*"*25)
     print("Stack version:")
     dis.dis(func)
-    func.__code__.replace(co_code=optimize(func.__code__))
+    print("old code:", func.__code__.co_code)
+    print("result:", func())
+    new_code = optimize(func.__code__)
+    func.__code__ = func.__code__.replace(co_code=new_code)
+    print("new code:", func.__code__.co_code)
     print()
     print("Optimized version:")
     dis.dis(func)
+    print("result:", func())
 
 def test1(mod=os):
     test_handle(f)
