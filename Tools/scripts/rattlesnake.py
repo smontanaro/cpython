@@ -31,24 +31,34 @@ encoded as follows:
 
 If I was to dispense with quad word opcodes, The two-arg and three-arg
 cases would require, respectively, one or two EXTENDED_ARG opcodes
-ahead of them. I doubt the performance hit would be much, since
-EXTENDED_ARG is so minimal. A couple jumps and increments.
+ahead of them. EXTENDED_ARG works by saving the current oparg, setting
+the next opcode and oparg, shifting the old oparg and oring with the
+new. I doubt the performance hit would be much, since EXTENDED_ARG is
+so minimal. A couple bitwise operations and a jump to the top of the
+switch.
 
-Using EXTENDE_ARG would also (I think) solve my compare_op
-problem. That really requires four arguments, the comparison operator
-as well as destination and two source registers. In the quad-byte
-opcode formulation I could only easily squeeze three operand arg bytes
-into the instruction. I'd just punt and offer up three EXTENDED_ARG
-instructions, something like
+Using EXTENDED_ARG should solve my compare_op problem. oparg could be
+up to four bytes. That really requires four arguments, the comparison
+operator as well as destination and two source registers. In the
+quad-byte opcode formulation I could only easily squeeze three operand
+arg bytes into the instruction. With word code I'd just punt and offer
+up three EXTENDED_ARG instructions, something like
 
 EXTENDED_ARG dst
 EXTENDED_ARG src1
 EXTENDED_ARG src2
 COMPARE_OP operator
 
-By the time the COMPARE_OP instruction is executed, I think arg would be
+By the time the COMPARE_OP instruction is executed, the operator seen by COMPARE_OP would be
 
-dst << 16 | src1 << 8 | src2
+(((dst << 8) | src1) << 8 | src2) << 8 | operator
+
+dst << 24 | src1 << 16 | src2 << 8 | operator
+
+It would be nice if oparg was declared as unsigned int instead of just
+int, but I doubt it will be a practical problem that it isn't. I think
+you can just say that the number of locals and stack or registers is
+limited to 127 in the CPython implementation.
 
 """
 
