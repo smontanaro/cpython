@@ -48,7 +48,12 @@ typedef struct {
 
 # One question needs to be answered though. When cell and free
   variables arrived on the scene, why didn't they just get tacked onto
-  the end of the stack?
+  the end of the stack space? We know the maximum size to which the
+  stack can grow, and allocate that much space. Having cells and frees
+  at the end of the allocated space wouldn't add risk that the stack
+  would crash into them. (If that was a concern, just allocate one
+  more slot for the stack and make sure it was initialized to a known
+  bogus value.)
 
 */
 
