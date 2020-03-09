@@ -14,6 +14,44 @@ typedef struct {
     int b_level;                /* value stack level to pop to */
 } PyTryBlock;
 
+/*
+
+# Layout of locals, cells, frees, stack in current CPython:
+
++-------------------+-------------------+-------------------+-------------------+
+|                   |                   |                   |                   |
+| fastlocals        | cells             | frees             | stack             |
+|  len(co_nlocals)  |  len(co_cellvars) |  len(co_freevars) |  len(co_stacksize)|
++-------------------+-------------------+-------------------+-------------------+
+^                                                           ^
+|                                                           |
++-- f_localsplus                                            +-- f_valuestack
+
+# If we move the stack next to the locals, we can treat the stack
+  space as a register file. ISTR Tim Peters saying in the old
+  rattlesnake days that the number of registers would be no greater
+  than the stack size.
+
++-------------------+-------------------+-------------------+-------------------+
+|                   |                   |                   |                   |
+| fastlocals        | stack             | cells             | frees             |
+|  len(co_nlocals)  |  len(co_stacksize)|  len(co_cellvars) |  len(co_freevars) |
++-------------------+-------------------+-------------------+-------------------+
+^                   ^
+|                   |
++-- f_localsplus    +-- f_valuestack
+
+# This will require some adjustment to the offset to the start of cell
+  and free variables, but it seems unlikely to cause much widespread
+  damage. I think a few bits of frameobject.c and ceval.c will ened to
+  be tweaked, but nothing else.
+
+# One question needs to be answered though. When cell and free
+  variables arrived on the scene, why didn't they just get tacked onto
+  the end of the stack?
+
+*/
+
 typedef struct _frame {
     PyObject_VAR_HEAD
     struct _frame *f_back;      /* previous frame, or NULL */
