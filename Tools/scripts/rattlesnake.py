@@ -911,8 +911,7 @@ def blocklength(block):
 
 def f(a=4):
     "Simplified greatly for now. Expand as I increase instruction set."
-    b = a + 8.0
-    return b
+    return 8.0 + a
     # if b > 24.5:
     #     b = b / 2
     # else:
@@ -926,15 +925,21 @@ def f(a=4):
 
 def test_handle(func):
     print("*"*25, func.__name__, "*"*25)
-    print("Stack version:")
-    dis.dis(func)
-    print("old code:", func.__code__.co_code)
-    print("result:", func())
+
     new_code = optimize(func.__code__)
-    func.__code__ = func.__code__.replace(co_code=new_code)
     print("new code:", func.__code__.co_code)
+    old_code = func.__code__.co_code
+    print("old code:", func.__code__.co_code)
+
+    print("Register version:")
+    func.__code__ = func.__code__.replace(co_code=new_code)
+    dis.dis(func)
+    print("result:", func())
+
     print()
-    print("Optimized version:")
+
+    print("Stack version:")
+    func.__code__ = func.__code__.replace(co_code=old_code)
     dis.dis(func)
     print("result:", func())
 
