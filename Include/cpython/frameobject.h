@@ -30,7 +30,7 @@ typedef struct {
 # If we move the stack next to the locals, we can treat the stack
   space as a register file. ISTR Tim Peters saying in the old
   rattlesnake days that the number of registers would be no greater
-  than the stack size.
+  than the max stack size.
 
 +-------------------+-------------------+-------------------+-------------------+
 |                   |                   |                   |                   |
