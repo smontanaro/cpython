@@ -730,8 +730,9 @@ regen-importlib: Programs/_freeze_importlib
 ############################################################################
 # Regenerate all generated files
 
-regen-all: regen-opcode regen-opcode-targets regen-typeslots regen-grammar \
-	regen-token regen-keyword regen-symbol regen-ast regen-importlib clinic
+regen-all: regen-opcode regen-opcode-targets regen-opcode-map regen-typeslots \
+	regen-grammar regen-token regen-keyword regen-symbol regen-ast \
+	regen-importlib clinic
 
 ############################################################################
 # Special rules for object files
@@ -926,6 +927,14 @@ regen-opcode-targets:
 	$(PYTHON_FOR_REGEN) $(srcdir)/Python/makeopcodetargets.py \
 		$(srcdir)/Python/opcode_targets.h.new
 	$(UPDATE_FILE) $(srcdir)/Python/opcode_targets.h $(srcdir)/Python/opcode_targets.h.new
+
+.PHONY: regen-opcode-map
+regen-opcode-map:
+	# Regenerate Python/opcode_map.h from Lib/opcode.py
+	# using Python/makeopcodemap.py
+	$(PYTHON_FOR_REGEN) $(srcdir)/Python/makeopcodemap.py \
+		$(srcdir)/Python/opcode_map.h.new
+	$(UPDATE_FILE) $(srcdir)/Python/opcode_map.h $(srcdir)/Python/opcode_map.h.new
 
 Python/ceval.o: $(srcdir)/Python/opcode_targets.h $(srcdir)/Python/ceval_gil.h \
 		$(srcdir)/Python/condvar.h
