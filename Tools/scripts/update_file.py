@@ -11,14 +11,18 @@ import sys
 
 
 def main(old_path, new_path):
-    with open(old_path, 'rb') as f:
-        old_contents = f.read()
-    with open(new_path, 'rb') as f:
-        new_contents = f.read()
-    if old_contents != new_contents:
-        os.replace(new_path, old_path)
+    try:
+        with open(old_path, 'rb') as f:
+            old_contents = f.read()
+    except FileNotFoundError:
+        os.rename(new_path, old_path)
     else:
-        os.unlink(new_path)
+        with open(new_path, 'rb') as f:
+            new_contents = f.read()
+        if old_contents != new_contents:
+            os.replace(new_path, old_path)
+        else:
+            os.unlink(new_path)
 
 
 if __name__ == '__main__':
