@@ -33,7 +33,7 @@ def write_contents(f):
     maps = ['unknown'] * 256
     for opname, op in opcode.opmap.items():
         maps[op] = opname
-    f.write("static void *opcode_map[256] = {\n")
+    f.write("static char *opcode_map[256] = {\n")
     f.write(",\n".join(['    "%s"' % s for s in maps]))
     f.write("\n};\n")
 

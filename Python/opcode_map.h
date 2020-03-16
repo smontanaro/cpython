@@ -1,4 +1,4 @@
-static void *opcode_map[256] = {
+static char *opcode_map[256] = {
     "POP_TOP",
     "ROT_TWO",
     "ROT_THREE",
