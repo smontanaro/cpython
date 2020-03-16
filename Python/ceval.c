@@ -51,6 +51,7 @@ static PyObject * do_call_core(
     PyObject *callargs, PyObject *kwdict);
 
 #ifdef LLTRACE
+#include "opcode_map.h"
 static int lltrace;
 static int prtrace(PyThreadState *, PyObject *, const char *);
 #endif
@@ -771,7 +772,7 @@ _PyEval_EvalFrameDefault(PyThreadState *tstate, PyFrameObject *f, int throwflag)
     _PyOpcache *co_opcache;
 
 #ifdef LLTRACE
-    _Py_IDENTIFIER(__ltrace__);
+    _Py_IDENTIFIER(__lltrace__);
 #endif
 
 /* Computed GOTOs, or
@@ -1206,7 +1207,7 @@ _PyEval_EvalFrameDefault(PyThreadState *tstate, PyFrameObject *f, int throwflag)
     }
 
 #ifdef LLTRACE
-    lltrace = _PyDict_GetItemId(f->f_globals, &PyId___ltrace__) != NULL;
+    lltrace = _PyDict_GetItemId(f->f_globals, &PyId___lltrace__) != NULL;
 #endif
 
     if (throwflag) /* support for generator.throw() */
@@ -1342,12 +1343,12 @@ main_loop:
 
         if (lltrace) {
             if (HAS_ARG(opcode)) {
-                printf("%d: %d, %d\n",
-                       f->f_lasti, opcode, oparg);
+                printf("%d: %s, %d\n",
+                       f->f_lasti, opcode_map[opcode], oparg);
             }
             else {
-                printf("%d: %d\n",
-                       f->f_lasti, opcode);
+                printf("%d: %s\n",
+                       f->f_lasti, opcode_map[opcode]);
             }
         }
 #endif
@@ -3494,7 +3495,7 @@ main_loop:
 
             if (oparg & 0x08) {
                 assert(PyTuple_CheckExact(TOP()));
-                func ->func_closure = POP();
+                func->func_closure = POP();
             }
             if (oparg & 0x04) {
                 assert(PyDict_CheckExact(TOP()));
