@@ -1159,7 +1159,7 @@ _PyEval_EvalFrameDefault(PyThreadState *tstate, PyFrameObject *f, int throwflag)
     names = co->co_names;
     consts = co->co_consts;
     fastlocals = f->f_localsplus;
-    freevars = f->f_localsplus + co->co_nlocals;
+    freevars = f->f_cellvars;
     assert(PyBytes_Check(co->co_code));
     assert(PyBytes_GET_SIZE(co->co_code) <= INT_MAX);
     assert(PyBytes_GET_SIZE(co->co_code) % sizeof(_Py_CODEUNIT) == 0);
@@ -4163,7 +4163,7 @@ _PyEval_EvalCode(PyThreadState *tstate,
         return NULL;
     }
     fastlocals = f->f_localsplus;
-    freevars = f->f_localsplus + co->co_nlocals;
+    freevars = f->f_cellvars;
 
     /* Create a dictionary for keyword parameters (**kwags) */
     if (co->co_flags & CO_VARKEYWORDS) {
@@ -4332,6 +4332,7 @@ _PyEval_EvalCode(PyThreadState *tstate,
 
     /* Allocate and initialize storage for cell vars, and copy free
        vars into frame. */
+    j = f->f_cellvars - f->f_localsplus;
     for (i = 0; i < PyTuple_GET_SIZE(co->co_cellvars); ++i) {
         PyObject *c;
         Py_ssize_t arg;
@@ -4347,7 +4348,7 @@ _PyEval_EvalCode(PyThreadState *tstate,
         }
         if (c == NULL)
             goto fail;
-        SETLOCAL(co->co_nlocals + i, c);
+        SETLOCAL(j + i, c);
     }
 
     /* Copy closure variables to free variables */
@@ -5544,8 +5545,7 @@ unicode_concatenate(PyThreadState *tstate, PyObject *v, PyObject *w,
         }
         case STORE_DEREF:
         {
-            PyObject **freevars = (f->f_localsplus +
-                                   f->f_code->co_nlocals);
+            PyObject **freevars = f->f_cellvars;
             PyObject *c = freevars[oparg];
             if (PyCell_GET(c) ==  v) {
                 PyCell_SET(c, NULL);

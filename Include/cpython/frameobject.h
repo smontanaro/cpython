@@ -23,37 +23,37 @@ typedef struct {
 | fastlocals        | cells             | frees             | stack             |
 |  len(co_nlocals)  |  len(co_cellvars) |  len(co_freevars) |  len(co_stacksize)|
 +-------------------+-------------------+-------------------+-------------------+
-^                                                           ^
-|                                                           |
-+-- f_localsplus                                            +-- f_valuestack
+^                   ^                                       ^
+|                   |                                       |
++-- f_localsplus    +-- f_cellvars                          +-- f_valuestack
 
-# If we move the stack next to the locals, we can treat the stack
-  space as a register file. ISTR Tim Peters saying in the old
-  rattlesnake days that the number of registers would be no greater
-  than the max stack size.
+If we move the stack next to the locals, we can treat the locals+stack
+as a contiguous register file. ISTR Tim Peters saying in the old
+rattlesnake days that the number of registers would be no greater than
+the max stack size. This will eliminate LOAD_FAST_REG and
+STORE_FAST_REG opcodes which should be a good performance win.
 
 +-------------------+-------------------+-------------------+-------------------+
 |                   |                   |                   |                   |
 | fastlocals        | stack             | cells             | frees             |
 |  len(co_nlocals)  |  len(co_stacksize)|  len(co_cellvars) |  len(co_freevars) |
 +-------------------+-------------------+-------------------+-------------------+
-^                   ^
-|                   |
-+-- f_localsplus    +-- f_valuestack
+^                   ^                   ^
+|                   |                   |
++-- f_localsplus    +-- f_valuestack    +-- f_cellvars
 
-# This will require some adjustment to the offset to the start of cell
-  and free variables, but it seems unlikely to cause much widespread
-  damage. I think a few bits of frameobject.c and ceval.c will ened to
-  be tweaked, but nothing else.
+This requires some adjustment to the offset to the start of cell and
+free variables. My first attempt failed miserably. On my second
+attempt, I added the above f_cellvars slot to the _frame struct and am
+proceeding more carefully.  It took a bit of effort to work this out,
+but I think it's working now (tests pass, at least). See
+_PyFrame_New_NoTrack.
 
-# One question needs to be answered though. When cell and free
-  variables arrived on the scene, why didn't they just get tacked onto
-  the end of the stack space? We know the maximum size to which the
-  stack can grow, and allocate that much space. Having cells and frees
-  at the end of the allocated space wouldn't add risk that the stack
-  would crash into them. (If that was a concern, just allocate one
-  more slot for the stack and make sure it was initialized to a known
-  bogus value.)
+It wasn't obvious to me why cells and free vars were added adjacent to
+locals. It does seem that in certain places, locals, cells and frees
+are all treated as one, so having them adjacent in memory makes things
+a touch simpler, but separating into separate for loops (for example)
+isn't much extra work, mostly confined to frameobject.c.
 
 */
 
@@ -65,6 +65,7 @@ typedef struct _frame {
     PyObject *f_globals;        /* global symbol table (PyDictObject) */
     PyObject *f_locals;         /* local symbol table (any mapping) */
     PyObject **f_valuestack;    /* points after the last local */
+    PyObject **f_cellvars;      /* points to the first cell/free var */
     /* Next free slot in f_valuestack.  Frame creation sets to f_valuestack.
        Frame evaluation usually NULLs it, but a frame that yields sets it
        to the current stack top. */
