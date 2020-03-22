@@ -1007,19 +1007,6 @@ _PyEval_EvalFrameDefault(PyThreadState *tstate, PyFrameObject *f, int throwflag)
 #define DISPATCH() continue
 #endif
 
-/* register versions just bump next_instr before calling the regular macros */
-#define REG_FAST_DISPATCH() \
-    { \
-        next_instr++; /* advance past 2nd & 3rd opargs */ \
-        FAST_DISPATCH(); \
-    }
-#define REG_DISPATCH() \
-    { \
-        next_instr++; /* advance past 2nd & 3rd opargs */ \
-        DISPATCH(); \
-    }
-
-
 /* Tuple access macros */
 
 #ifndef Py_DEBUG
@@ -1042,28 +1029,11 @@ _PyEval_EvalFrameDefault(PyThreadState *tstate, PyFrameObject *f, int throwflag)
 #define JUMPTO(x)       (next_instr = first_instr + (x) / sizeof(_Py_CODEUNIT))
 #define JUMPBY(x)       (next_instr += (x) / sizeof(_Py_CODEUNIT))
 
-/* Set register opargs - reg0, reg1, reg2 */
-#define REGARGS1() do { \
-        _Py_CODEUNIT word = *next_instr; \
-        reg0 = _Py_OPARG(word); \
-    } while (0)
-
-#define REGARGS2() do { \
-        _Py_CODEUNIT word = *next_instr; \
-        reg0 = _Py_OPARG(word); \
-        word = *(next_instr + 1);  \
-        /* Yes, _Py_OPCODE... */ \
-        reg1 = _Py_OPCODE(word); \
-    } while (0)
-
-#define REGARGS3() do { \
-        _Py_CODEUNIT word = *next_instr; \
-        reg0 = _Py_OPARG(word); \
-        word = *(next_instr + 1);  \
-        /* Yes, _Py_OPCODE... */ \
-        reg1 = _Py_OPCODE(word); \
-        reg2 = _Py_OPARG(word); \
-    } while (0)
+/* extract arg elements out of oparg. */
+#define REGARG4(oparg) (oparg >> 24)
+#define REGARG3(oparg) (oparg >> 16) & 0xff
+#define REGARG2(oparg) (oparg >> 8) & 0xff
+#define REGARG1(oparg) (oparg) & 0xff
 
 /* OpCode prediction macros
     Some opcodes tend to come in pairs thus making it possible to
@@ -3700,11 +3670,13 @@ main_loop:
         }
 
         case TARGET(BINARY_ADD_REG): {
-            int reg0, reg1, reg2;
-            PyObject *left, *right, *sum;
-            REGARGS3();
-            left = GETLOCAL(reg1);
-            right = GETLOCAL(reg2);
+            int dst = REGARG3(oparg);
+            int src1 = REGARG2(oparg);
+            int src2 = REGARG1(oparg);
+            PyObject *left = GETLOCAL(src1);
+            PyObject *right = GETLOCAL(src2);
+            PyObject *sum;
+
             if (PyUnicode_CheckExact(left) &&
                      PyUnicode_CheckExact(right)) {
                 sum = unicode_concatenate(tstate, left, right, f, next_instr);
@@ -3715,39 +3687,31 @@ main_loop:
                 Py_DECREF(left);
             }
             Py_DECREF(right);
-            SETLOCAL(reg0, sum);
+            SETLOCAL(dst, sum);
             if (sum == NULL)
                 goto error;
-            REG_DISPATCH();
+            DISPATCH();
         }
 
         case TARGET(RETURN_VALUE_REG): {
-            int reg0;
-            REGARGS1();
-            retval = GETLOCAL(reg0);
+            retval = GETLOCAL(oparg);
             assert(f->f_iblock == 0);
             goto exiting;
         }
 
         case TARGET(LOAD_CONST_REG): {
-            PREDICTED(LOAD_CONST_REG);
-            int reg0, reg1;
-            REGARGS2();
-            PyObject *value = GETITEM(consts, reg1);
+            int dst = REGARG2(oparg);
+            int src = REGARG1(oparg);
+            PyObject *value = GETITEM(consts, src);
             Py_INCREF(value);
-            SETLOCAL(reg0, value);
-            REG_FAST_DISPATCH();
+            SETLOCAL(dst, value);
+            DISPATCH();
         }
 
         case TARGET(LOAD_FAST_REG): {
-            /* locals and stack are contiguous, so this is a
-               register-to-register copy. Our convention is dst <-
-               src, so reg0 is the destination register and reg1 is
-               the source. */
-            PREDICTED(LOAD_FAST_REG);
-            int reg0, reg1;
-            REGARGS2();
-            PyObject *value = GETLOCAL(reg1);
+            int dst = REGARG2(oparg);
+            int src = REGARG1(oparg);
+            PyObject *value = GETLOCAL(src);
             if (value == NULL) {
                 format_exc_check_arg(tstate, PyExc_UnboundLocalError,
                                      UNBOUNDLOCAL_ERROR_MSG,
@@ -3755,20 +3719,15 @@ main_loop:
                 goto error;
             }
             Py_INCREF(value);
-            SETLOCAL(reg0, value);
-            REG_FAST_DISPATCH();
+            SETLOCAL(dst, value);
+            DISPATCH();
         }
 
         case TARGET(STORE_FAST_REG): {
-            /* locals and stack are contiguous, so this is a
-               register-to-register copy. Our convention is dst <-
-               src, so reg0 is the destination register and reg1 is
-               the source.  Accordingly, LOAD_FAST_REG and
-               STORE_FAST_REG are really the same thing. */
-            PREDICTED(STORE_FAST_REG);
-            int reg0, reg1;
-            REGARGS2();
-            PyObject *value = GETLOCAL(reg1);
+            /* LOAD_FAST_REG and STORE_FAST_REG are really the same thing. */
+            int dst = REGARG2(oparg);
+            int src = REGARG1(oparg);
+            PyObject *value = GETLOCAL(src);
             if (value == NULL) {
                 format_exc_check_arg(tstate, PyExc_UnboundLocalError,
                                      UNBOUNDLOCAL_ERROR_MSG,
@@ -3776,13 +3735,14 @@ main_loop:
                 goto error;
             }
             Py_INCREF(value);
-            SETLOCAL(reg0, value);
-            REG_FAST_DISPATCH();
+            SETLOCAL(dst, value);
+            DISPATCH();
         }
 
         case TARGET(LOAD_GLOBAL_REG): {
-            int reg0, reg1;
-            REGARGS2();
+            int dst = REGARG2(oparg);
+            int src = REGARG1(oparg);
+
             PyObject *name;
             PyObject *v;
             if (PyDict_CheckExact(f->f_globals)
@@ -3801,12 +3761,12 @@ main_loop:
                         OPCACHE_STAT_GLOBAL_HIT();
                         assert(ptr != NULL);
                         Py_INCREF(ptr);
-                        SETLOCAL(reg0, ptr);
+                        SETLOCAL(dst, ptr);
                         DISPATCH();
                     }
                 }
 
-                name = GETITEM(names, reg1);
+                name = GETITEM(names, src);
                 v = _PyDict_LoadGlobal((PyDictObject *)f->f_globals,
                                        (PyDictObject *)f->f_builtins,
                                        name);
@@ -3844,7 +3804,7 @@ main_loop:
                 /* Slow-path if globals or builtins is not a dict */
 
                 /* namespace 1: globals */
-                name = GETITEM(names, reg1);
+                name = GETITEM(names, src);
                 v = PyObject_GetItem(f->f_globals, name);
                 if (v == NULL) {
                     if (!_PyErr_ExceptionMatches(tstate, PyExc_KeyError)) {
@@ -3864,8 +3824,8 @@ main_loop:
                     }
                 }
             }
-            SETLOCAL(reg0, v);
-            REG_DISPATCH();
+            SETLOCAL(dst, v);
+            DISPATCH();
         }
 
 #if USE_COMPUTED_GOTOS
