@@ -933,15 +933,18 @@ _PyFrame_New_NoTrack(PyThreadState *tstate, PyCodeObject *code,
            f_cellvars. */
 
         /* cells first */
-        extras = code->co_nlocals + ncells + nfrees;
-        f->f_valuestack = f->f_localsplus + extras;
-        f->f_cellvars = f->f_localsplus + code->co_nlocals;
+        // extras = code->co_nlocals + ncells + nfrees;
+        // f->f_valuestack = f->f_localsplus + extras;
+        // f->f_cellvars = f->f_localsplus + code->co_nlocals;
 
         /* stack first */
-        // extras = code->co_nlocals + code->co_stacksize + ncells + nfrees;
-        // f->f_valuestack = f->f_localsplus + code->co_nlocals;
-        // f->f_cellvars = f->f_valuestack + code->co_stacksize;
+        extras = code->co_nlocals + code->co_stacksize + ncells + nfrees;
+        f->f_valuestack = f->f_localsplus + code->co_nlocals;
+        f->f_cellvars = f->f_valuestack + code->co_stacksize;
 
+        /* Zero out the entire array, no matter the intended use of
+           the slots. */
+        extras = code->co_nlocals + code->co_stacksize + ncells + nfrees;
         for (i=0; i<extras; i++)
             f->f_localsplus[i] = NULL;
         f->f_locals = NULL;
