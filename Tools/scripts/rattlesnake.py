@@ -53,95 +53,16 @@ execution, asserting that co_nlocals + co_stacksize <= 127.)
 """
 
 import dis
-#import importlib
-#import math
 import os
-#import pprint
 import sys
 import types
 
 # TBD... will change at some point
 import regopcodes as opcodes
 
-DEBUG = True
+from rattlesnake import *
 
-__version__ = "0.3"
-
-# varying stages of optimization - which is called is determined
-# later by the value of the OPTLEVEL environment variable
-
-def optimize0(code):
-    "no-op(timize)"
-    return code.co_code
-
-
-def optimize5(code):
-    """optimize code object, returning tuple (code object, new_instr)"""
-    isc = InstructionSetConverter(code)
-    isc.find_blocks()
-    isc.gen_instructions()
-    isc.convert_instructions()
-    isc.forward_propagate_reads()
-    isc.reverse_propagate_writes()
-    if isc.has_bad_instructions():
-        # wasn't able to convert, because there are bad instructions
-        # in the input
-        print(">> Some instructions can't be converted. Returning original code.")
-        return code.co_code
-    return isc.code()
-
-def debug_method(meth):
-    "display input args and returned result."
-    def wrap(*args, **kwds):
-        self = args[0]
-        old_stack = str(getattr(self, "stacklevel", ""))
-        result = meth(*args, **kwds)
-        new_stack = str(getattr(self, "stacklevel", ""))
-        if DEBUG:
-            args_str = f"{','.join(repr(arg) for arg in args[1:])}" if args else ""
-            sep = ", " if args and kwds else ""
-            kwds_str = f"**{kwds}" if kwds else ""
-            name = meth.__name__
-            klass = args[0].__class__.__name__
-            if old_stack:
-                print(f"! {klass}.{name}({args_str}{sep}{kwds_str}) -> {result}"
-                      f" ({old_stack} -> {new_stack})")
-            else:
-                print(f"! {klass}.{name}({args_str}{sep}{kwds_str}) -> {result}")
-        return result
-    return wrap
-
-def debug_convert(meth):
-    "display input args and returned result."
-    def wrap(*args, **kwds):
-        self = args[0]
-        old_stack = str(self.stacklevel)
-        result = meth(*args, **kwds)
-        new_stack = str(self.stacklevel)
-        if DEBUG:
-            oldop = opcodes.ISET.opname[args[1][0]]
-            oldarg = args[1][1]
-            name = meth.__name__
-            klass = args[0].__class__.__name__
-            res = []
-            for (opcode, oparg) in result:
-                res.append((opcodes.ISET.opname[opcode], oparg))
-            print(f"! {klass}.{name}(({oldop}, {oldarg})) -> {res}"
-                  f" ({old_stack} -> {new_stack})")
-        return result
-    return wrap
-
-def debug_function(func):
-    "display input args and returned result."
-    def wrap(*args, **kwds):
-        result = func(*args, **kwds)
-        if DEBUG:
-            args_str = f"{','.join(repr(arg) for arg in args)}" if args else ""
-            sep = ", " if args and kwds else ""
-            kwds_str = f"**{kwds}" if kwds else ""
-            print(f"! {func.__name__}({args_str}{sep}{kwds_str}) -> {result}")
-        return result
-    return wrap
+__version__ = "0.0"
 
 class Block:
     """represent a block of code with a single entry point (first instr)"""
@@ -918,87 +839,20 @@ def blocklength(block):
         bl += 2
     return bl
 
-
-
-# def test():
-#     stdout = sys.stdout
-#     import pystone
-#     orig = open('pystone.out', 'w')
-#     opt = open('pystone.opt', 'w')
-#     for n in dir(pystone):
-#         f = getattr(pystone, n)
-#         if type(f) == type(pystone.Proc0):
-#             code = f.__code__.co_code
-#             varnames = f.__code__.co_varnames
-#             names = f.__code__.co_names
-#             constants = f.__code__.co_consts
-#             sys.stdout = orig
-#             print("\n===Function %s:\n" % n)
-#             dis.dis(f)
-#             sys.stdout = opt
-#             print("\n===Function %s:\n" % n)
-#             code = optimize(code, varnames, names, constants)
-#             dis.disassemble_string(code,
-#                                    varnames=varnames,
-#                                    names=names,
-#                                    constants=constants)
-#     sys.stdout = stdout
-
-
-def f(a=4):
-    "Simplified greatly for now. Expand as I increase instruction set."
-    return 8.0 + a
-    # if b > 24.5:
-    #     b = b / 2
-    # else:
-    #     b = b * 3
-    # result = []
-    # for i in range(int(b)):
-    #     result.append(math.sin(i))
-    # class FooClass:
-    #     "doc"
-    # return (FooClass, result)
-
-def test_handle(func):
-    print("*"*25, func.__name__, "*"*25)
-
-    new_code = optimize(func.__code__)
-    print("new code:", func.__code__.co_code)
-    old_code = func.__code__.co_code
-    print("old code:", func.__code__.co_code)
-
-    print("Register version:")
-    func.__code__ = func.__code__.replace(co_code=new_code)
-    dis.dis(func)
-    print("result:", func())
-
-    print()
-
-    print("Stack version:")
-    func.__code__ = func.__code__.replace(co_code=old_code)
-    dis.dis(func)
-    print("result:", func())
-
-def test1(mod=os):
-    test_handle(f)
-    for k in mod.__dict__:
-        func = mod.__dict__[k]
-        if isinstance(func, types.FunctionType):
-            test_handle(func)
-
-OPTFUNCS = {
-    "0": optimize0,
-    "5": optimize5,
-}
-optimize = OPTFUNCS.get(os.environ.get('OPTLEVEL', "0"), optimize0)
-
-print("will optimize using", optimize)
+def f(a):
+    return a + 4
 
 def main():
-    test_handle(f)
-    # for name in sys.argv[1:]:
-    #     mod = importlib.import_module(name)
-    #     test1(mod)
+    isc = InstructionSetConverter(f.__code__)
+    isc.find_blocks()
+    isc.gen_instructions()
+    isc.convert_instructions()
+    isc.forward_propagate_reads()
+    isc.reverse_propagate_writes()
+    if isc.has_bad_instructions():
+        # wasn't able to convert, because there are bad instructions
+        # in the input
+        print(">> Some instructions can't be converted.")
     return 0
 
 if __name__ == "__main__":
