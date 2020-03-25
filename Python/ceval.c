@@ -3828,6 +3828,23 @@ main_loop:
             DISPATCH();
         }
 
+        case TARGET(COMPARE_OP_REG): {
+            int dst = REGARG4(oparg);
+            int src1 = REGARG3(oparg);
+            int src2 = REGARG2(oparg);
+            int cmpop = REGARG1(oparg);
+            assert(cmpop <= Py_GE);
+            PyObject *left = GETLOCAL(src1);
+            PyObject *right = GETLOCAL(src2);
+            PyObject *res = PyObject_RichCompare(left, right, cmpop);
+            SETLOCAL(dst, res);
+            Py_DECREF(left);
+            Py_DECREF(right);
+            if (res == NULL)
+                goto error;
+            DISPATCH();
+        }
+
 #if USE_COMPUTED_GOTOS
         _unknown_opcode:
 #endif
