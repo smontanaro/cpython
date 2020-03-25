@@ -57,8 +57,6 @@ import sys
 # TBD... will change at some point
 import regopcodes as opcodes
 
-from rattlesnake.decorators import *
-
 __version__ = "0.0"
 
 class Block:
@@ -66,6 +64,12 @@ class Block:
     def __init__(self):
         self.instructions = []
         self.stacklevel = -1
+
+    def display(self):
+        print("Block:", self, "length:", self.codelen())
+        for instr in self.instructions:
+            print(instr)
+        print()
 
     def codelen(self):
         "Length of block converted to code bytes"
@@ -86,7 +90,7 @@ class Block:
         return self.stacklevel
 
     def append(self, instr):
-        assert isinstance(instr, Instruction)
+        assert isinstance(instr, Instruction), instr
         self.instructions.append(instr)
 
     def extend(self, instructions):
@@ -105,6 +109,20 @@ class Block:
     def __getslice__(self, i, j):
         return self.instructions[i:j]
 
+    def gen_rvm(self, isc):
+        "Return a new block full of RVM instructions."
+        self.display()
+        new_block = Block()
+        for pyvm_inst in self.instructions:
+            convert = isc.dispatch[pyvm_inst.opcode]
+            rvm_inst = convert(isc, pyvm_inst)
+            try:
+                new_block.append(rvm_inst)
+            except AssertionError:
+                print(">>", pyvm_inst)
+                raise
+        new_block.display()
+        return new_block
 
 class Instruction:
     "Represent an instruction in either PyVM or RVM."
@@ -125,6 +143,9 @@ class Instruction:
         # again two bytes.
         return 2 + 2 * len(self.opargs[1:])
 
+    def __str__(self):
+        return f"Instruction({self.name()}, {self.opargs})"
+
 class OptimizeFilter:
     """Base peephole optimizer class for Python byte code.
 
@@ -143,7 +164,6 @@ for the future."""
         self.blocks = []
         self.output = []
 
-    @debug_method
     def findlabels(self, code):
         labels = {0}
         n = len(code)
@@ -173,17 +193,6 @@ for the future."""
         labels = sorted(labels)
         return labels
 
-    def optimize(self):
-        """Optimize each block in the input blocks."""
-        blocks = self.blocks
-        self.output = [None]*len(blocks)
-        for i, block in enumerate(blocks):
-            self.output[i] = self.optimize_block(block)
-
-    def optimize_block(self, block):
-        # noop - subclasses will override this
-        return block
-
     def reset(self):
         self.output = None
         try:
@@ -192,7 +201,6 @@ for the future."""
             # will happen if the input is a list
             pass
 
-    @debug_method
     def find_blocks(self):
         """Convert code string to block form."""
         blocks = self.blocks
@@ -213,73 +221,19 @@ for the future."""
                 try:
                     if 'A' in fmt:
                         idx = labels.index(oparg)
-                        print(f"  {i:4d} append: {opname} {op} {idx}")
                         block.append(Instruction(op, (idx,)))
                     elif 'a' in fmt:
                         idx = labels.index(i+2+oparg)
-                        print(f"  {i:4d} append: {opname} {op} {idx}")
                         block.append(Instruction(op, (idx,)))
                     else:
-                        print(f"  {i:4d} append: {opname} {op} {oparg}")
                         block.append(Instruction(op, (oparg,)))
                 except ValueError:
                     print(">>", labels)
                     raise
             else:
                 assert oparg == 0, (i, self.code[i:], oparg)
-                print(f"  {i:4d} append: {opname} {op} {oparg}")
                 block.append(Instruction(op, (oparg,)))
             i += 2
-
-    def generate_code(self):
-        """Convert the block form of the code back to a string."""
-        self._insure_output()
-        blockaddrs = [0]
-        for block in self.output:
-            blockaddrs.append(2 * len(block) + blockaddrs[-1])
-
-        codelist = []
-        i = 1
-        ext_arg = opcodes.ISET.opmap["EXTENDED_ARG"] << 8
-        for block in self.output:
-            for (opcode, opargs) in block:
-                print("code:", opcode, opcodes.ISET.opname[opcode], opargs)
-                fmt = opcodes.ISET.format(opcode)
-                if not opargs:
-                    opargs = (0,)
-                for oparg in opargs[0:-1]:
-                    codelist.append(ext_arg | oparg)
-                codelist.append(opcode << 8 | opargs[-1])
-                #print(">>", (i, opcodes.ISET.opname[inst[0]], fmt), end=" ")
-                i += 1
-                if 'A' in fmt:
-                    arg = opargs[0]
-                    i += 1
-                    #print("block:", arg[0]|(arg[1]<<8), end=" ")
-                    addr = blockaddrs[arg]
-                    #print("address:", addr, end=" ")
-                    #print("encoded:", (chr(addr&0xff),chr(addr>>8)), end=" ")
-                    codelist.extend([addr&0xff, addr>>8])
-                #     for j in arg[2:]:
-                #         codelist.append(j)
-                elif 'a' in fmt:
-                    arg = opargs[0]
-                    i += 1
-                    #print("block:", arg[0]|(arg[1]<<8), end=" ")
-                    addr = blockaddrs[arg] - i
-                    #print("address:", blockaddrs[arg[0]|(arg[1]<<8)], end=" ")
-                    #print("offset:", addr, end=" ")
-                    #print("encoded:", (chr(addr&0xff),chr(addr>>8)), end=" ")
-                    codelist.extend([addr&0xff, addr>>8])
-                    for j in arg[2:]:
-                        codelist.append(j)
-                else:
-                    i += 1
-                    codelist.append(opargs[0])
-                #print
-
-        print(">>>", codelist)
-        return bytes(codelist)
 
     def constant_value(self, op):
         if op[0] == opcodes.ISET.opmap["LOAD_CONST"]:
@@ -296,10 +250,6 @@ for the future."""
             self.constants.append(c)
             index = self.constants.index(c)
         return index
-
-    def _insure_output(self):
-        if self.output is None:
-            self.optimize()
 
 class InstructionSetConverter(OptimizeFilter):
     """convert stack-based VM code into register-oriented VM code.
@@ -319,12 +269,10 @@ class InstructionSetConverter(OptimizeFilter):
                         opcodes.ISET.opmap['IMPORT_FROM']:1}
     dispatch = {}
 
+    NOP = Instruction(opcodes.ISET.opmap['NOP'])
+
     def __init__(self, code):
-        # input to this guy is a stack code string - eventually we should
-        # be able to deduce this from the code object itself.
-        # in the meantime, we fudge by setting opcodes.ISET appropriately
-        self.unhandledops = {}
-        self.skippedops = {}
+        # input to this guy is a code object
         self.stacklevel = code.co_nlocals
         super().__init__(code)
         # Stack starts right after locals. Together, the locals and
@@ -334,6 +282,7 @@ class InstructionSetConverter(OptimizeFilter):
         print(">> nlocals:", code.co_nlocals)
         print(">> stacksize:", code.co_stacksize)
         assert self.max_stacklevel <= 127, "locals+stack are too big!"
+        self.rvm_blocks = []
 
     def set_block_stacklevel(self, target, level):
         """set the input stack level for particular block"""
@@ -343,12 +292,6 @@ class InstructionSetConverter(OptimizeFilter):
         except IndexError:
             print("!!", target, level, len(self.blocks))
             raise
-
-    def optimize(self):
-        self.unhandledops = {}
-        self.skippedops = {}
-        #print(">> start:", self.stacklevel)
-        OptimizeFilter.optimize(self)
 
     # series of operations below mimic the stack changes of various
     # stack operations so we know what slot to find particular values in
@@ -366,9 +309,9 @@ class InstructionSetConverter(OptimizeFilter):
         """return top readable slot on the stack and decrement"""
         self.stacklevel -= 1
         #print(">> pop:", self.stacklevel)
-        assert self.stacklevel >= self.code.co_nlocals, (
+        assert self.stacklevel >= self.codeobj.co_nlocals, (
             f"Stack slammed into locals!"
-            f" {self.stacklevel} < {self.code.co_nlocals}"
+            f" {self.stacklevel} < {self.codeobj.co_nlocals}"
         )
         return self.stacklevel
 
@@ -379,41 +322,35 @@ class InstructionSetConverter(OptimizeFilter):
 
     def set_stacklevel(self, level):
         """set stack level explicitly - used to handle jump targets"""
-        if level < self.code.co_nlocals:
+        if level < self.codeobj.co_nlocals:
             raise ValueError("invalid stack level: %d" % level)
         self.stacklevel = level
         #print(">> set:", self.stacklevel)
         return self.stacklevel
 
+    def gen_rvm(self):
+        self.rvm_blocks = []
+        for block in self.blocks:
+            self.rvm_blocks.append(block.gen_rvm(self))
 
-    @debug_convert
     def unary_convert(self, instr):
-        op, oparg = instr
-        oparg = oparg[0]        # All PyVM opcodes have a single oparg
-        opname = "%s_REG" % opcodes.ISET.opname[op]
+        opname = "%s_REG" % opcodes.ISET.opname[instr.opcode]
         src = self.pop()
         dst = self.push()
-        return [
-            Instruction(opcodes.ISET.opmap[opname], (dst, src)),
-        ]
+        return Instruction(opcodes.ISET.opmap[opname], (dst, src))
     dispatch[opcodes.ISET.opmap['UNARY_INVERT']] = unary_convert
     dispatch[opcodes.ISET.opmap['UNARY_POSITIVE']] = unary_convert
     dispatch[opcodes.ISET.opmap['UNARY_NEGATIVE']] = unary_convert
     dispatch[opcodes.ISET.opmap['UNARY_NOT']] = unary_convert
 
-    @debug_convert
     def binary_convert(self, instr):
-        op, oparg = instr
-        oparg = oparg[0]        # All PyVM opcodes have a single oparg
-        opname = "%s_REG" % opcodes.ISET.opname[op]
+        opname = "%s_REG" % opcodes.ISET.opname[instr.opcode]
         ## TBD... Still not certain I have argument order/byte packing correct.
         # dst <- src1 OP src2
         src1 = self.pop()       # left-hand register src
         src2 = self.pop()       # right-hand register src
         dst = self.push()       # dst
-        return [
-            Instruction(opcodes.ISET.opmap[opname], (dst, src1, src2)),
-        ]
+        return Instruction(opcodes.ISET.opmap[opname], (dst, src1, src2))
     dispatch[opcodes.ISET.opmap['BINARY_POWER']] = binary_convert
     dispatch[opcodes.ISET.opmap['BINARY_MULTIPLY']] = binary_convert
     dispatch[opcodes.ISET.opmap['BINARY_MATRIX_MULTIPLY']] = binary_convert
@@ -429,39 +366,32 @@ class InstructionSetConverter(OptimizeFilter):
     dispatch[opcodes.ISET.opmap['BINARY_OR']] = binary_convert
 
     def subscript_convert(self, instr):
-        op, oparg = instr
-        oparg = oparg[0]        # All PyVM opcodes have a single oparg
+        op = instr.opcode
         if op == opcodes.ISET.opmap['BINARY_SUBSCR']:
             index = self.pop()
             obj = self.pop()
             dst = self.push()
-            return [
-                Instruction(opcodes.ISET.opmap['BINARY_SUBSCR_REG'],
-                            (obj, index, dst))
-            ]
+            return Instruction(opcodes.ISET.opmap['BINARY_SUBSCR_REG'],
+                               (obj, index, dst))
         if op == opcodes.ISET.opmap['STORE_SUBSCR']:
             index = self.pop()
             obj = self.pop()
             val = self.pop()
-            return [
-                Instruction(opcodes.ISET.opmap['STORE_SUBSCR_REG'],
-                            (obj, index, val))
-            ]
+            return Instruction(opcodes.ISET.opmap['STORE_SUBSCR_REG'],
+                               (obj, index, val))
         if op == opcodes.ISET.opmap['DELETE_SUBSCR']:
             index = self.pop()
             obj = self.pop()
-            return [
-                Instruction(opcodes.ISET.opmap['DELETE_SUBSCR_REG'],
-                            (obj, index))
-            ]
-        return []
+            return Instruction(opcodes.ISET.opmap['DELETE_SUBSCR_REG'],
+                               (obj, index))
+        raise ValueError(f"Unhandled opcode {opcodes.ISET.opname[op]}")
     dispatch[opcodes.ISET.opmap['BINARY_SUBSCR']] = subscript_convert
     dispatch[opcodes.ISET.opmap['STORE_SUBSCR']] = subscript_convert
     dispatch[opcodes.ISET.opmap['DELETE_SUBSCR']] = subscript_convert
 
     def function_convert(self, instr):
-        op, oparg = instr
-        oparg = oparg[0]        # All PyVM opcodes have a single oparg
+        op = instr.opcode
+        oparg = instr.opargs[0] # All PyVM opcodes have a single oparg
         if op == opcodes.ISET.opmap['CALL_FUNCTION']:
             na = oparg[0]
             nk = oparg[1]
@@ -470,53 +400,37 @@ class InstructionSetConverter(OptimizeFilter):
                 src = self.pop()
             for _ in range(nk*2):
                 src = self.pop()
-            return [
-                Instruction(opcodes.ISET.opmap['CALL_FUNCTION_REG'],
-                            (na, nk, src))
-            ]
-        # TBD - BUILD_CLASS is gone
-        # if op == opcodes.ISET.opmap['BUILD_CLASS']:
-        #     u = self.pop()
-        #     v = self.pop()
-        #     w = self.pop()
-        #     return (opcodes.ISET.opmap['BUILD_CLASS_REG'], (u, v, w))
+            return Instruction(opcodes.ISET.opmap['CALL_FUNCTION_REG'],
+                               (na, nk, src))
         if op == opcodes.ISET.opmap['MAKE_FUNCTION']:
             code = self.pop()
             n = oparg[0]|(oparg[1]<<8)
             dst = self.push()
-            return [(opcodes.ISET.opmap['MAKE_FUNCTION_REG'],
-                     (code, n, dst))]
-        return None
+            return Instruction(opcodes.ISET.opmap['MAKE_FUNCTION_REG'],
+                               (code, n, dst))
+        raise ValueError(f"Unhandled opcode {opcodes.ISET.opname[op]}")
     dispatch[opcodes.ISET.opmap['MAKE_FUNCTION']] = function_convert
     dispatch[opcodes.ISET.opmap['CALL_FUNCTION']] = function_convert
     # dispatch[opcodes.ISET.opmap['BUILD_CLASS']] = function_convert
 
-    @debug_convert
     def jump_convert(self, instr):
-        op, oparg = instr
-        oparg = oparg[0]        # All PyVM opcodes have a single oparg
+        op = instr.opcode
+        oparg = instr.opargs[0] # All PyVM opcodes have a single oparg
         retval = None
         opname = f"{opcodes.ISET.opname[op]}_REG"
         if op == opcodes.ISET.opmap['RETURN_VALUE']:
             val = self.pop()
-            retval = [
-                (opcodes.ISET.opmap[opname], val),
-            ]
+            return Instruction(opcodes.ISET.opmap[opname], (val,))
         elif op in (opcodes.ISET.opmap['POP_JUMP_IF_FALSE'],
                     opcodes.ISET.opmap['POP_JUMP_IF_TRUE']):
             self.set_block_stacklevel(oparg, self.top())
-            retval = [
-                (opcodes.ISET.opmap[opname], (oparg, self.pop())),
-            ]
+            return Instruction(opcodes.ISET.opmap[opname],
+                               (oparg, self.pop()))
         elif op in (opcodes.ISET.opmap['JUMP_FORWARD'],
                     opcodes.ISET.opmap['JUMP_ABSOLUTE']):
             self.set_block_stacklevel(oparg, self.top())
-            retval = [
-                Instruction(opcodes.ISET.opmap[opname], (oparg,)),
-            ]
-        if retval is None:
-            print("!!", "Unhandled opcode:", op, oparg)
-        return retval
+            return Instruction(opcodes.ISET.opmap[opname], (oparg,))
+        raise ValueError(f"Unhandled opcode {opcodes.ISET.opname[op]}")
     dispatch[opcodes.ISET.opmap['JUMP_FORWARD']] = jump_convert
     dispatch[opcodes.ISET.opmap['JUMP_ABSOLUTE']] = jump_convert
     dispatch[opcodes.ISET.opmap['POP_JUMP_IF_FALSE']] = jump_convert
@@ -527,91 +441,77 @@ class InstructionSetConverter(OptimizeFilter):
     dispatch[opcodes.ISET.opmap['RETURN_VALUE']] = jump_convert
     # dispatch[opcodes.ISET.opmap['BREAK_LOOP']] = jump_convert
 
-    @debug_convert
     def load_convert(self, instr):
-        op, oparg = instr
-        oparg = oparg[0]        # All PyVM opcodes have a single oparg
+        op = instr.opcode
+        oparg = instr.opargs[0] # All PyVM opcodes have a single oparg
         if op == opcodes.ISET.opmap['LOAD_FAST']:
-            src = oparg[0]         # offset into localsplus
-            dst = self.push()      # unused
-            print("///", op, dst, src)
-            return [
-                Instruction(opcodes.ISET.opmap['LOAD_FAST_REG'], (dst, src)),
-            ]
+            src = oparg         # offset into localsplus
+            dst = self.push()   # unused
+            return Instruction(opcodes.ISET.opmap['LOAD_FAST_REG'],
+                               (dst, src))
         if op == opcodes.ISET.opmap['LOAD_CONST']:
             src = oparg         # reference into co_consts
             dst = self.push()   # offset into localsplus
-            return [
-                Instruction(opcodes.ISET.opmap['LOAD_CONST_REG'], (dst, src)),
-            ]
+            return Instruction(opcodes.ISET.opmap['LOAD_CONST_REG'],
+                               (dst, src))
         if op == opcodes.ISET.opmap['LOAD_GLOBAL']:
             src = oparg         # global name to be found
             dst = self.push()   # offset into localsplus
-            return [
-                Instruction(opcodes.ISET.opmap['LOAD_GLOBAL_REG'], (dst, src)),
-            ]
-        return None
+            return Instruction(opcodes.ISET.opmap['LOAD_GLOBAL_REG'],
+                               (dst, src)),
+        raise ValueError(f"Unhandled opcode {opcodes.ISET.opname[op]}")
     dispatch[opcodes.ISET.opmap['LOAD_CONST']] = load_convert
     dispatch[opcodes.ISET.opmap['LOAD_GLOBAL']] = load_convert
     dispatch[opcodes.ISET.opmap['LOAD_FAST']] = load_convert
 
     def store_convert(self, instr):
-        op, oparg = instr
-        oparg = oparg[0]        # All PyVM opcodes have a single oparg
+        op = instr.opcode
+        oparg = instr.opargs[0] # All PyVM opcodes have a single oparg
         if op == opcodes.ISET.opmap['STORE_FAST']:
             src = oparg
             dst = self.pop()
-            return [
-                Instruction(opcodes.ISET.opmap['STORE_FAST_REG'], (dst, src)),
-            ]
+            return Instruction(opcodes.ISET.opmap['STORE_FAST_REG'],
+                               (dst, src))
         if op == opcodes.ISET.opmap['STORE_GLOBAL']:
             src = oparg
             dst = self.pop()
-            return [
-                Instruction(opcodes.ISET.opmap['STORE_GLOBAL_REG'], (dst, src)),
-            ]
-        return None
+            return Instruction(opcodes.ISET.opmap['STORE_GLOBAL_REG'],
+                               (dst, src))
+        raise ValueError(f"Unhandled opcode {opcodes.ISET.opname[op]}")
     dispatch[opcodes.ISET.opmap['STORE_FAST']] = store_convert
     dispatch[opcodes.ISET.opmap['STORE_GLOBAL']] = store_convert
 
     def attr_convert(self, instr):
-        op, oparg = instr
-        oparg = oparg[0]        # All PyVM opcodes have a single oparg
+        op = instr.opcode
+        oparg = instr.opargs[0] # All PyVM opcodes have a single oparg
         if op == opcodes.ISET.opmap['LOAD_ATTR']:
             obj = self.pop()
             attr = oparg
             dst = self.push()
-            return [
-                Instruction(opcodes.ISET.opmap['LOAD_ATTR_REG'],
-                            (dst, obj, attr)),
-            ]
+            return Instruction(opcodes.ISET.opmap['LOAD_ATTR_REG'],
+                               (dst, obj, attr))
         if op == opcodes.ISET.opmap['STORE_ATTR']:
             obj = self.pop()
             attr = oparg
             val = self.pop()
-            return [
-                Instruction(opcodes.ISET.opmap['STORE_ATTR_REG'],
-                            (obj, attr, val)),
-            ]
+            return Instruction(opcodes.ISET.opmap['STORE_ATTR_REG'],
+                               (obj, attr, val))
         if op == opcodes.ISET.opmap['DELETE_ATTR']:
             obj = self.pop()
             attr = oparg
-            return [
-                Instruction(opcodes.ISET.opmap['DELETE_ATTR_REG'], (obj, attr)),
-            ]
-        return None
+            return Instruction(opcodes.ISET.opmap['DELETE_ATTR_REG'],
+                               (obj, attr))
+        raise ValueError(f"Unhandled opcode {opcodes.ISET.opname[op]}")
     dispatch[opcodes.ISET.opmap['STORE_ATTR']] = attr_convert
     dispatch[opcodes.ISET.opmap['DELETE_ATTR']] = attr_convert
     dispatch[opcodes.ISET.opmap['LOAD_ATTR']] = attr_convert
 
     def seq_convert(self, instr):
-        op, oparg = instr
-        oparg = oparg[0]        # All PyVM opcodes have a single oparg
+        op = instr.opcode
+        oparg = instr.opargs[0] # All PyVM opcodes have a single oparg
         if op == opcodes.ISET.opmap['BUILD_MAP']:
             dst = self.push()
-            return [
-                Instruction(opcodes.ISET.opmap['BUILD_MAP_REG'], (dst,)),
-            ]
+            return Instruction(opcodes.ISET.opmap['BUILD_MAP_REG'], (dst,))
         opname = "%s_REG" % opcodes.ISET.opname[op]
         if op in (opcodes.ISET.opmap['BUILD_LIST'],
                      opcodes.ISET.opmap['BUILD_TUPLE']):
@@ -620,64 +520,51 @@ class InstructionSetConverter(OptimizeFilter):
                 self.pop()
             src = self.top()
             dst = self.push()
-            return [
-                Instruction(opcodes.ISET.opmap[opname], (dst, n, src)),
-            ]
+            return Instruction(opcodes.ISET.opmap[opname], (dst, n, src))
         if op == opcodes.ISET.opmap['UNPACK_SEQUENCE']:
             n = oparg
             src = self.pop()
             for _ in range(n):
                 self.push()
-            return [
-                Instruction(opcodes.ISET.opmap[opname], (n, src)),
-            ]
-        return None
+            return Instruction(opcodes.ISET.opmap[opname], (n, src))
+        raise ValueError(f"Unhandled opcode {opcodes.ISET.opname[op]}")
     dispatch[opcodes.ISET.opmap['BUILD_TUPLE']] = seq_convert
     dispatch[opcodes.ISET.opmap['BUILD_LIST']] = seq_convert
     dispatch[opcodes.ISET.opmap['BUILD_MAP']] = seq_convert
     dispatch[opcodes.ISET.opmap['UNPACK_SEQUENCE']] = seq_convert
 
-    @debug_convert
     def compare_convert(self, instr):
-        op, oparg = instr
-        oparg = oparg[0]        # All PyVM opcodes have a single oparg
+        op = instr.opcode
+        oparg = instr.opargs[0] # All PyVM opcodes have a single oparg
         if op == opcodes.ISET.opmap['COMPARE_OP']:
             cmpop = oparg
             src2 = self.pop()
             src1 = self.pop()
             dst = self.push()
-            return [
-                Instruction(opcodes.ISET.opmap['COMPARE_OP_REG'],
-                            (dst, src1, src2, cmpop)),
-            ]
-        return None
+            return Instruction(opcodes.ISET.opmap['COMPARE_OP_REG'],
+                               (dst, src1, src2, cmpop))
+        raise ValueError(f"Unhandled opcode {opcodes.ISET.opname[op]}")
     dispatch[opcodes.ISET.opmap['COMPARE_OP']] = compare_convert
 
-    @debug_convert
     def stack_convert(self, instr):
-        op, oparg = instr
-        oparg = oparg[0]        # All PyVM opcodes have a single oparg
+        op = instr.opcode
         if op == opcodes.ISET.opmap['POP_TOP']:
             self.pop()
-            return []
+            return self.NOP
         if op == opcodes.ISET.opmap['DUP_TOP']:
             # nop
             _dummy = self.top()
             _dummy = self.push()
-            return []
+            return self.NOP
         if op == opcodes.ISET.opmap['ROT_TWO']:
-            return [
-                Instruction(opcodes.ISET.opmap['ROT_TWO_REG'], (self.top(),)),
-            ]
+            return Instruction(opcodes.ISET.opmap['ROT_TWO_REG'],
+                               (self.top(),))
         if op == opcodes.ISET.opmap['ROT_THREE']:
-            return [
-                Instruction(opcodes.ISET.opmap['ROT_THREE_REG'], (self.top(),)),
-            ]
+            return Instruction(opcodes.ISET.opmap['ROT_THREE_REG'],
+                               (self.top(),))
         if op == opcodes.ISET.opmap['POP_BLOCK']:
-            return [
-                Instruction(opcodes.ISET.opmap['POP_BLOCK_REG'], (0,)),
-            ]
-        return None
+            return Instruction(opcodes.ISET.opmap['POP_BLOCK_REG'])
+        raise ValueError(f"Unhandled opcode {opcodes.ISET.opname[op]}")
     dispatch[opcodes.ISET.opmap['POP_TOP']] = stack_convert
     dispatch[opcodes.ISET.opmap['ROT_TWO']] = stack_convert
     dispatch[opcodes.ISET.opmap['ROT_THREE']] = stack_convert
@@ -685,45 +572,19 @@ class InstructionSetConverter(OptimizeFilter):
     dispatch[opcodes.ISET.opmap['POP_BLOCK']] = stack_convert
 
     def misc_convert(self, instr):
-        op, oparg = instr
-        oparg = oparg[0]        # All PyVM opcodes have a single oparg
+        op = instr.opcode
+        oparg = instr.opargs[0] # All PyVM opcodes have a single oparg
         if op == opcodes.ISET.opmap['IMPORT_NAME']:
             dst = self.push()
-            return [
-                Instruction(opcodes.ISET.opmap['IMPORT_NAME_REG'],
-                            (dst, oparg[0])),
-            ]
+            return Instruction(opcodes.ISET.opmap['IMPORT_NAME_REG'],
+                               (dst, oparg[0]))
         opname = "%s_REG" % opcodes.ISET.opname[op]
         if op == opcodes.ISET.opmap['PRINT_EXPR']:
             src = self.pop()
-            return [
-                Instruction(opcodes.ISET.opmap[opname], (src,)),
-            ]
-        return None
+            return Instruction(opcodes.ISET.opmap[opname], (src,))
+        raise ValueError(f"Unhandled opcode {opcodes.ISET.opname[op]}")
     dispatch[opcodes.ISET.opmap['IMPORT_NAME']] = misc_convert
     dispatch[opcodes.ISET.opmap['PRINT_EXPR']] = misc_convert
-
-    @debug_method
-    def optimize_block(self, block):
-        #print(">> block:", block.block)
-        block_stacklevel = block.get_stacklevel()
-        if block_stacklevel != -1:
-            self.set_stacklevel(block_stacklevel)
-        newblock = Block()
-        for i in block:
-            op = i[0]
-            #oparg = i[1]
-            #print(">>", opcodes.ISET.opname[op], op, oparg)
-            newops = self.dispatch[op](self, i)
-            if newops is None:
-                try:
-                    self.unhandledops[op] += + 1
-                except KeyError:
-                    print("unhandled", opcodes.ISET.opname[op])
-                    self.unhandledops[op] = 1
-            else:
-                newblock.extend(newops)
-        return newblock
 
 
 def f(a):
@@ -732,11 +593,7 @@ def f(a):
 def main():
     isc = InstructionSetConverter(f.__code__)
     isc.find_blocks()
-    codelen = 0
-    for block in isc.blocks:
-        codelen += block.codelen()
-    print("code length:", codelen)
-    # isc.gen_instructions()
+    isc.gen_rvm()
     # isc.convert_instructions()
     # isc.forward_propagate_reads()
     # isc.reverse_propagate_writes()
