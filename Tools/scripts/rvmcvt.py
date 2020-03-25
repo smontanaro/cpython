@@ -57,16 +57,19 @@ import sys
 # TBD... will change at some point
 import regopcodes as opcodes
 
-from rattlesnake import *
+from rattlesnake.decorators import *
 
 __version__ = "0.0"
 
 class Block:
     """represent a block of code with a single entry point (first instr)"""
     def __init__(self):
-        self.block = []
+        self.instructions = []
         self.stacklevel = -1
-        self.length = 0
+
+    def codelen(self):
+        "Length of block converted to code bytes"
+        return sum(len(instr) for instr in self.instructions)
 
     def set_stacklevel(self, level):
         if self.stacklevel != -1:
@@ -82,40 +85,45 @@ class Block:
     def get_stacklevel(self):
         return self.stacklevel
 
-    def append(self, op):
-        self.block.append(op)
-        self.length += 2 + len(op[1][:-1])
+    def append(self, instr):
+        assert isinstance(instr, Instruction)
+        self.instructions.append(instr)
 
-    def extend(self, op):
-        self.block.extend(op)
-
-    def insert(self, i, item):
-        self.block.insert(i, item)
-
-    def remove(self, item):
-        self.block.remove(item)
+    def extend(self, instructions):
+        for instruction in instructions:
+            self.append(instruction)
 
     def __setitem__(self, i, item):
-        self.block[i] = item
+        self.instructions[i] = item
 
     def __getitem__(self, i):
-        return self.block[i]
+        return self.instructions[i]
 
     def __len__(self):
-        return len(self.block)
-
-    def __delitem__(self, i):
-        del self.block[i]
+        return len(self.instructions)
 
     def __getslice__(self, i, j):
-        return self.block[i:j]
+        return self.instructions[i:j]
 
-    def __setslice__(self, i, j, lst):
-        self.block[i:j] = lst
 
-    def __delslice__(self, i, j):
-        del self.block[i:j]
+class Instruction:
+    "Represent an instruction in either PyVM or RVM."
+    def __init__(self, opcode, opargs=(0,)):
+        assert isinstance(opargs, tuple)
+        self.opcode = opcode
+        self.opargs = opargs
 
+    def name(self):
+        "human-readable name for the opcode"
+        return opcodes.ISET.opname[self.opcode]
+
+    def __len__(self):
+        "Compute byte length of instruction."
+        # In wordcode, an instruction is op, arg, each taking one
+        # byte. If we have more than zero or one arg, we use
+        # EXTENDED_ARG instructions to carry the other args, each
+        # again two bytes.
+        return 2 + 2 * len(self.opargs[1:])
 
 class OptimizeFilter:
     """Base peephole optimizer class for Python byte code.
@@ -123,15 +131,16 @@ class OptimizeFilter:
 Instances of OptimizeFilter subclasses are chained together in a
 pipeline, each one responsible for a single optimization."""
 
-    def __init__(self, code):
+    def __init__(self, codeobj):
         """input can be a list as emitted by code_to_blocks or another
 OptimizeFilter instance. varnames and constants args are just placeholders
 for the future."""
-        self.code = code
-        self.varnames = code.co_varnames
-        self.names = code.co_names
-        self.constants = code.co_consts
-        self.input = []
+        self.codeobj = codeobj
+        self.code = codeobj.co_code
+        self.varnames = codeobj.co_varnames
+        self.names = codeobj.co_names
+        self.constants = codeobj.co_consts
+        self.blocks = []
         self.output = []
 
     @debug_method
@@ -166,7 +175,7 @@ for the future."""
 
     def optimize(self):
         """Optimize each block in the input blocks."""
-        blocks = self.input
+        blocks = self.blocks
         self.output = [None]*len(blocks)
         for i, block in enumerate(blocks):
             self.output[i] = self.optimize_block(block)
@@ -178,7 +187,7 @@ for the future."""
     def reset(self):
         self.output = None
         try:
-            self.input.reset()
+            self.blocks.reset()
         except AttributeError:
             # will happen if the input is a list
             pass
@@ -186,7 +195,7 @@ for the future."""
     @debug_method
     def find_blocks(self):
         """Convert code string to block form."""
-        blocks = []
+        blocks = self.blocks
         labels = self.findlabels(self.code)
         #print(">>> labels:", labels)
         n = len(self.code)
@@ -205,23 +214,22 @@ for the future."""
                     if 'A' in fmt:
                         idx = labels.index(oparg)
                         print(f"  {i:4d} append: {opname} {op} {idx}")
-                        block.append((op, (idx,)))
+                        block.append(Instruction(op, (idx,)))
                     elif 'a' in fmt:
                         idx = labels.index(i+2+oparg)
                         print(f"  {i:4d} append: {opname} {op} {idx}")
-                        block.append((op, (idx,)))
+                        block.append(Instruction(op, (idx,)))
                     else:
                         print(f"  {i:4d} append: {opname} {op} {oparg}")
-                        block.append((op, (oparg,)))
+                        block.append(Instruction(op, (oparg,)))
                 except ValueError:
                     print(">>", labels)
                     raise
             else:
                 assert oparg == 0, (i, self.code[i:], oparg)
                 print(f"  {i:4d} append: {opname} {op} {oparg}")
-                block.append((op, (oparg,)))
+                block.append(Instruction(op, (oparg,)))
             i += 2
-        return blocks
 
     def generate_code(self):
         """Convert the block form of the code back to a string."""
@@ -293,95 +301,6 @@ for the future."""
         if self.output is None:
             self.optimize()
 
-    ## bunch of list-like methods ...
-
-    def __getattr__(self, name):
-        self._insure_output()
-        return getattr(self.output, name)
-
-    def __repr__(self):
-        self._insure_output()
-        return repr(self.output)
-
-    def __eq__(self, lst):
-        self._insure_output()
-        if isinstance(lst, type(self.output)):
-            return self.output == lst
-        return self.output == lst.output
-
-    def __ne__(self, lst):
-        self._insure_output()
-        if isinstance(lst, type(self.output)):
-            return self.output != lst
-        return self.output != lst.output
-
-    def __lt__(self, lst):
-        self._insure_output()
-        if isinstance(lst, type(self.output)):
-            return self.output < lst
-        return self.output < lst.output
-
-    def __le__(self, lst):
-        self._insure_output()
-        if isinstance(lst, type(self.output)):
-            return self.output <= lst
-        return self.output <= lst.output
-
-    def __gt__(self, lst):
-        self._insure_output()
-        if isinstance(lst, type(self.output)):
-            return self.output > lst
-        return self.output > lst.output
-
-    def __ge__(self, lst):
-        self._insure_output()
-        if isinstance(lst, type(self.output)):
-            return self.output >= lst
-        return self.output >= lst.output
-
-    def __len__(self):
-        self._insure_output()
-        return len(self.output)
-
-    def __getitem__(self, i):
-        self._insure_output()
-        return self.output[i]
-
-    def __setitem__(self, i, item):
-        self._insure_output()
-        self.output[i] = item
-
-    def __delitem__(self, i):
-        self._insure_output()
-        del self.output[i]
-
-    def __getslice__(self, i, j):
-        self._insure_output()
-        return self.__class__(self.output[i:j])
-
-    def __setslice__(self, i, j, lst):
-        self._insure_output()
-        if isinstance(lst, type(self.output)):
-            self.output[i:j] = lst
-        else:
-            self.output[i:j] = lst.output
-
-    def __delslice__(self, i, j):
-        self._insure_output()
-        del self.output[i:j]
-
-    def append(self, item):
-        self._insure_output()
-        self.output.append(item)
-
-    def insert(self, i, item):
-        self._insure_output()
-        self.output.insert(i, item)
-
-    def remove(self, item):
-        self._insure_output()
-        self.output.remove(item)
-
 class InstructionSetConverter(OptimizeFilter):
     """convert stack-based VM code into register-oriented VM code.
 
@@ -411,26 +330,18 @@ class InstructionSetConverter(OptimizeFilter):
         # Stack starts right after locals. Together, the locals and
         # the space allocated for the stack form a single register
         # file.
-        self.max_stacklevel = self.stacklevel + self.code_.co_stacksize
-        print(">> nlocals:", self.code_.co_nlocals)
-        print(">> stacksize:", self.code_.co_stacksize)
+        self.max_stacklevel = self.stacklevel + code.co_stacksize
+        print(">> nlocals:", code.co_nlocals)
+        print(">> stacksize:", code.co_stacksize)
         assert self.max_stacklevel <= 127, "locals+stack are too big!"
-
-    def has_bad_instructions(self):
-        assert self.blocks is not None, "need to find blocks first!"
-        for block in self.blocks:
-            for i in block:
-                if i[0] in self.bad_instructions:
-                    return True
-        return False
 
     def set_block_stacklevel(self, target, level):
         """set the input stack level for particular block"""
         print(">> set:", (target, level))
         try:
-            self.input[target].set_stacklevel(level)
+            self.blocks[target].set_stacklevel(level)
         except IndexError:
-            print("!!", target, level, len(self.input))
+            print("!!", target, level, len(self.blocks))
             raise
 
     def optimize(self):
@@ -445,16 +356,20 @@ class InstructionSetConverter(OptimizeFilter):
         """increment and return next writable slot on the stack"""
         self.stacklevel += 1
         #print(">> push:", self.stacklevel)
-        assert self.stacklevel <= self.max_stacklevel, \
-            f"Overran the end of the registers! {self.stacklevel} > {self.max_stacklevel}"
+        assert self.stacklevel <= self.max_stacklevel, (
+            f"Overran the end of the registers!"
+            f" {self.stacklevel} > {self.max_stacklevel}"
+        )
         return self.stacklevel - 1
 
     def pop(self):
         """return top readable slot on the stack and decrement"""
         self.stacklevel -= 1
         #print(">> pop:", self.stacklevel)
-        assert self.stacklevel >= self.code_.co_nlocals, \
-            f"Stack slammed into locals! {self.stacklevel} < {self.code_.co_nlocals}"
+        assert self.stacklevel >= self.code.co_nlocals, (
+            f"Stack slammed into locals!"
+            f" {self.stacklevel} < {self.code.co_nlocals}"
+        )
         return self.stacklevel
 
     def top(self):
@@ -464,7 +379,7 @@ class InstructionSetConverter(OptimizeFilter):
 
     def set_stacklevel(self, level):
         """set stack level explicitly - used to handle jump targets"""
-        if level < self.code_.co_nlocals:
+        if level < self.code.co_nlocals:
             raise ValueError("invalid stack level: %d" % level)
         self.stacklevel = level
         #print(">> set:", self.stacklevel)
@@ -479,7 +394,7 @@ class InstructionSetConverter(OptimizeFilter):
         src = self.pop()
         dst = self.push()
         return [
-            (opcodes.ISET.opmap[opname], (dst, src)),
+            Instruction(opcodes.ISET.opmap[opname], (dst, src)),
         ]
     dispatch[opcodes.ISET.opmap['UNARY_INVERT']] = unary_convert
     dispatch[opcodes.ISET.opmap['UNARY_POSITIVE']] = unary_convert
@@ -497,7 +412,7 @@ class InstructionSetConverter(OptimizeFilter):
         src2 = self.pop()       # right-hand register src
         dst = self.push()       # dst
         return [
-            (opcodes.ISET.opmap[opname], (dst, src1, src2)),
+            Instruction(opcodes.ISET.opmap[opname], (dst, src1, src2)),
         ]
     dispatch[opcodes.ISET.opmap['BINARY_POWER']] = binary_convert
     dispatch[opcodes.ISET.opmap['BINARY_MULTIPLY']] = binary_convert
@@ -520,20 +435,26 @@ class InstructionSetConverter(OptimizeFilter):
             index = self.pop()
             obj = self.pop()
             dst = self.push()
-            return [(opcodes.ISET.opmap['BINARY_SUBSCR_REG'],
-                     (obj, index, dst))]
+            return [
+                Instruction(opcodes.ISET.opmap['BINARY_SUBSCR_REG'],
+                            (obj, index, dst))
+            ]
         if op == opcodes.ISET.opmap['STORE_SUBSCR']:
             index = self.pop()
             obj = self.pop()
             val = self.pop()
-            return [(opcodes.ISET.opmap['STORE_SUBSCR_REG'],
-                     (obj, index, val))]
+            return [
+                Instruction(opcodes.ISET.opmap['STORE_SUBSCR_REG'],
+                            (obj, index, val))
+            ]
         if op == opcodes.ISET.opmap['DELETE_SUBSCR']:
             index = self.pop()
             obj = self.pop()
-            return [(opcodes.ISET.opmap['DELETE_SUBSCR_REG'],
-                     (obj, index))]
-        return None
+            return [
+                Instruction(opcodes.ISET.opmap['DELETE_SUBSCR_REG'],
+                            (obj, index))
+            ]
+        return []
     dispatch[opcodes.ISET.opmap['BINARY_SUBSCR']] = subscript_convert
     dispatch[opcodes.ISET.opmap['STORE_SUBSCR']] = subscript_convert
     dispatch[opcodes.ISET.opmap['DELETE_SUBSCR']] = subscript_convert
@@ -549,8 +470,10 @@ class InstructionSetConverter(OptimizeFilter):
                 src = self.pop()
             for _ in range(nk*2):
                 src = self.pop()
-            return [(opcodes.ISET.opmap['CALL_FUNCTION_REG'],
-                     (na, nk, src))]
+            return [
+                Instruction(opcodes.ISET.opmap['CALL_FUNCTION_REG'],
+                            (na, nk, src))
+            ]
         # TBD - BUILD_CLASS is gone
         # if op == opcodes.ISET.opmap['BUILD_CLASS']:
         #     u = self.pop()
@@ -589,7 +512,7 @@ class InstructionSetConverter(OptimizeFilter):
                     opcodes.ISET.opmap['JUMP_ABSOLUTE']):
             self.set_block_stacklevel(oparg, self.top())
             retval = [
-                (opcodes.ISET.opmap[opname], oparg),
+                Instruction(opcodes.ISET.opmap[opname], (oparg,)),
             ]
         if retval is None:
             print("!!", "Unhandled opcode:", op, oparg)
@@ -613,19 +536,19 @@ class InstructionSetConverter(OptimizeFilter):
             dst = self.push()      # unused
             print("///", op, dst, src)
             return [
-                (opcodes.ISET.opmap['LOAD_FAST_REG'], (dst, src)),
+                Instruction(opcodes.ISET.opmap['LOAD_FAST_REG'], (dst, src)),
             ]
         if op == opcodes.ISET.opmap['LOAD_CONST']:
             src = oparg         # reference into co_consts
             dst = self.push()   # offset into localsplus
             return [
-                (opcodes.ISET.opmap['LOAD_CONST_REG'], (dst, src)),
+                Instruction(opcodes.ISET.opmap['LOAD_CONST_REG'], (dst, src)),
             ]
         if op == opcodes.ISET.opmap['LOAD_GLOBAL']:
             src = oparg         # global name to be found
             dst = self.push()   # offset into localsplus
             return [
-                (opcodes.ISET.opmap['LOAD_GLOBAL_REG'], (dst, src)),
+                Instruction(opcodes.ISET.opmap['LOAD_GLOBAL_REG'], (dst, src)),
             ]
         return None
     dispatch[opcodes.ISET.opmap['LOAD_CONST']] = load_convert
@@ -639,13 +562,13 @@ class InstructionSetConverter(OptimizeFilter):
             src = oparg
             dst = self.pop()
             return [
-                (opcodes.ISET.opmap['STORE_FAST_REG'], (dst, src)),
+                Instruction(opcodes.ISET.opmap['STORE_FAST_REG'], (dst, src)),
             ]
         if op == opcodes.ISET.opmap['STORE_GLOBAL']:
             src = oparg
             dst = self.pop()
             return [
-                (opcodes.ISET.opmap['STORE_GLOBAL_REG'], (dst, src)),
+                Instruction(opcodes.ISET.opmap['STORE_GLOBAL_REG'], (dst, src)),
             ]
         return None
     dispatch[opcodes.ISET.opmap['STORE_FAST']] = store_convert
@@ -659,20 +582,22 @@ class InstructionSetConverter(OptimizeFilter):
             attr = oparg
             dst = self.push()
             return [
-                (opcodes.ISET.opmap['LOAD_ATTR_REG'], (dst, obj, attr)),
+                Instruction(opcodes.ISET.opmap['LOAD_ATTR_REG'],
+                            (dst, obj, attr)),
             ]
         if op == opcodes.ISET.opmap['STORE_ATTR']:
             obj = self.pop()
             attr = oparg
             val = self.pop()
             return [
-                (opcodes.ISET.opmap['STORE_ATTR_REG'], (obj, attr, val)),
+                Instruction(opcodes.ISET.opmap['STORE_ATTR_REG'],
+                            (obj, attr, val)),
             ]
         if op == opcodes.ISET.opmap['DELETE_ATTR']:
             obj = self.pop()
             attr = oparg
             return [
-                (opcodes.ISET.opmap['DELETE_ATTR_REG'], (obj, attr)),
+                Instruction(opcodes.ISET.opmap['DELETE_ATTR_REG'], (obj, attr)),
             ]
         return None
     dispatch[opcodes.ISET.opmap['STORE_ATTR']] = attr_convert
@@ -685,7 +610,7 @@ class InstructionSetConverter(OptimizeFilter):
         if op == opcodes.ISET.opmap['BUILD_MAP']:
             dst = self.push()
             return [
-                (opcodes.ISET.opmap['BUILD_MAP_REG'], dst),
+                Instruction(opcodes.ISET.opmap['BUILD_MAP_REG'], (dst,)),
             ]
         opname = "%s_REG" % opcodes.ISET.opname[op]
         if op in (opcodes.ISET.opmap['BUILD_LIST'],
@@ -696,7 +621,7 @@ class InstructionSetConverter(OptimizeFilter):
             src = self.top()
             dst = self.push()
             return [
-                (opcodes.ISET.opmap[opname], (dst, n, src)),
+                Instruction(opcodes.ISET.opmap[opname], (dst, n, src)),
             ]
         if op == opcodes.ISET.opmap['UNPACK_SEQUENCE']:
             n = oparg
@@ -704,7 +629,7 @@ class InstructionSetConverter(OptimizeFilter):
             for _ in range(n):
                 self.push()
             return [
-                (opcodes.ISET.opmap[opname], (n, src)),
+                Instruction(opcodes.ISET.opmap[opname], (n, src)),
             ]
         return None
     dispatch[opcodes.ISET.opmap['BUILD_TUPLE']] = seq_convert
@@ -722,7 +647,8 @@ class InstructionSetConverter(OptimizeFilter):
             src1 = self.pop()
             dst = self.push()
             return [
-                (opcodes.ISET.opmap['COMPARE_OP_REG'], (dst, src1, src2, cmpop)),
+                Instruction(opcodes.ISET.opmap['COMPARE_OP_REG'],
+                            (dst, src1, src2, cmpop)),
             ]
         return None
     dispatch[opcodes.ISET.opmap['COMPARE_OP']] = compare_convert
@@ -740,18 +666,16 @@ class InstructionSetConverter(OptimizeFilter):
             _dummy = self.push()
             return []
         if op == opcodes.ISET.opmap['ROT_TWO']:
-            a = self.top()
             return [
-                (opcodes.ISET.opmap['ROT_TWO_REG'], a),
+                Instruction(opcodes.ISET.opmap['ROT_TWO_REG'], (self.top(),)),
             ]
         if op == opcodes.ISET.opmap['ROT_THREE']:
-            a = self.top()
             return [
-                (opcodes.ISET.opmap['ROT_THREE_REG'], a),
+                Instruction(opcodes.ISET.opmap['ROT_THREE_REG'], (self.top(),)),
             ]
         if op == opcodes.ISET.opmap['POP_BLOCK']:
             return [
-                (opcodes.ISET.opmap['POP_BLOCK_REG'], 0),
+                Instruction(opcodes.ISET.opmap['POP_BLOCK_REG'], (0,)),
             ]
         return None
     dispatch[opcodes.ISET.opmap['POP_TOP']] = stack_convert
@@ -766,13 +690,14 @@ class InstructionSetConverter(OptimizeFilter):
         if op == opcodes.ISET.opmap['IMPORT_NAME']:
             dst = self.push()
             return [
-                (opcodes.ISET.opmap['IMPORT_NAME_REG'], (dst, oparg[0])),
+                Instruction(opcodes.ISET.opmap['IMPORT_NAME_REG'],
+                            (dst, oparg[0])),
             ]
         opname = "%s_REG" % opcodes.ISET.opname[op]
         if op == opcodes.ISET.opmap['PRINT_EXPR']:
             src = self.pop()
             return [
-                (opcodes.ISET.opmap[opname], src),
+                Instruction(opcodes.ISET.opmap[opname], (src,)),
             ]
         return None
     dispatch[opcodes.ISET.opmap['IMPORT_NAME']] = misc_convert
@@ -798,10 +723,6 @@ class InstructionSetConverter(OptimizeFilter):
                     self.unhandledops[op] = 1
             else:
                 newblock.extend(newops)
-        result = []
-        for (opcode, oparg) in newblock.block:
-            result.append((opcodes.ISET.opname[opcode], oparg))
-        print(">> newblock:", result)
         return newblock
 
 
@@ -811,14 +732,14 @@ def f(a):
 def main():
     isc = InstructionSetConverter(f.__code__)
     isc.find_blocks()
-    isc.gen_instructions()
-    isc.convert_instructions()
-    isc.forward_propagate_reads()
-    isc.reverse_propagate_writes()
-    if isc.has_bad_instructions():
-        # wasn't able to convert, because there are bad instructions
-        # in the input
-        print(">> Some instructions can't be converted.")
+    codelen = 0
+    for block in isc.blocks:
+        codelen += block.codelen()
+    print("code length:", codelen)
+    # isc.gen_instructions()
+    # isc.convert_instructions()
+    # isc.forward_propagate_reads()
+    # isc.reverse_propagate_writes()
     return 0
 
 if __name__ == "__main__":
