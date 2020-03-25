@@ -220,12 +220,7 @@ def_op('LOAD_CONST_REG', OP, 'rc0') ; OP += 1
 def_op('LOAD_GLOBAL_REG', OP, 'nr0') ; OP += 1
 def_op('LOAD_FAST_REG', OP, 'rr0') ; OP += 1
 def_op('STORE_FAST_REG', OP, 'rr0') ; OP += 1
-# # TBD... Rattlesnake had four args. I'm trying not to overflow into
-# # another quad word. If I give this opcode a value <= 64 I have room for
-# # four compare bits, not quite enough. Hrm...
-# def_op('COMPARE_OP_REG', OP, '<rr') ; OP += 1
-# def_op('POP_JUMP_IF_FALSE_REG', OP, 'A00') ; OP += 1
-# def_op('POP_JUMP_IF_TRUE_REG', OP, 'A00') ; OP += 1
+def_op('COMPARE_OP_REG', OP, '<rr') ; OP += 1
 
 assert OP <= 256, OP
 

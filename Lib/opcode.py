@@ -239,6 +239,7 @@ def_op('LOAD_CONST_REG', op) ; op += 1
 def_op('LOAD_GLOBAL_REG', op) ; op += 1
 def_op('LOAD_FAST_REG', op) ; op += 1
 def_op('STORE_FAST_REG', op) ; op += 1
+def_op('COMPARE_OP_REG', op) ; op += 1
 
 assert op <= 256, op
 

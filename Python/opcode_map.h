@@ -124,7 +124,7 @@ static char *opcode_map[256] = {
     "LOAD_GLOBAL_REG",
     "LOAD_FAST_REG",
     "STORE_FAST_REG",
-    "unknown",
+    "COMPARE_OP_REG",
     "unknown",
     "unknown",
     "unknown",

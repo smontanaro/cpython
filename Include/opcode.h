@@ -134,6 +134,7 @@ extern "C" {
 #define LOAD_GLOBAL_REG         122
 #define LOAD_FAST_REG           123
 #define STORE_FAST_REG          124
+#define COMPARE_OP_REG          125
 
 /* EXCEPT_HANDLER is a special, implicit block type which is created when
    entering an except handler. It is not an opcode but we define it here

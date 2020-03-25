@@ -124,7 +124,7 @@ static void *opcode_targets[256] = {
     &&TARGET_LOAD_GLOBAL_REG,
     &&TARGET_LOAD_FAST_REG,
     &&TARGET_STORE_FAST_REG,
-    &&_unknown_opcode,
+    &&TARGET_COMPARE_OP_REG,
     &&_unknown_opcode,
     &&_unknown_opcode,
     &&_unknown_opcode,
