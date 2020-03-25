@@ -912,12 +912,6 @@ class InstructionSetConverter(OptimizeFilter):
         return newblock
 
 
-def is_jump(op):
-    return op in opcodes.ISET.jumps
-
-def is_abs_jump(op):
-    return op in opcodes.ISET.abs_jumps
-
 def blocklength(block):
     bl = 0
     for insn in block:
