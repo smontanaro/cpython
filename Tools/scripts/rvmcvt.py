@@ -52,10 +52,7 @@ execution, asserting that co_nlocals + co_stacksize <= 127.)
 
 """
 
-import dis
-import os
 import sys
-import types
 
 # TBD... will change at some point
 import regopcodes as opcodes
@@ -134,15 +131,8 @@ for the future."""
         self.varnames = code.co_varnames
         self.names = code.co_names
         self.constants = code.co_consts
-        self.input = None
-        self.output = None
-
-    def namify(self, block):
-        """return block with names in place of opcodes (debug routine)"""
-        block = list(block)
-        for i in range(len(block)):
-            block[i] = (opcodes.ISET.opname[block[i][0]],) + block[i][1:]
-        return tuple(block)
+        self.input = []
+        self.output = []
 
     @debug_method
     def findlabels(self, code):
@@ -178,8 +168,8 @@ for the future."""
         """Optimize each block in the input blocks."""
         blocks = self.input
         self.output = [None]*len(blocks)
-        for i in range(len(blocks)):
-            self.output[i] = self.optimize_block(blocks[i])
+        for i, block in enumerate(blocks):
+            self.output[i] = self.optimize_block(block)
 
     def optimize_block(self, block):
         # noop - subclasses will override this
@@ -237,59 +227,48 @@ for the future."""
         """Convert the block form of the code back to a string."""
         self._insure_output()
         blockaddrs = [0]
-        blockaddr = 0
         for block in self.output:
-            blockaddrs.append(blocklength(block)+blockaddrs[-1])
-
-        #print(">>> block addresses:", blockaddrs)
-        #for i in range(len(self.output)):
-            #print(">> block:", i, "address:", blockaddrs[i])
-            #pprint.pprint(self.namify(self.output[i]))
+            blockaddrs.append(2 * len(block) + blockaddrs[-1])
 
         codelist = []
         i = 1
         ext_arg = opcodes.ISET.opmap["EXTENDED_ARG"] << 8
         for block in self.output:
-            try:
-                for (opcode, opargs) in block:
-                    print("code:", opcode, opcodes.ISET.opname[opcode], opargs)
-                    fmt = opcodes.ISET.format(opcode)
-                    if not opargs:
-                        opargs = (0,)
-                    for oparg in opargs[0:-1]:
-                        codelist.append(ext_arg | oparg)
-                    codelist.append(opcode << 8 | opargs[-1])
-                    #print(">>", (i, opcodes.ISET.opname[inst[0]], fmt), end=" ")
+            for (opcode, opargs) in block:
+                print("code:", opcode, opcodes.ISET.opname[opcode], opargs)
+                fmt = opcodes.ISET.format(opcode)
+                if not opargs:
+                    opargs = (0,)
+                for oparg in opargs[0:-1]:
+                    codelist.append(ext_arg | oparg)
+                codelist.append(opcode << 8 | opargs[-1])
+                #print(">>", (i, opcodes.ISET.opname[inst[0]], fmt), end=" ")
+                i += 1
+                if 'A' in fmt:
+                    arg = opargs[0]
                     i += 1
-                    if 'A' in fmt:
-                        arg = opargs[0]
-                        i += 1
-                        #print("block:", arg[0]|(arg[1]<<8), end=" ")
-                        addr = blockaddrs[arg]
-                        #print("address:", addr, end=" ")
-                        #print("encoded:", (chr(addr&0xff),chr(addr>>8)), end=" ")
-                        codelist.extend([addr&0xff, addr>>8])
-                    #     for j in arg[2:]:
-                    #         codelist.append(j)
-                    elif 'a' in fmt:
-                        arg = opargs[0]
-                        i += 1
-                        #print("block:", arg[0]|(arg[1]<<8), end=" ")
-                        addr = blockaddrs[arg] - i
-                        #print("address:", blockaddrs[arg[0]|(arg[1]<<8)], end=" ")
-                        #print("offset:", addr, end=" ")
-                        #print("encoded:", (chr(addr&0xff),chr(addr>>8)), end=" ")
-                        codelist.extend([addr&0xff, addr>>8])
-                        for j in arg[2:]:
-                            codelist.append(j)
-                    else:
-                        i += 1
-                        codelist.append(opargs[0])
-                    #print
-            except ValueError:
-                print((opcodes.ISET.opname[inst[0]], opargs,
-                       i, blockaddrs[blockaddr]))
-                raise
+                    #print("block:", arg[0]|(arg[1]<<8), end=" ")
+                    addr = blockaddrs[arg]
+                    #print("address:", addr, end=" ")
+                    #print("encoded:", (chr(addr&0xff),chr(addr>>8)), end=" ")
+                    codelist.extend([addr&0xff, addr>>8])
+                #     for j in arg[2:]:
+                #         codelist.append(j)
+                elif 'a' in fmt:
+                    arg = opargs[0]
+                    i += 1
+                    #print("block:", arg[0]|(arg[1]<<8), end=" ")
+                    addr = blockaddrs[arg] - i
+                    #print("address:", blockaddrs[arg[0]|(arg[1]<<8)], end=" ")
+                    #print("offset:", addr, end=" ")
+                    #print("encoded:", (chr(addr&0xff),chr(addr>>8)), end=" ")
+                    codelist.extend([addr&0xff, addr>>8])
+                    for j in arg[2:]:
+                        codelist.append(j)
+                else:
+                    i += 1
+                    codelist.append(opargs[0])
+                #print
 
         print(">>>", codelist)
         return bytes(codelist)
@@ -436,13 +415,6 @@ class InstructionSetConverter(OptimizeFilter):
         print(">> nlocals:", self.code_.co_nlocals)
         print(">> stacksize:", self.code_.co_stacksize)
         assert self.max_stacklevel <= 127, "locals+stack are too big!"
-
-    def namify(self, block):
-        """return block with names in place of opcodes (debug routine)"""
-        block = list(block)
-        for i in range(len(block)):
-            block[i] = (opcodes.ISET.opname[block[i][0]],) + block[i][1:]
-        return tuple(block)
 
     def has_bad_instructions(self):
         assert self.blocks is not None, "need to find blocks first!"
@@ -832,12 +804,6 @@ class InstructionSetConverter(OptimizeFilter):
         print(">> newblock:", result)
         return newblock
 
-
-def blocklength(block):
-    bl = 0
-    for insn in block:
-        bl += 2
-    return bl
 
 def f(a):
     return a + 4
