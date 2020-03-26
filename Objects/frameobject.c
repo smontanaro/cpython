@@ -1004,8 +1004,9 @@ void
 PyFrame_BlockSetup(PyFrameObject *f, int type, int handler, int level)
 {
     PyTryBlock *b;
-    if (f->f_iblock >= CO_MAXBLOCKS)
-        Py_FatalError("XXX block stack overflow");
+    if (f->f_iblock >= CO_MAXBLOCKS) {
+        Py_FatalError("block stack overflow");
+    }
     b = &f->f_blockstack[f->f_iblock++];
     b->b_type = type;
     b->b_level = level;
@@ -1016,8 +1017,9 @@ PyTryBlock *
 PyFrame_BlockPop(PyFrameObject *f)
 {
     PyTryBlock *b;
-    if (f->f_iblock <= 0)
-        Py_FatalError("XXX block stack underflow");
+    if (f->f_iblock <= 0) {
+        Py_FatalError("block stack underflow");
+    }
     b = &f->f_blockstack[--f->f_iblock];
     return b;
 }
