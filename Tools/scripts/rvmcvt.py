@@ -61,13 +61,19 @@ __version__ = "0.0"
 
 class Block:
     """represent a block of code with a single entry point (first instr)"""
-    def __init__(self):
+    def __init__(self, block_type):
         self.instructions = []
         self.stacklevel = -1
         self.address = -1
+        self.block_number = -1
+        self.block_type = block_type
+
+    def __str__(self):
+        "useful summary"
+        return f"Block <{self.block_type}:{self.block_number}:{self.codelen()}>"
 
     def display(self):
-        print("Block:", self, "length:", self.codelen())
+        print(self)
         assert self.address >= 0
         offset = self.address
         for instr in self.instructions:
@@ -114,7 +120,7 @@ class Block:
 
     def gen_rvm(self, isc):
         "Return a new block full of RVM instructions."
-        new_block = Block()
+        new_block = Block("RVM")
         for pyvm_inst in self.instructions:
             convert = isc.dispatch[pyvm_inst.opcode]
             rvm_inst = convert(isc, pyvm_inst)
@@ -212,7 +218,7 @@ for the future."""
         while i < n:
             if i in labels:
                 #print(f">> new block offset={i}")
-                blocks.append(Block())
+                blocks.append(Block("PyVM"))
             op = self.code[i]
             opname = opcodes.ISET.opname[op]
             oparg = self.code[i+1]
@@ -339,9 +345,16 @@ class InstructionSetConverter(OptimizeFilter):
 
             # address/block number calculation
             block.address = pyvm_offset
-            pyvm_offset += block.codelen()
+            block.block_number = i
             rvm_block.address = rvm_offset
+            rvm_block.block_number = i
+
+            pyvm_offset += block.codelen()
+            # TBD: PyVM code does not change, but RVM code changes as
+            # we optimize, so this offset will change. Still, useful
+            # to have it for display purposes.
             rvm_offset += rvm_block.codelen()
+
             self.address_to_block[pyvm_offset] = i
 
         self.display_blocks(self.blocks)
