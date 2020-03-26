@@ -64,14 +64,15 @@ class Block:
     def __init__(self):
         self.instructions = []
         self.stacklevel = -1
+        self.address = -1
 
     def display(self):
         print("Block:", self, "length:", self.codelen())
-        offset = 0
+        assert self.address >= 0
+        offset = self.address
         for instr in self.instructions:
             print(offset, instr)
             offset += len(instr)
-        print()
 
     def codelen(self):
         "Length of block converted to code bytes"
@@ -113,7 +114,6 @@ class Block:
 
     def gen_rvm(self, isc):
         "Return a new block full of RVM instructions."
-        self.display()
         new_block = Block()
         for pyvm_inst in self.instructions:
             convert = isc.dispatch[pyvm_inst.opcode]
@@ -123,7 +123,6 @@ class Block:
             except AssertionError:
                 print(">>", pyvm_inst)
                 raise
-        new_block.display()
         return new_block
 
 class Instruction:
@@ -288,7 +287,7 @@ class InstructionSetConverter(OptimizeFilter):
 
     def set_block_stacklevel(self, target, level):
         """set the input stack level for particular block"""
-        print(">> set:", (target, level))
+        #print(">> set:", (target, level))
         try:
             self.blocks[target].set_stacklevel(level)
         except IndexError:
@@ -334,6 +333,14 @@ class InstructionSetConverter(OptimizeFilter):
         self.rvm_blocks = []
         for block in self.blocks:
             self.rvm_blocks.append(block.gen_rvm(self))
+
+        for blocks in (self.blocks, self.rvm_blocks):
+            offset = 0
+            for block in blocks:
+                block.address = offset
+                block.display()
+                offset += block.codelen()
+            print()
 
     def unary_convert(self, instr):
         opname = "%s_REG" % opcodes.ISET.opname[instr.opcode]
