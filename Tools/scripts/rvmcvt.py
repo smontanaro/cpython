@@ -67,8 +67,10 @@ class Block:
 
     def display(self):
         print("Block:", self, "length:", self.codelen())
+        offset = 0
         for instr in self.instructions:
-            print(instr)
+            print(offset, instr)
+            offset += len(instr)
         print()
 
     def codelen(self):
@@ -210,7 +212,7 @@ for the future."""
         i = 0
         while i < n:
             if i in labels:
-                print(f">> new block offset={i}")
+                #print(f">> new block offset={i}")
                 blocks.append(Block())
             op = self.code[i]
             opname = opcodes.ISET.opname[op]
@@ -279,8 +281,8 @@ class InstructionSetConverter(OptimizeFilter):
         # the space allocated for the stack form a single register
         # file.
         self.max_stacklevel = self.stacklevel + code.co_stacksize
-        print(">> nlocals:", code.co_nlocals)
-        print(">> stacksize:", code.co_stacksize)
+        #print(">> nlocals:", code.co_nlocals)
+        #print(">> stacksize:", code.co_stacksize)
         assert self.max_stacklevel <= 127, "locals+stack are too big!"
         self.rvm_blocks = []
 
@@ -417,17 +419,19 @@ class InstructionSetConverter(OptimizeFilter):
         op = instr.opcode
         oparg = instr.opargs[0] # All PyVM opcodes have a single oparg
         retval = None
-        opname = f"{opcodes.ISET.opname[op]}_REG"
         if op == opcodes.ISET.opmap['RETURN_VALUE']:
+            opname = f"{opcodes.ISET.opname[op]}_REG"
             val = self.pop()
             return Instruction(opcodes.ISET.opmap[opname], (val,))
         elif op in (opcodes.ISET.opmap['POP_JUMP_IF_FALSE'],
                     opcodes.ISET.opmap['POP_JUMP_IF_TRUE']):
+            opname = f"{opcodes.ISET.opname[op]}_REG"[4:]
             self.set_block_stacklevel(oparg, self.top())
             return Instruction(opcodes.ISET.opmap[opname],
                                (oparg, self.pop()))
         elif op in (opcodes.ISET.opmap['JUMP_FORWARD'],
                     opcodes.ISET.opmap['JUMP_ABSOLUTE']):
+            opname = f"{opcodes.ISET.opname[op]}_REG"
             self.set_block_stacklevel(oparg, self.top())
             return Instruction(opcodes.ISET.opmap[opname], (oparg,))
         raise ValueError(f"Unhandled opcode {opcodes.ISET.opname[op]}")
@@ -590,13 +594,20 @@ class InstructionSetConverter(OptimizeFilter):
 def f(a):
     return a + 4
 
+def g(a, b):
+    if a > b:
+        return a
+    return b - 1
+
 def main():
-    isc = InstructionSetConverter(f.__code__)
-    isc.find_blocks()
-    isc.gen_rvm()
-    # isc.convert_instructions()
-    # isc.forward_propagate_reads()
-    # isc.reverse_propagate_writes()
+    for func in (f, g):
+        print("---", func, "---")
+        isc = InstructionSetConverter(func.__code__)
+        isc.find_blocks()
+        isc.gen_rvm()
+        # isc.convert_instructions()
+        # isc.forward_propagate_reads()
+        # isc.reverse_propagate_writes()
     return 0
 
 if __name__ == "__main__":
