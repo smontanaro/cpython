@@ -284,6 +284,7 @@ class InstructionSetConverter(OptimizeFilter):
         #print(">> stacksize:", code.co_stacksize)
         assert self.max_stacklevel <= 127, "locals+stack are too big!"
         self.rvm_blocks = []
+        self.address_to_block = {}
 
     def set_block_stacklevel(self, target, level):
         """set the input stack level for particular block"""
@@ -331,16 +332,26 @@ class InstructionSetConverter(OptimizeFilter):
 
     def gen_rvm(self):
         self.rvm_blocks = []
-        for block in self.blocks:
-            self.rvm_blocks.append(block.gen_rvm(self))
+        pyvm_offset = rvm_offset = 0
+        for (i, block) in enumerate(self.blocks):
+            rvm_block = block.gen_rvm(self)
+            self.rvm_blocks.append(rvm_block)
 
-        for blocks in (self.blocks, self.rvm_blocks):
-            offset = 0
-            for block in blocks:
-                block.address = offset
-                block.display()
-                offset += block.codelen()
-            print()
+            # address/block number calculation
+            block.address = pyvm_offset
+            pyvm_offset += block.codelen()
+            rvm_block.address = rvm_offset
+            rvm_offset += rvm_block.codelen()
+            self.address_to_block[pyvm_offset] = i
+
+        self.display_blocks(self.blocks)
+        self.display_blocks(self.rvm_blocks)
+
+    def display_blocks(self, blocks):
+        "debug"
+        for block in blocks:
+            block.display()
+        print()
 
     def unary_convert(self, instr):
         opname = "%s_REG" % opcodes.ISET.opname[instr.opcode]
@@ -612,9 +623,11 @@ def main():
         isc = InstructionSetConverter(func.__code__)
         isc.find_blocks()
         isc.gen_rvm()
+        # isc.convert_address_to_block()
         # isc.convert_instructions()
         # isc.forward_propagate_reads()
         # isc.reverse_propagate_writes()
+        # isc.convert_block_to_address()
     return 0
 
 if __name__ == "__main__":
