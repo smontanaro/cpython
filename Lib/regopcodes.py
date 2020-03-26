@@ -207,20 +207,22 @@ def_op('SET_UPDATE', OP, '?') ; OP += 1
 def_op('DICT_MERGE', OP, '?') ; OP += 1
 def_op('DICT_UPDATE', OP, '?') ; OP += 1
 
-#def_op('BINARY_POWER_REG', OP, 'rrr') ; OP += 1
-#def_op('BINARY_MULTIPLY_REG', OP, 'rrr') ; OP += 1
-#def_op('BINARY_MODULO_REG', OP, 'rrr') ; OP += 1
+def_op('BINARY_POWER_REG', OP, 'rrr') ; OP += 1
+def_op('BINARY_MULTIPLY_REG', OP, 'rrr') ; OP += 1
+def_op('BINARY_MODULO_REG', OP, 'rrr') ; OP += 1
 def_op('BINARY_ADD_REG', OP, 'rrr') ; OP += 1
-#def_op('BINARY_SUBTRACT_REG', OP, 'rrr') ; OP += 1
-#def_op('BINARY_SUBSCR_REG', OP, 'rrr') ; OP += 1
-#def_op('BINARY_FLOOR_DIVIDE_REG', OP, 'rrr') ; OP += 1
-#def_op('BINARY_TRUE_DIVIDE', OP, 'rrr') ; OP += 1
+def_op('BINARY_SUBTRACT_REG', OP, 'rrr') ; OP += 1
+def_op('BINARY_SUBSCR_REG', OP, 'rrr') ; OP += 1
+def_op('BINARY_FLOOR_DIVIDE_REG', OP, 'rrr') ; OP += 1
+def_op('BINARY_TRUE_DIVIDE', OP, 'rrr') ; OP += 1
 def_op('RETURN_VALUE_REG', OP, 'r00') ; OP += 1
 def_op('LOAD_CONST_REG', OP, 'rc0') ; OP += 1
 def_op('LOAD_GLOBAL_REG', OP, 'nr0') ; OP += 1
 def_op('LOAD_FAST_REG', OP, 'rr0') ; OP += 1
 def_op('STORE_FAST_REG', OP, 'rr0') ; OP += 1
 def_op('COMPARE_OP_REG', OP, '<rr') ; OP += 1
+def_op('JUMP_IF_FALSE_REG', OP, '<rr') ; OP += 1
+def_op('JUMP_IF_TRUE_REG', OP, '<rr') ; OP += 1
 
 assert OP <= 256, OP
 
