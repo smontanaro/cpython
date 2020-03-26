@@ -78,7 +78,7 @@ class Block:
         assert self.address >= 0
         offset = self.address
         for instr in self.instructions:
-            print(offset, instr)
+            print(f"{offset:4d} {instr}")
             offset += len(instr)
 
     def codelen(self):
@@ -280,7 +280,6 @@ for the future."""
                 block[j].opargs = (0,)
             j += 1
         oparg = oparg << 8 | block[i].opargs[0]
-        print(block[i], oparg)
         return oparg
 
     def find_blocks(self):
