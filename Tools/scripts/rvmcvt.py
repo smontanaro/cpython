@@ -52,6 +52,7 @@ execution, asserting that co_nlocals + co_stacksize <= 127.)
 
 """
 
+import copy
 import sys
 
 # TBD... will change at some point
@@ -122,7 +123,11 @@ class Block:
         "Return a new block full of RVM instructions."
         new_block = Block("RVM")
         for pyvm_inst in self.instructions:
-            convert = isc.dispatch[pyvm_inst.opcode]
+            try:
+                convert = isc.dispatch[pyvm_inst.opcode]
+            except KeyError:
+                print("Can't dispatch", pyvm_inst)
+                raise
             rvm_inst = convert(isc, pyvm_inst)
             try:
                 new_block.append(rvm_inst)
@@ -153,11 +158,25 @@ class Instruction:
     def __str__(self):
         return f"Instruction({self.name()}, {self.opargs})"
 
+    def is_abs_jump(self):
+        "True if opcode is an absolute jump."
+        return self.opcode in opcodes.ISET.abs_jumps
+
+    def is_rel_jump(self):
+        "True if opcode is a relative jump."
+        return self.opcode in opcodes.ISET.rel_jumps
+
+    def is_jump(self):
+        return self.is_abs_jump() or self.is_rel_jump()
+
 class OptimizeFilter:
     """Base peephole optimizer class for Python byte code.
 
 Instances of OptimizeFilter subclasses are chained together in a
 pipeline, each one responsible for a single optimization."""
+
+    NOP_INST = Instruction(opcodes.ISET.opmap['NOP'])
+    EXT_ARG_OPCODE = opcodes.ISET.opmap["EXTENDED_ARG"]
 
     def __init__(self, codeobj):
         """input can be a list as emitted by code_to_blocks or another
@@ -168,34 +187,28 @@ for the future."""
         self.varnames = codeobj.co_varnames
         self.names = codeobj.co_names
         self.constants = codeobj.co_consts
+        self.address_to_block = {}
         self.blocks = []
         self.output = []
 
     def findlabels(self, code):
         labels = {0}
         n = len(code)
-        i = 0
-        while i < n:
-            op = code[i]
-            opname = opcodes.ISET.opname[op]
+        carry_oparg = 0
+        for i in range(0, n, 2):
+            op, oparg = code[i:i+2]
+            carry_oparg = carry_oparg << 8 | oparg
+            if op == self.EXT_ARG_OPCODE:
+                continue
+            oparg, carry_oparg = carry_oparg, 0
             fmt = opcodes.ISET.format(op)
-            if len(fmt) == 1:
-                # stack
-                addr = code[i+1]
-                i += 2
-            else:
-                # register
-                assert len(fmt) == 3, (opname, fmt, len(fmt))
-                addr = code[i+1] | code[i+2] << 8 | code[i+3] << 16
-                i += 4
-            #print(f"addr == {addr}")
             if 'a' in fmt:
                 # relative jump
-                labels.add(i + addr)
+                labels.add(i + oparg)
                 #print(i, "labels:", labels)
             elif 'A' in fmt:
                 # abs jump
-                labels.add(addr)
+                labels.add(oparg)
                 #print(i, "labels:", labels)
         labels = sorted(labels)
         return labels
@@ -208,39 +221,86 @@ for the future."""
             # will happen if the input is a list
             pass
 
+    def compute_block_addresses(self, blocks):
+        "Populate address_to_block dict for a list of blocks (PyVM or RVM)."
+        instr_address = 0
+        for (bi, block) in enumerate(blocks):
+            #print("addr:", instr_address, "bi:", bi)
+            block.address = instr_address
+            self.address_to_block[instr_address] = bi
+            instr_address += block.codelen()
+        #print("a2b:", self.address_to_block)
+
+    def convert_address_to_block(self):
+        "Replace jump targets with block numbers in PyVM blocks."
+        # Note that we should probably zero out EXTENDED_ARG oparg
+        # values but retain them for display. None of my meager
+        # examples so far contain them, so I will sidestep that issue
+        # for the moment.
+        instr_address = 0
+        for block in self.blocks:
+            for (i, instr) in enumerate(block):
+                if not instr.is_jump():
+                    continue
+                oparg = self.compute_full_oparg(block, i)
+                if instr.is_rel_jump():
+                    # oparg is relative to the start of the current
+                    # instruction address.
+                    oparg += instr_address
+                try:
+                    instr.opargs = (self.address_to_block[oparg],)
+                except KeyError:
+                    print(self.address_to_block)
+                    raise
+                instr_address += len(instr)
+
+    def compute_full_oparg(self, block, i, zero=True):
+        "Construct a full oparg value taking EXTENDED_ARG into account."
+        # zero=TRUE means EXT_ARG opargs should be replaced with (0,).
+
+        # All PyVM instructions are two bytes long. This code assumes
+        # that. I believe it should work with RVM as long as we are
+        # only dealing with jumps, which is its original intended use.
+
+        # Work backwards, looking for the first instruction which
+        # isn't EXT_ARG.
+        j = i - 1
+        while j >= 0:
+            if block[j].opcode != self.EXT_ARG_OPCODE:
+                # Back to the first EXT_ARG or the actual instruction
+                # of interest.
+                j += 1
+                break
+            j -= 1
+        # Now perform the usual oparg calculation.
+        oparg = 0
+        while j < i:
+            oparg = oparg << 8 | block[j].opargs[0]
+            if zero:
+                block[j].opargs = (0,)
+            j += 1
+        oparg = oparg << 8 | block[i].opargs[0]
+        print(block[i], oparg)
+        return oparg
+
     def find_blocks(self):
-        """Convert code string to block form."""
+        """Convert code byte string to block form."""
         blocks = self.blocks
         labels = self.findlabels(self.code)
         #print(">>> labels:", labels)
         n = len(self.code)
-        i = 0
-        while i < n:
+        block_num = 0
+        for i in range(0, n, 2):
             if i in labels:
-                #print(f">> new block offset={i}")
-                blocks.append(Block("PyVM"))
-            op = self.code[i]
-            opname = opcodes.ISET.opname[op]
-            oparg = self.code[i+1]
-            block = blocks[-1]
-            fmt = opcodes.ISET.format(op)
-            if opcodes.ISET.has_argument(op):
-                try:
-                    if 'A' in fmt:
-                        idx = labels.index(oparg)
-                        block.append(Instruction(op, (idx,)))
-                    elif 'a' in fmt:
-                        idx = labels.index(i+2+oparg)
-                        block.append(Instruction(op, (idx,)))
-                    else:
-                        block.append(Instruction(op, (oparg,)))
-                except ValueError:
-                    print(">>", labels)
-                    raise
-            else:
-                assert oparg == 0, (i, self.code[i:], oparg)
-                block.append(Instruction(op, (oparg,)))
-            i += 2
+                #print(f">> new block number={len(blocks)} offset={i}")
+                new_block = Block("PyVM")
+                new_block.block_number = block_num
+                new_block.address = i
+                block_num += 1
+                blocks.append(new_block)
+            (op, oparg) = self.code[i:i+2]
+            blocks[-1].append(Instruction(op, (oparg,)))
+        self.compute_block_addresses(blocks)
 
     def constant_value(self, op):
         if op[0] == opcodes.ISET.opmap["LOAD_CONST"]:
@@ -276,8 +336,6 @@ class InstructionSetConverter(OptimizeFilter):
                         opcodes.ISET.opmap['IMPORT_FROM']:1}
     dispatch = {}
 
-    NOP = Instruction(opcodes.ISET.opmap['NOP'])
-
     def __init__(self, code):
         # input to this guy is a code object
         self.stacklevel = code.co_nlocals
@@ -290,7 +348,6 @@ class InstructionSetConverter(OptimizeFilter):
         #print(">> stacksize:", code.co_stacksize)
         assert self.max_stacklevel <= 127, "locals+stack are too big!"
         self.rvm_blocks = []
-        self.address_to_block = {}
 
     def set_block_stacklevel(self, target, level):
         """set the input stack level for particular block"""
@@ -344,7 +401,6 @@ class InstructionSetConverter(OptimizeFilter):
             self.rvm_blocks.append(rvm_block)
 
             # address/block number calculation
-            block.address = pyvm_offset
             block.block_number = i
             rvm_block.address = rvm_offset
             rvm_block.block_number = i
@@ -354,8 +410,6 @@ class InstructionSetConverter(OptimizeFilter):
             # we optimize, so this offset will change. Still, useful
             # to have it for display purposes.
             rvm_offset += rvm_block.codelen()
-
-            self.address_to_block[pyvm_offset] = i
 
         self.display_blocks(self.blocks)
         self.display_blocks(self.rvm_blocks)
@@ -397,6 +451,29 @@ class InstructionSetConverter(OptimizeFilter):
     dispatch[opcodes.ISET.opmap['BINARY_AND']] = binary_convert
     dispatch[opcodes.ISET.opmap['BINARY_XOR']] = binary_convert
     dispatch[opcodes.ISET.opmap['BINARY_OR']] = binary_convert
+
+    # Not quite yet...
+    # def inplace_convert(self, instr):
+    #     opname = "%s_REG" % opcodes.ISET.opname[instr.opcode]
+    #     ## TBD... Still not certain I have argument order/byte packing correct.
+    #     # dst <- src1 OP src2
+    #     src1 = self.pop()       # left-hand register src
+    #     src2 = self.pop()       # right-hand register src
+    #     dst = self.push()       # dst
+    #     return Instruction(opcodes.ISET.opmap[opname], (dst, src1, src2))
+    # dispatch[opcodes.ISET.opmap['INPLACE_POWER']] = inplace_convert
+    # dispatch[opcodes.ISET.opmap['INPLACE_MULTIPLY']] = inplace_convert
+    # dispatch[opcodes.ISET.opmap['INPLACE_MATRIX_MULTIPLY']] = inplace_convert
+    # dispatch[opcodes.ISET.opmap['INPLACE_TRUE_DIVIDE']] = inplace_convert
+    # dispatch[opcodes.ISET.opmap['INPLACE_FLOOR_DIVIDE']] = inplace_convert
+    # dispatch[opcodes.ISET.opmap['INPLACE_MODULO']] = inplace_convert
+    # dispatch[opcodes.ISET.opmap['INPLACE_ADD']] = inplace_convert
+    # dispatch[opcodes.ISET.opmap['INPLACE_SUBTRACT']] = inplace_convert
+    # dispatch[opcodes.ISET.opmap['INPLACE_LSHIFT']] = inplace_convert
+    # dispatch[opcodes.ISET.opmap['INPLACE_RSHIFT']] = inplace_convert
+    # dispatch[opcodes.ISET.opmap['INPLACE_AND']] = inplace_convert
+    # dispatch[opcodes.ISET.opmap['INPLACE_XOR']] = inplace_convert
+    # dispatch[opcodes.ISET.opmap['INPLACE_OR']] = inplace_convert
 
     def subscript_convert(self, instr):
         op = instr.opcode
@@ -449,18 +526,17 @@ class InstructionSetConverter(OptimizeFilter):
     def jump_convert(self, instr):
         op = instr.opcode
         oparg = instr.opargs[0] # All PyVM opcodes have a single oparg
-        retval = None
         if op == opcodes.ISET.opmap['RETURN_VALUE']:
             opname = f"{opcodes.ISET.opname[op]}_REG"
             val = self.pop()
             return Instruction(opcodes.ISET.opmap[opname], (val,))
-        elif op in (opcodes.ISET.opmap['POP_JUMP_IF_FALSE'],
+        if op in (opcodes.ISET.opmap['POP_JUMP_IF_FALSE'],
                     opcodes.ISET.opmap['POP_JUMP_IF_TRUE']):
             opname = f"{opcodes.ISET.opname[op]}_REG"[4:]
             self.set_block_stacklevel(oparg, self.top())
             return Instruction(opcodes.ISET.opmap[opname],
                                (oparg, self.pop()))
-        elif op in (opcodes.ISET.opmap['JUMP_FORWARD'],
+        if op in (opcodes.ISET.opmap['JUMP_FORWARD'],
                     opcodes.ISET.opmap['JUMP_ABSOLUTE']):
             opname = f"{opcodes.ISET.opname[op]}_REG"
             self.set_block_stacklevel(oparg, self.top())
@@ -585,12 +661,12 @@ class InstructionSetConverter(OptimizeFilter):
         op = instr.opcode
         if op == opcodes.ISET.opmap['POP_TOP']:
             self.pop()
-            return self.NOP
+            return self.NOP_INST
         if op == opcodes.ISET.opmap['DUP_TOP']:
             # nop
             _dummy = self.top()
             _dummy = self.push()
-            return self.NOP
+            return self.NOP_INST
         if op == opcodes.ISET.opmap['ROT_TWO']:
             return Instruction(opcodes.ISET.opmap['ROT_TWO_REG'],
                                (self.top(),))
@@ -617,26 +693,66 @@ class InstructionSetConverter(OptimizeFilter):
         if op == opcodes.ISET.opmap['PRINT_EXPR']:
             src = self.pop()
             return Instruction(opcodes.ISET.opmap[opname], (src,))
+        if op == opcodes.ISET.opmap['EXTENDED_ARG']:
+            return copy.copy(instr)
         raise ValueError(f"Unhandled opcode {opcodes.ISET.opname[op]}")
     dispatch[opcodes.ISET.opmap['IMPORT_NAME']] = misc_convert
     dispatch[opcodes.ISET.opmap['PRINT_EXPR']] = misc_convert
+    dispatch[opcodes.ISET.opmap['EXTENDED_ARG']] = misc_convert
 
 
-def f(a):
-    return a + 4
-
-def g(a, b):
-    if a > b:
-        return a
+def h(s, b):
+    if s > b:
+        s = s + 4
+        s = s * 2
+        s = s + 4
+        s = s * 2
+        s = s + 4
+        s = s * 2
+        s = s + 4
+        s = s * 2
+        s = s + 4
+        s = s * 2
+        s = s + 4
+        s = s * 2
+        s = s + 4
+        s = s * 2
+        s = s + 4
+        s = s * 2
+        s = s + 4
+        s = s * 2
+        s = s + 4
+        s = s * 2
+        s = s * 2
+        s = s * 2
+        s = s * 2
+        s = s * 2
+        s = s * 2
+        s = s * 2
+        s = s * 2
+        s = s * 2
+        s = s * 2
+        s = s * 2
+        s = s * 2
+        s = s * 2
+        s = s * 2
+        s = s * 2
+        s = s * 2
+        s = s * 2
+        s = s * 2
+        s = s * 2
+        s = s * 2
+        return s
     return b - 1
 
 def main():
-    for func in (f, g):
+    for func in (h,):
         print("---", func, "---")
         isc = InstructionSetConverter(func.__code__)
         isc.find_blocks()
+        isc.display_blocks(isc.blocks)
+        isc.convert_address_to_block()
         isc.gen_rvm()
-        # isc.convert_address_to_block()
         # isc.convert_instructions()
         # isc.forward_propagate_reads()
         # isc.reverse_propagate_writes()
