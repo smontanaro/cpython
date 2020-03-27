@@ -56,7 +56,7 @@ import copy
 import sys
 
 # TBD... will change at some point
-import regopcodes as opcodes
+from rattlesnake import opcodes
 from rattlesnake.instructions import (
     Instruction, JumpIfInstruction, LoadFastInstruction, StoreFastInstruction,
     CompareOpInstruction, BinOpInstruction, NOPInstruction,
@@ -427,15 +427,15 @@ class InstructionSetConverter(OptimizeFilter):
                 if isinstance(instr, LoadFastInstruction):
                     # Will map future references to the load's
                     # destination register to its source.
-                    src = instr.get_source_registers()[0]
-                    dst = instr.get_dest_registers()[0]
+                    src = instr.source_registers()[0]
+                    dst = instr.dest_registers()[0]
                     prop_dict[dst] = src
                     # The load is no longer needed, so replace it with
                     # NOP.
                     block[i] = self.NOP_INST
                 else:
-                    sources = instr.get_source_registers()
-                    dests = instr.get_dest_registers()
+                    sources = instr.source_registers()
+                    dests = instr.dest_registers()
                     if not sources and not dests:
                         continue
                     if set(sources) & set(prop_dict):
@@ -447,7 +447,7 @@ class InstructionSetConverter(OptimizeFilter):
                             new_sources.append(prop_dict.get(src, src))
                         new_sources = tuple(new_sources)
                         if new_sources != sources:
-                            instr.update_opargs(sources=new_sources)
+                            instr.update_opargs(source=new_sources)
                     for dst in dests:
                         # If the destination register is overwritten,
                         # remove it from the dictionary as it's no
@@ -469,18 +469,18 @@ class InstructionSetConverter(OptimizeFilter):
                 if isinstance(instr, StoreFastInstruction):
                     # Will map earlier references to the store's
                     # source registers to its destination.
-                    src = instr.get_source_registers()[0]
-                    dst = instr.get_dest_registers()[0]
+                    src = instr.source_registers()[0]
+                    dst = instr.dest_registers()[0]
                     prop_dict[src] = dst
                     # Elide...
                     block[i] = self.NOP_INST
                 else:
-                    sources = instr.get_source_registers()
-                    dests = instr.get_dest_registers()
+                    sources = instr.source_registers()
+                    dests = instr.dest_registers()
                     if dests:
                         # If the destination register can be mapped to
                         # a source, replace it here.
-                        dst = instr.get_dest_registers()[0]
+                        dst = instr.dest_registers()[0]
                         new_dst = prop_dict.get(dst, dst)
                         if dst != new_dst:
                             instr.update_opargs(dest=(new_dst,))
@@ -503,6 +503,7 @@ class InstructionSetConverter(OptimizeFilter):
         print("globals:", self.names)
         print("locals:", self.varnames)
         print("constants:", self.constants)
+        print("code len:", sum(block.codelen() for block in blocks))
         for block in blocks:
             block.display()
         print()

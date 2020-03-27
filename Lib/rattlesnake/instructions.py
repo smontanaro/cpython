@@ -1,6 +1,6 @@
 "Individual instructions."
 
-import regopcodes as opcodes
+from rattlesnake import opcodes
 
 class Instruction:
     """Represent an instruction in either PyVM or RVM.
@@ -56,54 +56,54 @@ class Instruction:
     def is_jump(self):
         return self.is_abs_jump() or self.is_rel_jump()
 
-    def get_source_registers(self):
+    def source_registers(self):
         "Return a tuple of all source registers."
         return ()
 
-    def get_dest_registers(self):
+    def dest_registers(self):
         "Return a tuple of all destination registers."
         # Tuple returned for consistency. Empty tuple is default.
         return ()
 
-    def get_first(self):
+    def first(self):
         "Everything preceding the dest register."
         return ()
 
-    def get_rest(self):
+    def rest(self):
         "Everything else."
         return self.opargs
 
-    def update_opargs(self, first=(), sources=(), dest=(), rest=()):
+    def update_opargs(self, first=(), source=(), dest=(), rest=()):
         if not first:
-            first = self.get_first()
-        if not sources:
-            sources = self.get_source_registers()
+            first = self.first()
+        if not source:
+            source = self.source_registers()
         if not dest:
-            dest = self.get_dest_registers()
+            dest = self.dest_registers()
         if not rest:
-            rest = self.get_rest()
-        self.opargs = first + dest + sources + rest
+            rest = self.rest()
+        self.opargs = first + dest + source + rest
 
 class JumpIfInstruction(Instruction):
     "Specialized behavior for JUMP_IF_(TRUE|FALSE)_REG."
-    def get_first(self):
+    def first(self):
         return self.opargs[0:1]
 
-    def get_source_registers(self):
+    def source_registers(self):
         return self.opargs[1:2]
 
-    def get_rest(self):
+    def rest(self):
         return ()
 
 class LoadFastInstruction(Instruction):
     "Specialized behavior for LOAD_FAST_REG."
-    def get_source_registers(self):
+    def source_registers(self):
         return self.opargs[1:2]
 
-    def get_dest_registers(self):
+    def dest_registers(self):
         return self.opargs[0:1]
 
-    def get_rest(self):
+    def rest(self):
         return ()
 
 # SFI and LFI are really the same instruction. We distinguish only to
@@ -111,35 +111,35 @@ class LoadFastInstruction(Instruction):
 # do this, but this code duplication suffices for the moment.
 class StoreFastInstruction(Instruction):
     "Specialized behavior for STORE_FAST_REG."
-    def get_source_registers(self):
+    def source_registers(self):
         return self.opargs[1:2]
 
-    def get_dest_registers(self):
+    def dest_registers(self):
         return self.opargs[0:1]
 
-    def get_rest(self):
+    def rest(self):
         return ()
 
 class CompareOpInstruction(Instruction):
     "Specialized behavior for COMPARE_OP_REG."
-    def get_source_registers(self):
+    def source_registers(self):
         return self.opargs[1:3]
 
-    def get_dest_registers(self):
+    def dest_registers(self):
         return self.opargs[0:1]
 
-    def get_rest(self):
+    def rest(self):
         return self.opargs[3:]
 
 class BinOpInstruction(Instruction):
     "Specialized behavior for binary operations."
-    def get_source_registers(self):
+    def source_registers(self):
         return self.opargs[1:3]
 
-    def get_dest_registers(self):
+    def dest_registers(self):
         return self.opargs[0:1]
 
-    def get_rest(self):
+    def rest(self):
         return ()
 
 class NOPInstruction(Instruction):
@@ -147,8 +147,8 @@ class NOPInstruction(Instruction):
 
 class LoadGlobalInstruction(Instruction):
     "LOAD_GLOBAL_REG"
-    def get_dest_registers(self):
+    def dest_registers(self):
         return self.opargs[0:1]
 
-    def get_rest(self):
+    def rest(self):
         return self.opargs[1:2]
