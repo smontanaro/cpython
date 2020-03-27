@@ -169,6 +169,39 @@ class Instruction:
     def is_jump(self):
         return self.is_abs_jump() or self.is_rel_jump()
 
+    def get_source_registers(self):
+        "Return a tuple of all source registers."
+        return ()
+
+    def get_dest_registers(self):
+        "Return a tuple of all destination registers."
+        # Tuple returned for consistency. Empty tuple is default.
+        return ()
+
+class LoadFastInstruction(Instruction):
+    "Specialized behavior for LOAD_FAST_REG."
+    def get_source_registers(self):
+        return self.opargs[1:2]
+
+    def get_dest_registers(self):
+        return self.opargs[0:1]
+
+class CompareOpInstruction(Instruction):
+    "Specialized behavior for COMPARE_OP_REG."
+    def get_source_registers(self):
+        return self.opargs[1:3]
+
+    def get_dest_registers(self):
+        return self.opargs[0:1]
+
+class BinOpInstruction(Instruction):
+    "Specialized behavior for binary operations."
+    def get_source_registers(self):
+        return self.opargs[1:3]
+
+    def get_dest_registers(self):
+        return self.opargs[0:1]
+
 class OptimizeFilter:
     """Base peephole optimizer class for Python byte code.
 
@@ -410,11 +443,67 @@ class InstructionSetConverter(OptimizeFilter):
             # to have it for display purposes.
             rvm_offset += rvm_block.codelen()
 
-        self.display_blocks(self.blocks)
-        self.display_blocks(self.rvm_blocks)
+# A detailed example forward propagating the result of a fast load and
+# backward propagating the result of a fast store.
+
+#                                 Forward      Reverse    Action
+# LOAD_FAST_REG, (2, 1)           %r2 -> %r1              NOP
+# LOAD_CONST_REG, (3, 1)              |
+# BINARY_MULTIPLY_REG, (2, 3, 2)      v            ^      src2 = %r1, dst = %r0
+# STORE_FAST_REG, (0, 2)                       %r2 -> %r0 NOP
+
+# Apply actions:
+
+# NOP
+# LOAD_CONST_REG, (3, 1)
+# BINARY_MULTIPLY_REG, (0, 3, 1)
+# NOP
+
+# Remote NOPs:
+
+# LOAD_CONST_REG, (3, 1)
+# BINARY_MULTIPLY_REG, (0, 3, 1)
+
+# Result:
+
+# * 10 bytes in code string instead of 18
+
+# * Two operations, three EXT_ARG instead of four operations, five EXT_ARG
+
+# * One load instead of two
+
+# * No explicit stores
+
+    def forward_propagate_fast_reads(self):
+        "LOAD_FAST_REG should be a NOP..."
+        # Example: This instruction:
+        #
+        #    Instruction(LOAD_FAST_REG, (2, 0))
+        #
+        # copies the value from register 0 (the first fast locals
+        # slot) to register 2. Anywhere downstream where register 2 is
+        # the source of another instruction (until it is written by
+        # some other instruction) can safely be replaced by a read
+        # from register 0. The LOAD_FAST_REG instruction can then be
+        # removed.
+
+    def backward_propagate_fast_writes(self):
+        "STORE_FAST_REG should be a NOP..."
+        # Example: This instruction:
+        #
+        #    Instruction(STORE_FAST_REG, (0, 2))
+        #
+        # copies the value from register 2 to register 0 (the first
+        # fast locals slot). Anywhere earlier where register 2 is the
+        # destination of another instruction (until it is read by some
+        # other instruction) can safely be replaced by a write to
+        # register 0. The STORE_FAST_REG instruction can then be
+        # removed.
 
     def display_blocks(self, blocks):
         "debug"
+        print("varnames:", self.varnames)
+        print("constants:", self.constants)
         for block in blocks:
             block.display()
         print()
@@ -436,7 +525,7 @@ class InstructionSetConverter(OptimizeFilter):
         src1 = self.pop()       # left-hand register src
         src2 = self.pop()       # right-hand register src
         dst = self.push()       # dst
-        return Instruction(opcodes.ISET.opmap[opname], (dst, src1, src2))
+        return BinOpInstruction(opcodes.ISET.opmap[opname], (dst, src1, src2))
     dispatch[opcodes.ISET.opmap['BINARY_POWER']] = binary_convert
     dispatch[opcodes.ISET.opmap['BINARY_MULTIPLY']] = binary_convert
     dispatch[opcodes.ISET.opmap['BINARY_MATRIX_MULTIPLY']] = binary_convert
@@ -557,8 +646,8 @@ class InstructionSetConverter(OptimizeFilter):
         if op == opcodes.ISET.opmap['LOAD_FAST']:
             src = oparg         # offset into localsplus
             dst = self.push()   # unused
-            return Instruction(opcodes.ISET.opmap['LOAD_FAST_REG'],
-                               (dst, src))
+            return LoadFastInstruction(opcodes.ISET.opmap['LOAD_FAST_REG'],
+                                       (dst, src))
         if op == opcodes.ISET.opmap['LOAD_CONST']:
             src = oparg         # reference into co_consts
             dst = self.push()   # offset into localsplus
@@ -578,13 +667,14 @@ class InstructionSetConverter(OptimizeFilter):
         op = instr.opcode
         oparg = instr.opargs[0] # All PyVM opcodes have a single oparg
         if op == opcodes.ISET.opmap['STORE_FAST']:
-            src = oparg
-            dst = self.pop()
-            return Instruction(opcodes.ISET.opmap['STORE_FAST_REG'],
-                               (dst, src))
+            dst = oparg
+            src = self.pop()
+            # Really the same thing as a LOAD_FAST_REG
+            return LoadFastInstruction(opcodes.ISET.opmap['STORE_FAST_REG'],
+                                       (dst, src))
         if op == opcodes.ISET.opmap['STORE_GLOBAL']:
-            src = oparg
-            dst = self.pop()
+            dst = oparg
+            src = self.pop()
             return Instruction(opcodes.ISET.opmap['STORE_GLOBAL_REG'],
                                (dst, src))
         raise ValueError(f"Unhandled opcode {opcodes.ISET.opname[op]}")
@@ -651,8 +741,8 @@ class InstructionSetConverter(OptimizeFilter):
             src2 = self.pop()
             src1 = self.pop()
             dst = self.push()
-            return Instruction(opcodes.ISET.opmap['COMPARE_OP_REG'],
-                               (dst, src1, src2, cmpop))
+            return CompareOpInstruction(opcodes.ISET.opmap['COMPARE_OP_REG'],
+                                        (dst, src1, src2, cmpop))
         raise ValueError(f"Unhandled opcode {opcodes.ISET.opname[op]}")
     dispatch[opcodes.ISET.opmap['COMPARE_OP']] = compare_convert
 
@@ -702,45 +792,42 @@ class InstructionSetConverter(OptimizeFilter):
 
 def h(s, b):
     if s > b:
-        s = s + 4
-        s = s * 2
-        s = s + 4
-        s = s * 2
-        s = s + 4
-        s = s * 2
-        s = s + 4
-        s = s * 2
-        s = s + 4
-        s = s * 2
-        s = s + 4
-        s = s * 2
-        s = s + 4
-        s = s * 2
-        s = s + 4
-        s = s * 2
-        s = s + 4
-        s = s * 2
-        s = s + 4
-        s = s * 2
-        s = s * 2
-        s = s * 2
-        s = s * 2
-        s = s * 2
-        s = s * 2
-        s = s * 2
-        s = s * 2
-        s = s * 2
-        s = s * 2
-        s = s * 2
-        s = s * 2
-        s = s * 2
-        s = s * 2
-        s = s * 2
-        s = s * 2
-        s = s * 2
-        s = s * 2
-        s = s * 2
-        s = s * 2
+        s = b * 21
+        s = b + 2
+        s = b * 23
+        b = b + 44
+        s = b * 2
+        b = s + 4
+        b = b * 2
+        s = b + 4
+        b = s * 2
+        b = b * 22
+        s = b * 23
+        b = s + 44
+        b = b * 5
+        s = b + 4
+        b = s * 21
+        b = b + 42
+        s = b * 3
+        b = b * 24
+        s = b * 25
+        s = b * 2
+        s = b * 2
+        b = b * 2
+        s = b * 21
+        s = b * 2
+        s = s * 23
+        b = s * 4
+        s = b * 25
+        s = s * 21
+        b = s * 2
+        s = b * 23
+        s = b * 42
+        s = b * 25
+        b = s * 12
+        s = b * 22
+        s = b * 23
+        b = s * 42
         return s
     return b - 1
 
@@ -752,11 +839,15 @@ def main():
         isc.display_blocks(isc.blocks)
         isc.convert_address_to_block()
         isc.gen_rvm()
-        # isc.convert_instructions()
-        # isc.forward_propagate_reads()
-        # isc.reverse_propagate_writes()
+        isc.display_blocks(isc.rvm_blocks)
+        # isc.forward_propagate_fast_reads()
+        # isc.reverse_propagate_fast_writes()
         # isc.convert_block_to_address()
     return 0
 
 if __name__ == "__main__":
-    sys.exit(main())
+    try:
+        result = main()
+    except (KeyboardInterrupt, BrokenPipeError):
+        result = 0
+    sys.exit(result)
