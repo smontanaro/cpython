@@ -107,11 +107,14 @@ class Block:
         for instruction in instructions:
             self.append(instruction)
 
-    def __setitem__(self, i, item):
-        self.instructions[i] = item
+    def __setitem__(self, i, instruction):
+        self.instructions[i] = instruction
 
     def __getitem__(self, i):
         return self.instructions[i]
+
+    def __delitem__(self, i):
+        del self.instructions[i]
 
     def __len__(self):
         return len(self.instructions)
@@ -137,7 +140,28 @@ class Block:
         return new_block
 
 class Instruction:
-    "Represent an instruction in either PyVM or RVM."
+    """Represent an instruction in either PyVM or RVM.
+
+    Instruction opargs are currently represented by a tuple. It
+    consists of up to four parts:
+
+    * first - anything before the destination register
+    * dest - destination register
+    * sources - source registers
+    * rest - anything after the source registers
+
+    Any or all of these fields may be empty. By default, the first
+    three are considered empty and the rest is all
+    elements. EXTENDED_ARG needs no special treatment, so is created
+    as an instance of Instruction. Other subclasses carve up opargs in
+    different ways. CompareOpInstruction has a dest, two sources and a
+    comparison operator (rest), but no first. JumpIfInstruction has
+    first (the target block number) and a source (destination register
+    of the previous COMPARE_OP instruction, but no dest or rest
+    elements. The update_opargs method is used to update any piece of
+    opargs.
+
+    """
     def __init__(self, opcode, opargs=(0,)):
         assert isinstance(opargs, tuple)
         self.opcode = opcode
@@ -178,6 +202,36 @@ class Instruction:
         # Tuple returned for consistency. Empty tuple is default.
         return ()
 
+    def get_first(self):
+        "Everything preceding the dest register."
+        return ()
+
+    def get_rest(self):
+        "Everything else."
+        return self.opargs
+
+    def update_opargs(self, first=(), sources=(), dest=(), rest=()):
+        if not first:
+            first = self.get_first()
+        if not sources:
+            sources = self.get_source_registers()
+        if not dest:
+            dest = self.get_dest_registers()
+        if not rest:
+            rest = self.get_rest()
+        self.opargs = first + dest + sources + rest
+
+class JumpIfInstruction(Instruction):
+    "Specialized behavior for JUMP_IF_(TRUE|FALSE)_REG."
+    def get_first(self):
+        return self.opargs[0:1]
+
+    def get_source_registers(self):
+        return self.opargs[1:2]
+
+    def get_rest(self):
+        return ()
+
 class LoadFastInstruction(Instruction):
     "Specialized behavior for LOAD_FAST_REG."
     def get_source_registers(self):
@@ -185,6 +239,23 @@ class LoadFastInstruction(Instruction):
 
     def get_dest_registers(self):
         return self.opargs[0:1]
+
+    def get_rest(self):
+        return ()
+
+# SFI and LFI are really the same instruction. We distinguish only to
+# avoid mistakes using isinstance. There is probably a cleaner way to
+# do this, but this code duplication suffices for the moment.
+class StoreFastInstruction(Instruction):
+    "Specialized behavior for STORE_FAST_REG."
+    def get_source_registers(self):
+        return self.opargs[1:2]
+
+    def get_dest_registers(self):
+        return self.opargs[0:1]
+
+    def get_rest(self):
+        return ()
 
 class CompareOpInstruction(Instruction):
     "Specialized behavior for COMPARE_OP_REG."
@@ -194,6 +265,9 @@ class CompareOpInstruction(Instruction):
     def get_dest_registers(self):
         return self.opargs[0:1]
 
+    def get_rest(self):
+        return self.opargs[3:]
+
 class BinOpInstruction(Instruction):
     "Specialized behavior for binary operations."
     def get_source_registers(self):
@@ -202,13 +276,28 @@ class BinOpInstruction(Instruction):
     def get_dest_registers(self):
         return self.opargs[0:1]
 
+    def get_rest(self):
+        return ()
+
+class NOPInstruction(Instruction):
+    "Just easier this way..."
+    pass
+
+class LoadGlobalInstruction(Instruction):
+    "LOAD_GLOBAL_REG"
+    def get_dest_registers(self):
+        return self.opargs[0:1]
+
+    def get_rest(self):
+        return self.opargs[1:2]
+
 class OptimizeFilter:
     """Base peephole optimizer class for Python byte code.
 
 Instances of OptimizeFilter subclasses are chained together in a
 pipeline, each one responsible for a single optimization."""
 
-    NOP_INST = Instruction(opcodes.ISET.opmap['NOP'])
+    NOP_INST = NOPInstruction(opcodes.ISET.opmap['NOP'])
     EXT_ARG_OPCODE = opcodes.ISET.opmap["EXTENDED_ARG"]
 
     def __init__(self, codeobj):
@@ -443,66 +532,123 @@ class InstructionSetConverter(OptimizeFilter):
             # to have it for display purposes.
             rvm_offset += rvm_block.codelen()
 
-# A detailed example forward propagating the result of a fast load and
-# backward propagating the result of a fast store.
+    # A small, detailed example forward propagating the result of a
+    # fast load and backward propagating the result of a fast
+    # store. (Using abbreviated names: LFR == LOAD_FAST_REG, etc.)
 
-#                                 Forward      Reverse    Action
-# LOAD_FAST_REG, (2, 1)           %r2 -> %r1              NOP
-# LOAD_CONST_REG, (3, 1)              |
-# BINARY_MULTIPLY_REG, (2, 3, 2)      v            ^      src2 = %r1, dst = %r0
-# STORE_FAST_REG, (0, 2)                       %r2 -> %r0 NOP
+    #                       Forward    Reverse     Action
+    # LFR, (2, 1)           %r2 -> %r1             NOP
+    # LCR, (3, 1)               |
+    # BMR, (2, 3, 2)            v          ^       src2 = %r1, dst = %r0
+    # SFR, (0, 2)                      %r2 -> %r0  NOP
 
-# Apply actions:
+    # Apply actions:
 
-# NOP
-# LOAD_CONST_REG, (3, 1)
-# BINARY_MULTIPLY_REG, (0, 3, 1)
-# NOP
+    # NOP
+    # LCR, (3, 1)
+    # BMR, (0, 3, 1)
+    # NOP
 
-# Remote NOPs:
+    # Delete NOPs:
 
-# LOAD_CONST_REG, (3, 1)
-# BINARY_MULTIPLY_REG, (0, 3, 1)
+    # LCR, (3, 1)
+    # BMR, (0, 3, 1)
 
-# Result:
+    # Result:
 
-# * 10 bytes in code string instead of 18
+    # * 10 bytes in code string instead of 18
 
-# * Two operations, three EXT_ARG instead of four operations, five EXT_ARG
+    # * Two operations, three EXT_ARG instead of four operations, five
+    #   EXT_ARG
 
-# * One load instead of two
+    # * One load instead of two
 
-# * No explicit stores
+    # * No explicit stores
 
     def forward_propagate_fast_reads(self):
         "LOAD_FAST_REG should be a NOP..."
-        # Example: This instruction:
-        #
-        #    Instruction(LOAD_FAST_REG, (2, 0))
-        #
-        # copies the value from register 0 (the first fast locals
-        # slot) to register 2. Anywhere downstream where register 2 is
-        # the source of another instruction (until it is written by
-        # some other instruction) can safely be replaced by a read
-        # from register 0. The LOAD_FAST_REG instruction can then be
-        # removed.
+        prop_dict = {}
+        for block in self.rvm_blocks:
+            for (i, instr) in enumerate(block):
+                print(i, instr)
+                if isinstance(instr, LoadFastInstruction):
+                    # Will map future references to the load's
+                    # destination register to its source.
+                    src = instr.get_source_registers()[0]
+                    dst = instr.get_dest_registers()[0]
+                    prop_dict[dst] = src
+                    # The load is no longer needed, so replace it with
+                    # NOP.
+                    block[i] = self.NOP_INST
+                else:
+                    sources = instr.get_source_registers()
+                    dests = instr.get_dest_registers()
+                    if not sources and not dests:
+                        continue
+                    if set(sources) & set(prop_dict):
+                        # Map any register references saved in our
+                        # propagation dictionary to the saved
+                        # source register(s).
+                        new_sources = []
+                        for src in sources:
+                            new_sources.append(prop_dict.get(src, src))
+                        new_sources = tuple(new_sources)
+                        if new_sources != sources:
+                            instr.update_opargs(sources=new_sources)
+                    for dst in dests:
+                        # If the destination register is overwritten,
+                        # remove it from the dictionary as it's no
+                        # longer valid.
+                        try:
+                            del prop_dict[dst]
+                        except KeyError:
+                            pass
 
     def backward_propagate_fast_writes(self):
         "STORE_FAST_REG should be a NOP..."
-        # Example: This instruction:
-        #
-        #    Instruction(STORE_FAST_REG, (0, 2))
-        #
-        # copies the value from register 2 to register 0 (the first
-        # fast locals slot). Anywhere earlier where register 2 is the
-        # destination of another instruction (until it is read by some
-        # other instruction) can safely be replaced by a write to
-        # register 0. The STORE_FAST_REG instruction can then be
-        # removed.
+        # This is similar to forward_propagate, but we work from back
+        # to front through the block list, map src to dst in STORE
+        # instructions, and update source registers until we see a
+        # register appear as a source.
+        prop_dict = {}
+        for block in self.rvm_blocks:
+            for (i, instr) in enumerate_reversed(block):
+                if isinstance(instr, StoreFastInstruction):
+                    # Will map earlier references to the store's
+                    # source registers to its destination.
+                    src = instr.get_source_registers()[0]
+                    dst = instr.get_dest_registers()[0]
+                    prop_dict[src] = dst
+                    # Elide...
+                    block[i] = self.NOP_INST
+                else:
+                    sources = instr.get_source_registers()
+                    dests = instr.get_dest_registers()
+                    if dests:
+                        # If the destination register can be mapped to
+                        # a source, replace it here.
+                        dst = instr.get_dest_registers()[0]
+                        new_dst = prop_dict.get(dst, dst)
+                        if dst != new_dst:
+                            instr.update_opargs(dest=(new_dst,))
+                    for src in sources:
+                        # Register reads kill a mapping.
+                        try:
+                            del prop_dict[src]
+                        except KeyError:
+                            pass
+
+    def delete_nops(self):
+        "NOP instructions can safely be removed."
+        for block in self.rvm_blocks:
+            for (i, instr) in enumerate_reversed(block):
+                if isinstance(instr, NOPInstruction):
+                    del block[i]
 
     def display_blocks(self, blocks):
         "debug"
-        print("varnames:", self.varnames)
+        print("globals:", self.names)
+        print("locals:", self.varnames)
         print("constants:", self.constants)
         for block in blocks:
             block.display()
@@ -622,8 +768,8 @@ class InstructionSetConverter(OptimizeFilter):
                     opcodes.ISET.opmap['POP_JUMP_IF_TRUE']):
             opname = f"{opcodes.ISET.opname[op]}_REG"[4:]
             self.set_block_stacklevel(oparg, self.top())
-            return Instruction(opcodes.ISET.opmap[opname],
-                               (oparg, self.pop()))
+            return JumpIfInstruction(opcodes.ISET.opmap[opname],
+                                     (oparg, self.pop()))
         if op in (opcodes.ISET.opmap['JUMP_FORWARD'],
                     opcodes.ISET.opmap['JUMP_ABSOLUTE']):
             opname = f"{opcodes.ISET.opname[op]}_REG"
@@ -656,8 +802,8 @@ class InstructionSetConverter(OptimizeFilter):
         if op == opcodes.ISET.opmap['LOAD_GLOBAL']:
             src = oparg         # global name to be found
             dst = self.push()   # offset into localsplus
-            return Instruction(opcodes.ISET.opmap['LOAD_GLOBAL_REG'],
-                               (dst, src)),
+            return LoadGlobalInstruction(opcodes.ISET.opmap['LOAD_GLOBAL_REG'],
+                                         (dst, src))
         raise ValueError(f"Unhandled opcode {opcodes.ISET.opname[op]}")
     dispatch[opcodes.ISET.opmap['LOAD_CONST']] = load_convert
     dispatch[opcodes.ISET.opmap['LOAD_GLOBAL']] = load_convert
@@ -670,8 +816,8 @@ class InstructionSetConverter(OptimizeFilter):
             dst = oparg
             src = self.pop()
             # Really the same thing as a LOAD_FAST_REG
-            return LoadFastInstruction(opcodes.ISET.opmap['STORE_FAST_REG'],
-                                       (dst, src))
+            return StoreFastInstruction(opcodes.ISET.opmap['STORE_FAST_REG'],
+                                        (dst, src))
         if op == opcodes.ISET.opmap['STORE_GLOBAL']:
             dst = oparg
             src = self.pop()
@@ -790,6 +936,7 @@ class InstructionSetConverter(OptimizeFilter):
     dispatch[opcodes.ISET.opmap['EXTENDED_ARG']] = misc_convert
 
 
+_A_GLOBAL = 42
 def h(s, b):
     if s > b:
         s = b * 21
@@ -807,7 +954,7 @@ def h(s, b):
         b = b * 5
         s = b + 4
         b = s * 21
-        b = b + 42
+        b = b + _A_GLOBAL
         s = b * 3
         b = b * 24
         s = b * 25
@@ -822,14 +969,22 @@ def h(s, b):
         s = s * 21
         b = s * 2
         s = b * 23
-        s = b * 42
+        s = b * _A_GLOBAL
         s = b * 25
         b = s * 12
         s = b * 22
         s = b * 23
-        b = s * 42
+        b = s * _A_GLOBAL
         return s
     return b - 1
+
+def enumerate_reversed(seq):
+    "Enumerate a sequence in reverse. Thank you Chris Angelico."
+    # https://code.activestate.com/lists/python-list/706210/
+    n = len(seq)
+    for obj in reversed(seq):
+        n -= 1
+        yield (n, obj)
 
 def main():
     for func in (h,):
@@ -840,8 +995,10 @@ def main():
         isc.convert_address_to_block()
         isc.gen_rvm()
         isc.display_blocks(isc.rvm_blocks)
-        # isc.forward_propagate_fast_reads()
-        # isc.reverse_propagate_fast_writes()
+        isc.forward_propagate_fast_reads()
+        isc.backward_propagate_fast_writes()
+        isc.delete_nops()
+        isc.display_blocks(isc.rvm_blocks)
         # isc.convert_block_to_address()
     return 0
 
