@@ -20,32 +20,29 @@ class InstructionTest(unittest.TestCase):
         self.assertEqual(load.opargs, (1, 3))
 
     def test_simple_function(self):
-        def func(a):
-            return a + 4
-        isc = InstructionSetConverter(func.__code__)
+        isc = InstructionSetConverter(_trivial_func.__code__)
         isc.find_blocks()
         isc.convert_address_to_block()
         self.assertEqual(len(isc.blocks), 1)
         self.assertEqual(isc.blocks[0].codelen(), 8)
         isc.gen_rvm()
+        self.assertEqual(_get_opcodes(isc.rvm_blocks),
+                         [
+                             [130, 128, 122, 127],
+                         ])
         self.assertEqual(len(isc.rvm_blocks), 1)
         self.assertEqual(isc.rvm_blocks[0].codelen(), 16)
         isc.forward_propagate_fast_reads()
+        isc.backward_propagate_fast_writes()
         isc.delete_nops()
         self.assertEqual(isc.rvm_blocks[0].codelen(), 12)
+        self.assertEqual(_get_opcodes(isc.rvm_blocks),
+                         [
+                             [128, 122, 127],
+                         ])
 
     def test_branch_function(self):
-        def func(a):
-            if a > 4:
-                return a
-            b = a + 4
-            return b
-
-        def count_nops(block):
-            return len([i for i in block
-                            if isinstance(i, instructions.NOPInstruction)])
-
-        isc = InstructionSetConverter(func.__code__)
+        isc = InstructionSetConverter(_branch_func.__code__)
         isc.find_blocks()
         isc.convert_address_to_block()
         self.assertEqual(len(isc.blocks), 2)
@@ -56,31 +53,45 @@ class InstructionTest(unittest.TestCase):
         self.assertEqual(len(isc.rvm_blocks), 2)
         self.assertEqual(isc.rvm_blocks[0].codelen(), 26)
         self.assertEqual(isc.rvm_blocks[1].codelen(), 24)
+        self.assertEqual(_get_opcodes(isc.rvm_blocks),
+                         [
+                             [130, 128, 132, 133, 130, 127],
+                             [130, 128, 122, 131, 130, 127],
+                         ])
 
         isc.forward_propagate_fast_reads()
-
-        counts = []
-        for block in isc.rvm_blocks:
-            counts.append(count_nops(block))
-        self.assertEqual(sum(counts), 4)
-
+        self.assertEqual(_get_opcodes(isc.rvm_blocks),
+                         [
+                             [6, 128, 132, 133, 6, 127],
+                             [6, 128, 122, 131, 6, 127],
+                         ])
         isc.delete_nops()
-
-        counts = []
-        for block in isc.rvm_blocks:
-            counts.append(count_nops(block))
-        self.assertEqual(sum(counts), 0)
-
+        self.assertEqual(_get_opcodes(isc.rvm_blocks),
+                         [
+                             [128, 132, 133, 127],
+                             [128, 122, 131, 127],
+                         ])
         isc.backward_propagate_fast_writes()
-
-        counts = []
-        for block in isc.rvm_blocks:
-            counts.append(count_nops(block))
-        self.assertEqual(sum(counts), 1)
-
         isc.delete_nops()
+        self.assertEqual(_get_opcodes(isc.rvm_blocks),
+                         [
+                             [128, 132, 133, 127],
+                             [128, 122, 127],
+                         ])
 
-        counts = []
-        for block in isc.rvm_blocks:
-            counts.append(count_nops(block))
-        self.assertEqual(sum(counts), 0)
+def _branch_func(a):
+    if a > 4:
+        return a
+    b = a + 4
+    return b
+
+def _trivial_func(a):
+    return a + 4
+
+def _get_opcodes(blocks):
+    opcodes = []
+    for block in blocks:
+        opcodes.append([])
+        for inst in block:
+            opcodes[-1].append(inst.opcode)
+    return opcodes
