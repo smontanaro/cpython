@@ -1,6 +1,7 @@
 import unittest
 from test import support
 
+from rattlesnake.converter import InstructionSetConverter
 from rattlesnake import instructions, opcodes
 
 class InstructionTest(unittest.TestCase):
@@ -17,3 +18,8 @@ class InstructionTest(unittest.TestCase):
         self.assertEqual(load.rest(), ())
         load.update_opargs(source=(3,))
         self.assertEqual(load.opargs, (1, 3))
+
+    def test_simple_function(self):
+        def func(a):
+            return a + 4
+        isc = InstructionSetConverter(func.__code__)
