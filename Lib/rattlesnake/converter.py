@@ -290,7 +290,6 @@ class InstructionSetConverter(OptimizeFilter):
         prop_dict = {}
         for block in self.rvm_blocks:
             for (i, instr) in enumerate(block):
-                print(i, instr)
                 if isinstance(instr, LoadFastInstruction):
                     # Will map future references to the load's
                     # destination register to its source.
