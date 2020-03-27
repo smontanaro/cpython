@@ -1,124 +1,154 @@
 "Individual instructions."
 
+import regopcodes as opcodes
+
 class Instruction:
-    "Represent a PyVM or RVM instruction."
-    def __init__(self):
-        self.length = 0
-        # They come in pairs (PyVM & RVM) and reference each other
-        self.sibling = None
+    """Represent an instruction in either PyVM or RVM.
 
-    @property
-    def sibling(self):
-        "Refers to the partner instruction from the other set."
-        return self._sibling
+    Instruction opargs are currently represented by a tuple. It
+    consists of up to four parts:
 
-    @sibling.setter
-    def sibling(self, sibling):
-        assert isinstance(sibling, Instruction)
-        if isinstance(self, PyVMInstruction):
-            assert isinstance(sibling, RVMInstruction)
-        else:
-            assert isinstance(sibling, PyVMInstruction)
-        self._sibling = sibling
+    * first - anything before the destination register
+    * dest - destination register
+    * sources - source registers
+    * rest - anything after the source registers
 
-class PyVMInstruction:
-    "Specific to PyVM."
+    Any or all of these fields may be empty. By default, the first
+    three are considered empty and the rest is all
+    elements. EXTENDED_ARG needs no special treatment, so is created
+    as an instance of Instruction. Other subclasses carve up opargs in
+    different ways. CompareOpInstruction has a dest, two sources and a
+    comparison operator (rest), but no first. JumpIfInstruction has
+    first (the target block number) and a source (destination register
+    of the previous COMPARE_OP instruction, but no dest or rest
+    elements. The update_opargs method is used to update any piece of
+    opargs.
 
-class LoadPyVMInstruction(PyVMInstruction):
-    "Load from somewhere to the stack."
-    def __init__(self):
-        super().__init__(self)
-        self.source = None
+    """
+    def __init__(self, opcode, opargs=(0,)):
+        assert isinstance(opargs, tuple)
+        self.opcode = opcode
+        self.opargs = opargs
 
-class RVMInstruction(Instruction):
-    "Specific to RVM."
-    def is_source(self, reg):
-        raise NotImplementedError
+    def name(self):
+        "human-readable name for the opcode"
+        return opcodes.ISET.opname[self.opcode]
 
-    def is_dest(self, reg):
-        raise NotImplementedError
+    def __len__(self):
+        "Compute byte length of instruction."
+        # In wordcode, an instruction is op, arg, each taking one
+        # byte. If we have more than zero or one arg, we use
+        # EXTENDED_ARG instructions to carry the other args, each
+        # again two bytes.
+        return 2 + 2 * len(self.opargs[1:])
 
-    def is_register(self, reg):
-        "Is reg a name or a register reference?"
-        return reg[0:2] == "%r"
+    def __str__(self):
+        return f"Instruction({self.name()}, {self.opargs})"
 
-class TwoAddressRVMInstruction(RVMInstruction):
-    "Two address loads."
-    def __init__(self):
-        super().__init__(self)
-        # Load from somewhere to register.
-        self.dest = None
-        self.source = None
+    def is_abs_jump(self):
+        "True if opcode is an absolute jump."
+        return self.opcode in opcodes.ISET.abs_jumps
 
-    def is_source(self, reg):
-        return self.source is not None and reg == self.source
+    def is_rel_jump(self):
+        "True if opcode is a relative jump."
+        return self.opcode in opcodes.ISET.rel_jumps
 
-    def is_dest(self, reg):
-        return self.dest is not None and reg == self.dest
+    def is_jump(self):
+        return self.is_abs_jump() or self.is_rel_jump()
 
-    @property
-    def dest(self):
-        return self._dest
+    def get_source_registers(self):
+        "Return a tuple of all source registers."
+        return ()
 
-    @dest.setter
-    def dest(self, dest):
-        # A property of defining a value for a register might be to
-        # mark it as in use.
-        self._dest = dest
+    def get_dest_registers(self):
+        "Return a tuple of all destination registers."
+        # Tuple returned for consistency. Empty tuple is default.
+        return ()
 
-    @property
-    def source(self):
-        return self._source
+    def get_first(self):
+        "Everything preceding the dest register."
+        return ()
 
-    @source.setter
-    def source(self, source):
-        self._source = source
+    def get_rest(self):
+        "Everything else."
+        return self.opargs
 
-class LoadFastRVMInstruction(TwoAddressRVMInstruction):
-    "Load with constraint that source is another register."
-    @source.setter
-    def source(self, source):
-        assert self.is_register(source)
-        super().source(self, source)
+    def update_opargs(self, first=(), sources=(), dest=(), rest=()):
+        if not first:
+            first = self.get_first()
+        if not sources:
+            sources = self.get_source_registers()
+        if not dest:
+            dest = self.get_dest_registers()
+        if not rest:
+            rest = self.get_rest()
+        self.opargs = first + dest + sources + rest
 
-class ThreeAddressRVMInstruction(RVMInstruction):
-    "Three address binary op."
-    def __init__(self):
-        super().__init__(self)
-        # Load from somewhere to register.
-        self.dest = None
-        self.source1 = None
-        self.source2 = None
+class JumpIfInstruction(Instruction):
+    "Specialized behavior for JUMP_IF_(TRUE|FALSE)_REG."
+    def get_first(self):
+        return self.opargs[0:1]
 
-    def is_source(self, reg):
-        return (self.source1 is not None and reg == self.source1 or
-                self.source2 is not None and reg == self.source2)
+    def get_source_registers(self):
+        return self.opargs[1:2]
 
-    def is_dest(self, reg):
-        return self.dest is not None and reg == self.dest
+    def get_rest(self):
+        return ()
 
-    @property
-    def dest(self):
-        return self._dest
+class LoadFastInstruction(Instruction):
+    "Specialized behavior for LOAD_FAST_REG."
+    def get_source_registers(self):
+        return self.opargs[1:2]
 
-    @dest.setter
-    def dest(self, dest):
-        # A property of defining a value for a register might be to
-        # mark it as in use.
-        self._dest = dest
+    def get_dest_registers(self):
+        return self.opargs[0:1]
 
-    @property
-    def source1(self):
-        return self._source1
+    def get_rest(self):
+        return ()
 
-    @source1.setter
-    def source1(self, source1):
-        self._source1 = source1
+# SFI and LFI are really the same instruction. We distinguish only to
+# avoid mistakes using isinstance. There is probably a cleaner way to
+# do this, but this code duplication suffices for the moment.
+class StoreFastInstruction(Instruction):
+    "Specialized behavior for STORE_FAST_REG."
+    def get_source_registers(self):
+        return self.opargs[1:2]
 
-    @property
-    def source2(self):
-        return self._source2
+    def get_dest_registers(self):
+        return self.opargs[0:1]
 
-    @source2.setter
-    def source2(self, source2):
-        self._source2 = source2
+    def get_rest(self):
+        return ()
+
+class CompareOpInstruction(Instruction):
+    "Specialized behavior for COMPARE_OP_REG."
+    def get_source_registers(self):
+        return self.opargs[1:3]
+
+    def get_dest_registers(self):
+        return self.opargs[0:1]
+
+    def get_rest(self):
+        return self.opargs[3:]
+
+class BinOpInstruction(Instruction):
+    "Specialized behavior for binary operations."
+    def get_source_registers(self):
+        return self.opargs[1:3]
+
+    def get_dest_registers(self):
+        return self.opargs[0:1]
+
+    def get_rest(self):
+        return ()
+
+class NOPInstruction(Instruction):
+    "Just easier this way..."
+
+class LoadGlobalInstruction(Instruction):
+    "LOAD_GLOBAL_REG"
+    def get_dest_registers(self):
+        return self.opargs[0:1]
+
+    def get_rest(self):
+        return self.opargs[1:2]
