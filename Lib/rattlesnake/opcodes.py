@@ -6,6 +6,7 @@ import opcode
 __all__ = ["InstructionSet", "ISET"]
 
 class InstructionSet:
+    "Repository of instruction set details. Should absorb into opcode.py"
     def __init__(self):
         self.opname = [''] * 256
         for op in range(256):

@@ -56,7 +56,6 @@ import sys
 
 # TBD... will change at some point
 from rattlesnake.converter import InstructionSetConverter
-from rattlesnake.instructions import Instruction
 
 __version__ = "0.0"
 

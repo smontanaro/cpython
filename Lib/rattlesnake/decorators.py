@@ -1,5 +1,7 @@
 "Decorators for debugging"
 
+from rattlesnake import opcodes
+
 def debug_method(meth):
     "display input args and returned result."
     def wrap(*args, **kwds):
