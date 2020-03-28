@@ -21,15 +21,14 @@ pipeline, each one responsible for a single optimization."""
     EXT_ARG_OPCODE = opcodes.ISET.opmap["EXTENDED_ARG"]
 
     def __init__(self, codeobj):
-        """input can be a list as emitted by code_to_blocks or another
-OptimizeFilter instance. varnames and constants args are just placeholders
-for the future."""
+        """input must be a code object."""
         self.codeobj = codeobj
         self.code = codeobj.co_code
         self.varnames = codeobj.co_varnames
         self.names = codeobj.co_names
         self.constants = codeobj.co_consts
         self.address_to_block = {}
+        self.block_to_address = {}
         self.blocks = []
         self.output = []
 
@@ -63,15 +62,20 @@ for the future."""
             # will happen if the input is a list
             pass
 
-    def compute_block_addresses(self, blocks):
+    def compute_addr_to_block(self, blocks):
         "Populate address_to_block dict for a list of blocks (PyVM or RVM)."
-        instr_address = 0
-        for (bi, block) in enumerate(blocks):
-            #print("addr:", instr_address, "bi:", bi)
-            block.address = instr_address
-            self.address_to_block[instr_address] = bi
-            instr_address += block.codelen()
-        #print("a2b:", self.address_to_block)
+        block_address = 0
+        for (i, block) in enumerate(blocks):
+            block.address = block_address
+            self.address_to_block[block_address] = i
+            block_address += block.codelen()
+
+    def compute_block_to_addr(self):
+        "Replace block numbers with offsets."
+        block_address = 0
+        for (i, block) in enumerate(self.rvm_blocks):
+            self.block_to_address[i] = block_address
+            block_address += block.codelen()
 
     def convert_address_to_block(self):
         "Replace jump targets with block numbers in PyVM blocks."
@@ -141,7 +145,7 @@ for the future."""
                 blocks.append(new_block)
             (op, oparg) = self.code[i:i+2]
             blocks[-1].append(Instruction(op, (oparg,)))
-        self.compute_block_addresses(blocks)
+        self.compute_addr_to_block(blocks)
 
     def constant_value(self, op):
         if op[0] == opcodes.ISET.opmap["LOAD_CONST"]:
@@ -654,3 +658,22 @@ class InstructionSetConverter(OptimizeFilter):
     dispatch[opcodes.ISET.opmap['IMPORT_NAME']] = misc_convert
     dispatch[opcodes.ISET.opmap['PRINT_EXPR']] = misc_convert
     dispatch[opcodes.ISET.opmap['EXTENDED_ARG']] = misc_convert
+
+    def __bytes__(self):
+        "Return generated as byte string."
+        instr_bytes = []
+        self.compute_block_to_addr()
+        address = 0
+        for block in self.rvm_blocks:
+            for instr in block:
+                # Use a scratch copy of the instruction to maintain
+                # its structure. Particularly important for jumps
+                # which need to modify oparg to generate addresses
+                # from block numbers. Eventually, I will modify
+                # Instruction objects so these sorts of functions are
+                # idempotent.
+                icopy = copy.copy(instr)
+                instr_bytes.append(icopy.to_bytes(address,
+                                                  self.block_to_address))
+                address += len(instr)
+        return b"".join(instr_bytes)

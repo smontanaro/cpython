@@ -25,10 +25,14 @@ class Instruction:
     opargs.
 
     """
+
+    EXT_ARG_OPCODE = opcodes.ISET.opmap["EXTENDED_ARG"]
+
     def __init__(self, opcode, opargs=(0,)):
         assert isinstance(opargs, tuple)
         self.opcode = opcode
         self.opargs = opargs
+        self.expanded_opargs = ()
 
     def name(self):
         "human-readable name for the opcode"
@@ -40,7 +44,8 @@ class Instruction:
         # byte. If we have more than zero or one arg, we use
         # EXTENDED_ARG instructions to carry the other args, each
         # again two bytes.
-        return 2 + 2 * len(self.opargs[1:])
+        opargs = self.expanded_opargs or self.opargs
+        return 2 + 2 * len(opargs[1:])
 
     def __str__(self):
         return f"Instruction({self.name()}, {self.opargs})"
@@ -84,7 +89,39 @@ class Instruction:
             rest = self.rest()
         self.opargs = first + dest + source + rest
 
-class JumpIfInstruction(Instruction):
+    def update_expanded_opargs(self, first=(), source=(), dest=(), rest=()):
+        "clunky way to create an opargs with expanded jump targets, etc"
+        # TBD: Need to improve this!
+        save_opargs = self.opargs
+        self.update_opargs(first, source, dest, rest)
+        self.expanded_opargs = self.opargs
+        self.opargs = save_opargs
+
+    def to_bytes(self, address, block_to_address):
+        "to_bytes when target address calculation isn't required."
+        result = []
+        n_ext_arg = 0
+        opargs = self.expanded_opargs or self.opargs
+        for arg in opargs[:-1]:
+            result.extend([self.EXT_ARG_OPCODE, arg])
+        result.extend([self.opcode, opargs[-1]])
+        try:
+            return bytes(result)
+        except TypeError:
+            print(result)
+            raise
+
+class JumpInstruction(Instruction):
+    "Some kind of jump."
+    def split_target(self, target):
+        "Maybe extendify a too large target address."
+        split = []
+        while target:
+            split.insert(0, target & 0xff)
+            target >>= 8
+        return tuple(split)
+
+class JumpIfInstruction(JumpInstruction):
     "Specialized behavior for JUMP_IF_(TRUE|FALSE)_REG."
     def first(self):
         return self.opargs[0:1]
@@ -94,6 +131,16 @@ class JumpIfInstruction(Instruction):
 
     def rest(self):
         return ()
+
+    def jump_target(self):
+        "Jump target as block number."
+        return self.first()[0]
+
+    def to_bytes(self, address, block_to_address):
+        "Target address calculation, then basic byte string gen."
+        target = block_to_address[self.jump_target()]
+        self.update_expanded_opargs(first=self.split_target(target))
+        return super().to_bytes(address, block_to_address)
 
 class LoadFastInstruction(Instruction):
     "Specialized behavior for LOAD_FAST_REG."
