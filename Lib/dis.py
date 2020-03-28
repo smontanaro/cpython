@@ -231,8 +231,7 @@ class Instruction(_Instruction):
         # Column: Source code line number
         if lineno_width:
             if self.starts_line is not None:
-                lineno_fmt = "%%%dd" % lineno_width
-                fields.append(lineno_fmt % self.starts_line)
+                fields.append("%*d" % (lineno_width, self.starts_line))
             else:
                 fields.append(' ' * lineno_width)
         # Column: Current instruction indicator
