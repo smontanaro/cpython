@@ -52,6 +52,7 @@ execution, asserting that co_nlocals + co_stacksize <= 127.)
 
 """
 
+import dis
 import sys
 
 # TBD... will change at some point
@@ -115,7 +116,9 @@ def main():
         isc.backward_propagate_fast_writes()
         isc.delete_nops()
         isc.display_blocks(isc.rvm_blocks)
-        # isc.convert_block_to_address()
+        func.__code__ = func.__code__.replace(co_code=bytes(isc))
+        dis.dis(func)
+
     return 0
 
 if __name__ == "__main__":
