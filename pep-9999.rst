@@ -15,12 +15,12 @@ Abstract
 
 This PEP proposes the addition of register-based opcodes to the
 existing Python virtual machine, with the intent that they eventually
-entirely replace the existing stack-based opcodes.  Though both sets of
-instructions are active in this effort, they are almost completely
+entirely replace the existing stack-based opcodes.  Though both sets
+of instructions are active in this effort, they are almost completely
 distinct.  Within a single function only one set of opcodes or the
-other will be used at any one time (though a few are used by
-both).  Considering that, the current stack-based opcodes are referred
-to below as the Python Virtual Machine ("PyVM") and the new
+other will be used at any one time (though a few are used by both).
+Considering that, the current stack-based opcodes are referred to
+below as the Python Virtual Machine ("PyVM") and the new
 register-based opcodes are referred to as the Register Virtual Machine
 ("RVM").
 
@@ -35,7 +35,8 @@ Motivation
 ==========
 
 Over the past two decades, Python's virtual machine has been improved
-in many ways.  Among the most visible to the core Python developer are:
+in many ways.  Among the most visible to the core Python developer
+are:
 
 - Peephole optimizations [#peephett]_
 
@@ -43,18 +44,26 @@ in many ways.  Among the most visible to the core Python developer are:
 
 - Use of computed gotos and opcode prediction [#predpitr]_
 
-Despite all that effort, stack manipulation opcodes (LOAD_FAST,
-POP_TOP, etc) still account for a substantial fraction of all opcodes
-executed.  This has been consistently true over a long period of time
-[#dynmont]_, [#instpage]_ and remains true today.  Running
-Pyperformance using a development version of Python 3.9 showed that
-the top four opcodes executed (LOAD_FAST, LOAD_CONST, STORE_FAST and
-LOAD_GLOBAL) accounted for nearly half of all executed
-instructions. (The complete table of frequencies is in `Appendix -
-Opcode Frequencies`_.)
+- Introduction of new instructions (reference?)
 
-While such a change doesn't qualify as low hanging fruit, it seems
-like a profitable change.
+- Wordcode [#wordcode]_
+
+Despite all that effort, stack manipulation opcodes (``LOAD_FAST``,
+``POP_TOP``, etc) still account for a substantial fraction of all
+opcodes executed.  This has been consistently true over a long period
+of time [#dynmont]_, [#instpage]_ and remains true today.  Running
+Pyperformance using a development version of Python 3.9 showed that
+the top four opcodes executed (``LOAD_FAST``, ``LOAD_CONST``,
+``STORE_FAST`` and ``LOAD_GLOBAL``) accounted for nearly half of all
+executed instructions.  They are low-cost instructions (compared with
+``CALL_FUNCTION`` for example), but still eat up time and space in the
+virtual machine, making it less efficient than it might be.  (The
+complete table of opcode frequencies is in `Appendix - Opcode
+Frequencies`_.)
+
+While swapping out the virtual machine in toto doesn't qualify as low
+hanging fruit, even after all this time it seems like it might be a
+profitable change.
 
 
 Previous Work
@@ -63,53 +72,121 @@ Previous Work
 Between 1998 and 2001, the author began work on a system named
 Rattlesnake based on Python 1.5.2.  It was never more than a barebones
 proof-of-concept, but did implement over 50 register-oriented
-instructions.  Its structure was based on an earlier peephole
-optimizer written by the author [#peepmont]_ and implemented as an
-peephole optimization class which could be chained together with other
-optimizations.  As such, it worked from the existing PyVM
-instructions, not any higher-level representation.  While it never saw
-the light of day, the code as followed the author of this document
-around as a subtle reminder of the possibility it represents.
+instructions, a substantial fraction of the machine at that time.  Its
+structure was based on an earlier peephole optimizer written by the
+author [#peepmont]_ and implemented as a peephole optimization class
+which could be chained together with other optimizations.  As such, it
+worked from the existing PyVM instructions, not any higher-level
+representation.  While it never saw the light of day, the code
+followed the author of this document around as a subtle reminder of
+the possibility it represented.  It lives on, providing much of the
+initial starting framework for the current translator.
 
 In 2012, Victor Stinner implemented a nearly complete system
 [#regstin].  It failed for a number of reasons, but seems like it was
 very close to a complete system.
 
-Both systems worked from PyVM bytecode as the starting point.  In 2005,
-Jeremy Hylton merged a new AST-based compiler to the master
-development branch [#asthylt]_.
+Both systems worked from PyVM bytecode as the starting point, and both
+were based on the old bytecode instruction format which used variable
+length instructions.  In 2005, Jeremy Hylton merged a new AST-based
+compiler to the master development branch [#asthylt]_.
 
 
 Rationale
 =========
 
-[Describe why particular design decisions were made.]
+The "correct" approach is to modify, replace or duplicate the existing
+AST-based compiler to produce RVM instructions.  Alas, the author had
+no experience with it and decided to fall back to translation of PyVM
+to RVM.  That provides fewer optimization opportunities, but allows
+all the translation to be done using an external Python program.  It
+should provide enough data to decide if the general idea is workable.
+Aside from allowing quicker experimentation, it also makes the
+development more accessible to Python developers without much
+experience with the CPython implementation.  If the approach proves
+worthwhile, developers with more experience with the compiler can push
+that part of the system forward.  Consider the current approach an
+attempt at producing a "minimum viable product," to use a business
+buzz phrase.
+
+Obviously, some work in the C code base is required.  This is mostly
+confined to two files:
+
+- ``Python/ceval.c`` - Each new instruction must be implemented, but
+  Python/ceval.c provides an excellent set of templates in the form of
+  the current PyVM instructions.  For the most part, the semantics of
+  an RVM instruction are the same as the corresponding PyVM
+  instruction.  The main difference between pairs of related
+  instructions is how they get their data.
+
+- ``Objects/frameobject.c`` - Most of this work has been done already,
+  but more could be done.  The primary work necessary reorganization
+  of the ``f_localsplus`` array so local variables and the stack space
+  were adjacent.  As Stinner noted though [#regstin]_, adding a copy
+  of the code object's constants to the frame object is also a
+  performance win.  This is suggested by the opcode frequencies
+  table.  ``LOAD_CONST`` is the second most frequently executed
+  instruction.
+
 
 
 Backwards Compatibility
 =======================
 
-[Describe potential impact and severity on pre-existing code.]
+Since the instruction set is an internal implementation detail
+(although a significant one), there should be no backward
+compatibility issues.  Tools which manipulate bytecode will obviously
+have to be modified.  The ``dis`` module will be modified as
+necessary.
 
 
 Reference Implementation
 ========================
 
-[Link to any existing implementation and details about its state, e.g. proof-of-concept.]
-
-https://github.com/smontanaro/cpython/tree/register
+An in-progress (not yet complete) implementation [#regmont]_ is
+available as a fork of the current CPython GitHub repo.  As of this
+writing (March 2020) it remains quite incomplete.
 
 
 Rejected Ideas
 ==============
 
-[Why certain ideas that were brought while discussing this PEP were not ultimately pursued.]
+No ideas have truly been rejected at this point.  The author has
+simply been following the path of least resistance.  That means
+implementing bits in Python where possible and disturbing the rest of
+the CPython implementation as little as possible.  Those are just
+trade-offs necessary to move things forward.  They aren't cast in
+stone.
 
 
 Open Issues
 ===========
 
-[Any points that are still being decided/discussed.]
+A large number of issues remain unresolved.
+
+- Register allocation - A long lost observation by Tim Peters that the
+  existing stack space could be used for registers is employed to
+  avoid increasing space taken by the frame object.  The downside is
+  that there are a limited number of registers available to the
+  translator.  The current translator does no proper register
+  allocation.  Stinner's implementation did [#regstin]_.
+
+- Proper implementation - As noted above, the current implementation
+  is a translator of existing wordcode, essentially a complex peephole
+  optimizer.  At some point, the AST-based compiler will need to be
+  retargeted.
+
+- Instruction implementation - As of this writing (March 2020), only a
+  few instructions have been implemented.  Since the PyVM instruction
+  set has grown significantly over the past two decades, it makes
+  sense that this be tackled by multiple people in parallel.
+
+- Wordcode - To simplify the work, wordcode was retained.  This works,
+  but relies heavily on the ``EXTENDED_ARG`` instruction to provide
+  arguments to instructions which need more than one.  While
+  ``EXTENDED_ARG`` is really only half an instruction, it would be
+  worth considering if a 32-bit instruction size for RVM makes more
+  sense.
 
 
 References
@@ -130,6 +207,9 @@ References
 .. [#peepmont] A Peephole Optimizer for Python, Montanaro
    (https://web.archive.org/web/20010414044328/https://www.foretec.com/python/workshops/1998-11/proceedings/papers/montanaro/montanaro.html)
 
+.. [#regmont] Register fork of CPython, Montanaro
+   (https://github.com/smontanaro/cpython/tree/register)
+
 .. [#regstin] My registervm fork (2012), Stinner
    (https://mail.python.org/archives/list/registervm@python.org/thread/X72OYMPH2HLTY4SIGVPKSTIRWL2XFY7G/)
 
@@ -139,12 +219,15 @@ References
 .. [#predpitr] Faster opcode dispatch on gcc, Pitrou
    (https://bugs.python.org/issue4753)
 
+.. [#wordcode] ceval: use Wordcode, 16-bit bytecode, Remud
+   (https://bugs.python.org/issue26647)
+
 
 Appendix - Opcode Frequencies
 =============================
 
 Pyperformance 1.0.0 was run using Python 3.9.0a5+ compiled with
--DDYNAMIC_EXECUTION_PROFILE=true, capturing instruction counts for
+``-DDYNAMIC_EXECUTION_PROFILE=true``, capturing instruction counts for
 each benchmark.  The results are displayed below:
 
 .. table:: Opcode Frequencies
