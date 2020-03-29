@@ -135,16 +135,17 @@ References
 .. [#predpitr] Faster opcode dispatch on gcc, Pitrou
    (https://bugs.python.org/issue4753)
 
+
 Appendix - Dynamic Execution Counts
 ===================================
 
 Using Python 3.9.0a5 compiled with -DDYNAMIC_EXECUTION_PROFILE=true
 pyperformance 1.0.0 was run, capturing instruction counts for each
-benchmark.  The results are displayed below.
+benchmark.  The results are displayed below:
 
-====================      =======      ==========
-Instruction               Percent      Cumulative
-====================      =======      ==========
+====================       =======     ==========
+Instruction                Percent     Cumulative
+====================       =======     ==========
 LOAD_FAST                   25.8%        25.75%
 LOAD_CONST                   9.9%        35.64%
 STORE_FAST                   7.7%        43.31%
