@@ -62,15 +62,7 @@ class Block:
         "Return a new block full of RVM instructions."
         new_block = Block("RVM")
         for pyvm_inst in self.instructions:
-            try:
-                convert = isc.dispatch[pyvm_inst.opcode]
-            except KeyError:
-                print("Can't dispatch", pyvm_inst)
-                raise
+            convert = isc.dispatch[pyvm_inst.opcode]
             rvm_inst = convert(isc, pyvm_inst)
-            try:
-                new_block.append(rvm_inst)
-            except AssertionError:
-                print(">>", pyvm_inst)
-                raise
+            new_block.append(rvm_inst)
         return new_block

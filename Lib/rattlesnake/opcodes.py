@@ -52,19 +52,10 @@ class InstructionSet:
             self.abs_jumps.add(op)
 
     def argbytes(self, op):
-        try:
-            return len(self.argsmap[op])
-        except KeyError:
-            print(">> no opcode:", op, oct(op))
-            raise
+        return len(self.argsmap[op])
 
     def format(self, op):
-        try:
-            return self.argsmap[op]
-        except KeyError:
-            print(">> no opcode:", op, oct(op))
-            print(">>", self, "argsmap keys:", list(self.argsmap.keys()))
-            raise
+        return self.argsmap[op]
 
     def has_argument(self, op):
         return op >= opcode.HAVE_ARGUMENT

@@ -105,11 +105,7 @@ class Instruction:
         for arg in opargs[:-1]:
             result.extend([self.EXT_ARG_OPCODE, arg])
         result.extend([self.opcode, opargs[-1]])
-        try:
-            return bytes(result)
-        except TypeError:
-            print(result)
-            raise
+        return bytes(result)
 
 class JumpInstruction(Instruction):
     "Some kind of jump."
