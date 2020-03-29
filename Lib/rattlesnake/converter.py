@@ -85,11 +85,7 @@ pipeline, each one responsible for a single optimization."""
                     # oparg is relative to the start of the current
                     # instruction address.
                     oparg += instr_address
-                try:
-                    instr.opargs = (self.address_to_block[oparg],)
-                except KeyError:
-                    print(self.address_to_block)
-                    raise
+                instr.opargs = (self.address_to_block[oparg],)
                 instr_address += len(instr)
 
     def compute_full_oparg(self, block, i, zero=True):
