@@ -54,14 +54,6 @@ pipeline, each one responsible for a single optimization."""
         labels = sorted(labels)
         return labels
 
-    def reset(self):
-        self.output = None
-        try:
-            self.blocks.reset()
-        except AttributeError:
-            # will happen if the input is a list
-            pass
-
     def compute_addr_to_block(self, blocks):
         "Populate address_to_block dict for a list of blocks (PyVM or RVM)."
         block_address = 0
@@ -147,21 +139,6 @@ pipeline, each one responsible for a single optimization."""
             blocks[-1].append(Instruction(op, (oparg,)))
         self.compute_addr_to_block(blocks)
 
-    def constant_value(self, op):
-        if op[0] == opcodes.ISET.opmap["LOAD_CONST"]:
-            return self.constants[op[1][0]+(op[1][1]<<8)]
-        if op[0] == opcodes.ISET.opmap["LOADI"]:
-            return op[1][0]+(op[1][1]<<8)
-        raise ValueError("Not a load constant opcode: %d"%op[0])
-
-    def find_constant(self, c):
-        # return the index of c in self.constants, adding it if it's not there
-        try:
-            index = self.constants.index(c)
-        except ValueError:
-            self.constants.append(c)
-            index = self.constants.index(c)
-        return index
 
 class InstructionSetConverter(OptimizeFilter):
     """convert stack-based VM code into register-oriented VM code.
@@ -197,11 +174,7 @@ class InstructionSetConverter(OptimizeFilter):
     def set_block_stacklevel(self, target, level):
         """set the input stack level for particular block"""
         #print(">> set:", (target, level))
-        try:
-            self.blocks[target].set_stacklevel(level)
-        except IndexError:
-            print("!!", target, level, len(self.blocks))
-            raise
+        self.blocks[target].set_stacklevel(level)
 
     # series of operations below mimic the stack changes of various
     # stack operations so we know what slot to find particular values in
