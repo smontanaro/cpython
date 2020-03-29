@@ -245,6 +245,7 @@ SET_UPDATE                   0.0%       100.00%
 DUP_TOP_TWO                  0.0%       100.00%
 LOAD_CLASSDEREF              0.0%       100.00%
 DICT_UPDATE                  0.0%       100.00%
+====================      =======      ==========
 
 
 Copyright
