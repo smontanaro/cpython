@@ -1,0 +1,265 @@
+PEP: 9999
+Title: Register Virtual Machine for Python
+Author: Skip Montanaro <skip@python.org>
+Status: Active
+Type: Standards Track
+Content-Type: text/x-rst
+Created: 28-Mar-2020
+Python-Version: 4.0
+Post-History: dd-mmm-yyyy
+
+
+Abstract
+========
+
+This PEP proposes the addition of register-based opcodes to the
+existing Python virtual machine, with the intent that they eventually
+entirely replace the existing stack-based opcodes.  Though both sets of
+instructions are active in this effort, they are almost completely
+distinct.  Within a single function only one set of opcodes or the
+other will be used at any one time (though a few are used by
+both).  Considering that, the current stack-based opcodes are referred
+to below as the Python Virtual Machine ("PyVM") and the new
+register-based opcodes are referred to as the Register Virtual Machine
+("RVM").
+
+Though submitted as a standards track PEP, the approach taken in the
+initial implementation requires PyVM to be active as RVM is developed.
+For that reason, as of its initial writing this document serves as
+much as a guide for the architecture changes and for work which must
+be done as for a rationale for the new virtual machine.
+
+
+Motivation
+==========
+
+Over the past two decades, Python's virtual machine has been improved
+in many ways.  Among the most visible to the core Python developer are:
+
+- Peephole optimizations [#peephett]_
+
+- Function call performance improvements [#pep-590]_
+
+- Use of computed gotos and opcode prediction [#predpitr]_
+
+Despite all that effort, stack manipulation opcodes (LOAD_FAST,
+POP_TOP, etc) still account for a substantial fraction of all opcodes
+executed.  This has been consistently true over a long period of time
+[#dynmont]_, [#instpage]_ and remains true today.  Running the test suite
+today, LOAD_FAST, LOAD_CONST and STORE_FAST are the three most
+frequently executed opcodes, accounting for 40% of all traversals of
+the virtual machine eval loop.
+
+This PEP proposes to finish the job.
+
+
+Previous Work
+=============
+
+Between 1998 and 2001, the author began work on a system named
+Rattlesnake based on Python 1.5.2.  It was never more than a barebones
+proof-of-concept, but did implement over 50 register-oriented
+instructions.  Its structure was based on an earlier peephole
+optimizer written by the author [#peepmont]_ and implemented as an
+peephole optimization class which could be chained together with other
+optimizations.  As such, it worked from the existing PyVM
+instructions, not any higher-level representation.  While it never saw
+the light of day, the code as followed the author of this document
+around as a subtle reminder of the possibility it represents.
+
+In 2012, Victor Stinner implemented a nearly complete system
+[#regstin].  It failed for a number of reasons, but seems like it was
+very close to a complete system.
+
+Both systems worked from PyVM bytecode as the starting point.  In 2005,
+Jeremy Hylton merged a new AST-based compiler to the master
+development branch [#asthylt]_.
+
+
+Rationale
+=========
+
+[Describe why particular design decisions were made.]
+
+
+Backwards Compatibility
+=======================
+
+[Describe potential impact and severity on pre-existing code.]
+
+
+Reference Implementation
+========================
+
+[Link to any existing implementation and details about its state, e.g. proof-of-concept.]
+
+https://github.com/smontanaro/cpython/tree/register
+
+
+Rejected Ideas
+==============
+
+[Why certain ideas that were brought while discussing this PEP were not ultimately pursued.]
+
+
+Open Issues
+===========
+
+[Any points that are still being decided/discussed.]
+
+
+References
+==========
+
+.. [#asthylt] Merge ast-branch to head, Hylton
+   (https://github.com/python/cpython/commit/3e0055f8c65c407e74ce476b8e2b1fb889723514)
+
+.. [#dynmont] Getting Rid of Data Movement Instructions, Montanaro
+   (https://mail.python.org/pipermail/python-list/2001-August/070944.html)
+
+.. [#instpage] Profiling CPython at Instagram, Page
+   (https://instagram-engineering.com/profiling-cpython-at-instagram-89d4cbeeb898)
+
+.. [#peephett] Improve code generation Hettinger, et al
+   (https://github.com/python/cpython/commit/f6f575ae6fc4b58f8735b6aebaa422d48bedcef4)
+
+.. [#peepmont] A Peephole Optimizer for Python, Montanaro
+   (https://web.archive.org/web/20010414044328/https://www.foretec.com/python/workshops/1998-11/proceedings/papers/montanaro/montanaro.html)
+
+.. [#regstin] My registervm fork (2012), Stinner
+   (https://mail.python.org/archives/list/registervm@python.org/thread/X72OYMPH2HLTY4SIGVPKSTIRWL2XFY7G/)
+
+.. [#pep-590] Vectorcall: a fast calling protocol for CPython
+   (https://www.python.org/dev/peps/pep-0590/)
+
+.. [#predpitr] Faster opcode dispatch on gcc, Pitrou
+   (https://bugs.python.org/issue4753)
+
+Appendix - Dynamic Execution Counts
+===================================
+
+Using Python 3.9.0a5 compiled with -DDYNAMIC_EXECUTION_PROFILE=true
+pyperformance 1.0.0 was run, capturing instruction counts for each
+benchmark.  The results are displayed below.
+
+====================      =======      ==========
+Instruction               Percent      Cumulative
+====================      =======      ==========
+LOAD_FAST                   25.8%        25.75%
+LOAD_CONST                   9.9%        35.64%
+STORE_FAST                   7.7%        43.31%
+LOAD_GLOBAL                  5.5%        48.79%
+CALL_FUNCTION                4.4%        53.16%
+POP_JUMP_IF_FALSE            4.3%        57.47%
+LOAD_ATTR                    3.4%        60.91%
+FOR_ITER                     3.4%        64.34%
+JUMP_ABSOLUTE                2.6%        66.97%
+RETURN_VALUE                 2.4%        69.37%
+LOAD_METHOD                  2.4%        71.76%
+CALL_METHOD                  2.4%        74.14%
+EXTENDED_ARG                 2.0%        76.16%
+BINARY_SUBSCR                1.9%        78.02%
+STORE_SUBSCR                 1.8%        79.87%
+POP_TOP                      1.8%        81.64%
+BINARY_ADD                   1.5%        83.15%
+IS_OP                        1.3%        84.40%
+LOAD_DEREF                   1.1%        85.55%
+COMPARE_OP                   1.1%        86.68%
+BINARY_MULTIPLY              1.0%        87.66%
+STORE_ATTR                   1.0%        88.62%
+BINARY_MODULO                0.9%        89.51%
+BINARY_TRUE_DIVIDE           0.9%        90.37%
+POP_JUMP_IF_TRUE             0.8%        91.18%
+UNPACK_SEQUENCE              0.8%        91.99%
+CONTAINS_OP                  0.7%        92.73%
+JUMP_FORWARD                 0.7%        93.43%
+YIELD_FROM                   0.6%        94.03%
+SETUP_FINALLY                0.5%        94.57%
+POP_BLOCK                    0.5%        95.10%
+BUILD_TUPLE                  0.4%        95.51%
+STORE_NAME                   0.4%        95.92%
+GET_ITER                     0.3%        96.27%
+MAKE_FUNCTION                0.3%        96.61%
+BINARY_SUBTRACT              0.3%        96.92%
+LOAD_NAME                    0.3%        97.22%
+DUP_TOP                      0.3%        97.50%
+LIST_APPEND                  0.3%        97.75%
+BUILD_LIST                   0.2%        97.98%
+YIELD_VALUE                  0.2%        98.16%
+JUMP_IF_FALSE_OR_POP         0.2%        98.34%
+BUILD_SLICE                  0.1%        98.47%
+BINARY_AND                   0.1%        98.59%
+CALL_FUNCTION_KW             0.1%        98.71%
+INPLACE_ADD                  0.1%        98.81%
+LOAD_CLOSURE                 0.1%        98.90%
+ROT_TWO                      0.1%        98.98%
+BUILD_MAP                    0.1%        99.06%
+JUMP_IF_TRUE_OR_POP          0.1%        99.13%
+JUMP_IF_NOT_EXC_MATCH        0.1%        99.21%
+SETUP_WITH                   0.1%        99.27%
+CALL_FUNCTION_EX             0.1%        99.34%
+FORMAT_VALUE                 0.1%        99.39%
+POP_EXCEPT                   0.0%        99.44%
+STORE_DEREF                  0.0%        99.49%
+IMPORT_NAME                  0.0%        99.53%
+DELETE_SUBSCR                0.0%        99.56%
+BUILD_STRING                 0.0%        99.60%
+DICT_MERGE                   0.0%        99.63%
+IMPORT_FROM                  0.0%        99.67%
+MAP_ADD                      0.0%        99.70%
+ROT_THREE                    0.0%        99.73%
+UNARY_NOT                    0.0%        99.76%
+RAISE_VARARGS                0.0%        99.78%
+LIST_EXTEND                  0.0%        99.81%
+BUILD_CONST_KEY_MAP          0.0%        99.83%
+LOAD_BUILD_CLASS             0.0%        99.85%
+BINARY_OR                    0.0%        99.87%
+LIST_TO_TUPLE                0.0%        99.89%
+INPLACE_SUBTRACT             0.0%        99.90%
+BINARY_POWER                 0.0%        99.92%
+BINARY_FLOOR_DIVIDE          0.0%        99.93%
+BUILD_SET                    0.0%        99.94%
+GET_YIELD_FROM_ITER          0.0%        99.95%
+INPLACE_FLOOR_DIVIDE         0.0%        99.96%
+UNARY_INVERT                 0.0%        99.97%
+INPLACE_OR                   0.0%        99.98%
+DELETE_NAME                  0.0%        99.98%
+DELETE_ATTR                  0.0%        99.98%
+UNARY_NEGATIVE               0.0%        99.99%
+STORE_GLOBAL                 0.0%        99.99%
+INPLACE_RSHIFT               0.0%        99.99%
+SET_ADD                      0.0%        99.99%
+BINARY_XOR                   0.0%        99.99%
+ROT_FOUR                     0.0%       100.00%
+IMPORT_STAR                  0.0%       100.00%
+BINARY_LSHIFT                0.0%       100.00%
+RERAISE                      0.0%       100.00%
+WITH_EXCEPT_START            0.0%       100.00%
+INPLACE_AND                  0.0%       100.00%
+INPLACE_MODULO               0.0%       100.00%
+BINARY_RSHIFT                0.0%       100.00%
+INPLACE_MULTIPLY             0.0%       100.00%
+DELETE_FAST                  0.0%       100.00%
+INPLACE_LSHIFT               0.0%       100.00%
+SET_UPDATE                   0.0%       100.00%
+DUP_TOP_TWO                  0.0%       100.00%
+LOAD_CLASSDEREF              0.0%       100.00%
+DICT_UPDATE                  0.0%       100.00%
+
+
+Copyright
+=========
+
+This document is placed in the public domain or under the
+CC0-1.0-Universal license, whichever is more permissive.
+
+
+
+..
+   Local Variables:
+   mode: indented-text
+   indent-tabs-mode: nil
+   sentence-end-double-space: t
+   fill-column: 70
+   coding: utf-8
+   End:
