@@ -38,9 +38,6 @@ class Block:
         else:
             self.stacklevel = level
 
-    def get_stacklevel(self):
-        return self.stacklevel
-
     def append(self, instr):
         assert isinstance(instr, Instruction), instr
         self.instructions.append(instr)
@@ -60,9 +57,6 @@ class Block:
 
     def __len__(self):
         return len(self.instructions)
-
-    def __getslice__(self, i, j):
-        return self.instructions[i:j]
 
     def gen_rvm(self, isc):
         "Return a new block full of RVM instructions."
