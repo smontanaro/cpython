@@ -3,6 +3,7 @@
 # These contain no slash, or only a trailing slash.
 
 *.cover
+*,cover
 *.iml
 *.o
 *.a
