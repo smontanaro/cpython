@@ -143,16 +143,24 @@ Using Python 3.9.0a5 compiled with -DDYNAMIC_EXECUTION_PROFILE=true
 pyperformance 1.0.0 was run, capturing instruction counts for each
 benchmark.  The results are displayed below:
 
-====================       =======     ==========
-Instruction                Percent     Cumulative
-====================       =======     ==========
-LOAD_FAST                   25.8%        25.75%
-LOAD_CONST                   9.9%        35.64%
-STORE_FAST                   7.7%        43.31%
-LOAD_GLOBAL                  5.5%        48.79%
-CALL_FUNCTION                4.4%        53.16%
-POP_JUMP_IF_FALSE            4.3%        57.47%
-LOAD_ATTR                    3.4%        60.91%
++-------------------+--------------+--------------+
+|Instruction        |     Percent  |  Cumulative  |
++-------------------+--------------+--------------+
+|LOAD_FAST          |      25.8%   |    25.75%    |
++-------------------+--------------+--------------+
+|LOAD_CONST         |       9.9%   |    35.64%    |
++-------------------+--------------+--------------+
+|STORE_FAST         |       7.7%   |    43.31%    |
++-------------------+--------------+--------------+
+|LOAD_GLOBAL        |       5.5%   |    48.79%    |
++-------------------+--------------+--------------+
+|CALL_FUNCTION      |       4.4%   |    53.16%    |
++-------------------+--------------+--------------+
+|POP_JUMP_IF_FALSE  |       4.3%   |    57.47%    |
++-------------------+--------------+--------------+
+|LOAD_ATTR          |       3.4%   |    60.91%    |
++-------------------+--------------+--------------+
+
 FOR_ITER                     3.4%        64.34%
 JUMP_ABSOLUTE                2.6%        66.97%
 RETURN_VALUE                 2.4%        69.37%
