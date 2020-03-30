@@ -13,7 +13,7 @@ class Block:
 
     def __str__(self):
         "useful summary"
-        return f"Block <{self.block_type}:{self.block_number}:{self.codelen()}>"
+        return f"Block <{self.block_type}:{self.block_number}:{self.address}:{self.codelen()}>"
 
     def display(self):
         print(self)
