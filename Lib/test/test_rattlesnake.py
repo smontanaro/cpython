@@ -32,8 +32,8 @@ class InstructionTest(unittest.TestCase):
                          ])
         self.assertEqual(len(isc.rvm_blocks), 1)
         self.assertEqual(isc.rvm_blocks[0].codelen(), 16)
-        isc.forward_propagate_fast_reads()
-        isc.backward_propagate_fast_writes()
+        isc.forward_propagate_fast_loads()
+        isc.backward_propagate_fast_stores()
         isc.delete_nops()
         self.assertEqual(isc.rvm_blocks[0].codelen(), 12)
         self.assertEqual(_get_opcodes(isc.rvm_blocks),
@@ -60,7 +60,7 @@ class InstructionTest(unittest.TestCase):
                              [130, 128, 122, 131, 130, 127],
                          ])
 
-        isc.forward_propagate_fast_reads()
+        isc.forward_propagate_fast_loads()
         self.assertEqual(_get_opcodes(isc.rvm_blocks),
                          [
                              [6, 128, 132, 133, 6, 127],
@@ -72,7 +72,7 @@ class InstructionTest(unittest.TestCase):
                              [128, 132, 133, 127],
                              [128, 122, 131, 127],
                          ])
-        isc.backward_propagate_fast_writes()
+        isc.backward_propagate_fast_stores()
         isc.delete_nops()
         self.assertEqual(_get_opcodes(isc.rvm_blocks),
                          [
