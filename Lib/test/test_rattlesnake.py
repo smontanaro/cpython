@@ -80,7 +80,7 @@ class InstructionTest(unittest.TestCase):
                              [128, 122, 127],
                          ])
         self.assertEqual(bytes(isc), (b'l\x03\x80\x01l\x02l\x00l\x03'
-                                      b'\x84\x04l\x06\x85\x02\x7f\x02'
+                                      b'\x84\x04l\x12\x85\x02\x7f\x02'
                                       b'l\x03\x80\x01l\x01l\x03z\x00\x7f\x02'))
 
 def _branch_func(a):
@@ -93,9 +93,9 @@ def _trivial_func(a):
     return a + 4
 
 def _get_opcodes(blocks):
-    opcodes = []
+    ops = []
     for block in blocks:
-        opcodes.append([])
+        ops.append([])
         for inst in block:
-            opcodes[-1].append(inst.opcode)
-    return opcodes
+            ops[-1].append(inst.opcode)
+    return ops
