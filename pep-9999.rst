@@ -13,14 +13,14 @@ Post-History: dd-mmm-yyyy
 Abstract
 ========
 
-This PEP proposes the addition of register-based opcodes to the
+This PEP proposes the addition of register-based instructions to the
 existing Python virtual machine, with the intent that they eventually
-entirely replace the existing stack-based opcodes.  Though both sets
-of instructions are active in this effort, they are almost completely
+replace the existing stack-based opcodes.  Though both sets of
+instructions are active in this effort, they are almost completely
 distinct.  Within a single function only one set of opcodes or the
-other will be used at any one time (though a few are used by both).
-Considering that, the current stack-based opcodes are referred to
-below as the Python Virtual Machine ("PyVM") and the new
+other will be used at any one time. (A few instructions are used by
+both.)  Considering that, the current stack-based opcodes are referred
+to below as the Python Virtual Machine ("PyVM") and the new
 register-based opcodes are referred to as the Register Virtual Machine
 ("RVM").
 
@@ -147,6 +147,27 @@ An in-progress (not yet complete) implementation [#regmont]_ is
 available as a fork of the current CPython GitHub repo.  As of this
 writing (March 2020) it remains quite incomplete.
 
+
+Current Status
+--------------
+
+As of March 29, 2020:
+
+- Implemented instructions - BINARY_ADD_REG, RETURN_VALUE_REG,
+  LOAD_CONST_REG, LOAD_FAST_REG, STORE_FAST_REG, LOAD_GLOBAL_REG,
+  COMPARE_OP_REG
+
+- Implemented translator parts
+
+  - Identification of basic blocks
+
+  - Mapping between the PyVM and RVM versions of the above
+    instructions (much leftover from Rattlesnake, but not yet tested)
+
+  - Elimination of LOAD_FAST_REG and STORE_FAST_REG by forward
+    propagation of the former and backward propagation of the latter.
+
+  - Generation of wordcode from the RVM blocks (still buggy though).
 
 Rejected Ideas
 ==============
