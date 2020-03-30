@@ -64,42 +64,34 @@ __version__ = "0.0"
 _A_GLOBAL = 42
 def h(s, b):
     if s > b:
-        s = b * 21
-        s = b + 2
-        s = b * 23
-        b = b + 44
-        s = b * 2
-        b = s + 4
-        b = b * 2
+        s = b - 21
+        b = s * 44
         s = b + 4
-        b = s * 2
-        b = b * 22
-        s = b * 23
-        b = s + 44
-        b = b * 5
+        b = s - 21
+        s = b + _A_GLOBAL
+        b = s + 24
+        s = b - 21
+        b = s * 44
         s = b + 4
-        b = s * 21
-        b = b + _A_GLOBAL
-        s = b * 3
-        b = b * 24
-        s = b * 25
-        s = b * 2
-        s = b * 2
-        b = b * 2
-        s = b * 21
-        s = b * 2
-        s = s * 23
-        b = s * 4
-        s = b * 25
-        s = s * 21
-        b = s * 2
-        s = b * 23
-        s = b * _A_GLOBAL
-        s = b * 25
-        b = s * 12
-        s = b * 22
-        s = b * 23
-        b = s * _A_GLOBAL
+        b = s - 21
+        s = b + _A_GLOBAL
+        b = s + 24
+        s = b - 21
+        b = s * 44
+        s = b + 4
+        b = s - 21
+        s = b + _A_GLOBAL
+        b = s + 24
+        s = b - 21
+        b = s * 44
+        s = b + 4
+        b = s - 21
+        s = b + _A_GLOBAL
+        b = s + 24
+        s = b - 21
+        b = s * 44
+        s = b + 4
+        b = s - 21
         return s
     return b - 1
 
@@ -108,13 +100,18 @@ def main():
         print("---", func, "---")
         isc = InstructionSetConverter(func.__code__)
         isc.find_blocks()
-        isc.display_blocks(isc.blocks)
         isc.convert_address_to_block()
         isc.gen_rvm()
+        print("Blocks right after gen_rvm()")
         isc.display_blocks(isc.rvm_blocks)
-        isc.forward_propagate_fast_reads()
-        isc.backward_propagate_fast_writes()
+        isc.forward_propagate_fast_loads()
+        print("Blocks right after forward propagation")
+        isc.display_blocks(isc.rvm_blocks)
+        isc.backward_propagate_fast_stores()
+        print("Blocks right after backward propagation")
+        isc.display_blocks(isc.rvm_blocks)
         isc.delete_nops()
+        print("Blocks right after NOP removal")
         isc.display_blocks(isc.rvm_blocks)
         func.__code__ = func.__code__.replace(co_code=bytes(isc))
         dis.dis(func)
