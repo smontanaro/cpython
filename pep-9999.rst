@@ -51,7 +51,7 @@ are:
 Despite all that effort, stack manipulation opcodes (``LOAD_FAST``,
 ``POP_TOP``, etc) still account for a substantial fraction of all
 opcodes executed.  This has been consistently true over a long period
-of time [#dynmont]_, [#instpage]_ and remains true today.  Running
+of time [#dynlemb]_, [#instpage]_ and remains true today.  Running
 Pyperformance using a development version of Python 3.9 showed that
 the top four opcodes executed (``LOAD_FAST``, ``LOAD_CONST``,
 ``STORE_FAST`` and ``LOAD_GLOBAL``) accounted for nearly half of all
@@ -194,6 +194,9 @@ References
 
 .. [#asthylt] Merge ast-branch to head, Hylton
    (https://github.com/python/cpython/commit/3e0055f8c65c407e74ce476b8e2b1fb889723514)
+
+.. [#dynlemb] Reordering opcodes (PEP 203 Augmented Assignment), Lemburg
+   (https://mail.python.org/pipermail/python-dev/2000-July/007609.html)
 
 .. [#dynmont] Getting Rid of Data Movement Instructions, Montanaro
    (https://mail.python.org/pipermail/python-list/2001-August/070944.html)
