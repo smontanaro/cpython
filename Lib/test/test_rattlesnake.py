@@ -7,17 +7,16 @@ from rattlesnake import instructions, opcodes, util
 
 class InstructionTest(unittest.TestCase):
     def test_nop(self):
-        nop = instructions.NOPInstruction(opcodes.ISET.opmap['NOP'])
+        nop = instructions.NOPInstruction(opcodes.ISET.opmap['NOP'], 0)
         self.assertEqual(nop.opargs, (0,))
 
     def test_src_dst(self):
         lfr = opcodes.ISET.opmap['LOAD_FAST_REG']
-        load = instructions.LoadFastInstruction(lfr, (1, 2))
-        self.assertEqual(load.first(), ())
-        self.assertEqual(load.dest_registers(), (1,))
-        self.assertEqual(load.source_registers(), (2,))
-        self.assertEqual(load.rest(), ())
-        load.update_opargs(source=(3,))
+        load = instructions.LoadFastInstruction(lfr, 0, dest=1, source1=2)
+        self.assertEqual(load.source1, 2)
+        self.assertEqual(load.dest, 1)
+        self.assertEqual(load.source_registers, (2,))
+        load.source1 = 3
         self.assertEqual(load.opargs, (1, 3))
 
     def test_trivial_function(self):

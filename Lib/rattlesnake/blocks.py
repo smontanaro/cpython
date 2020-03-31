@@ -4,11 +4,11 @@ from rattlesnake.instructions import Instruction
 
 class Block:
     """represent a block of code with a single entry point (first instr)"""
-    def __init__(self, block_type):
+    def __init__(self, block_type, block_number=-1):
         self.instructions = []
         self.stacklevel = -1
         self.address = -1
-        self.block_number = -1
+        self.block_number = block_number
         self.block_type = block_type
 
     def __str__(self):
@@ -60,9 +60,9 @@ class Block:
 
     def gen_rvm(self, isc):
         "Return a new block full of RVM instructions."
-        new_block = Block("RVM")
+        new_block = Block("RVM", block_number=self.block_number)
         for pyvm_inst in self.instructions:
             convert = isc.dispatch[pyvm_inst.opcode]
-            rvm_inst = convert(isc, pyvm_inst)
+            rvm_inst = convert(isc, pyvm_inst, new_block)
             new_block.append(rvm_inst)
         return new_block

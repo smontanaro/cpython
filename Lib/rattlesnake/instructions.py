@@ -1,6 +1,17 @@
-"Individual instructions."
+"""Individual instructions.
+
+Each Instruction object has an opcode (a fixed integer) and both name
+and opargs attributes which are implemented as properties. They
+reference back to the block where they are defined (again, a fixed
+attribute). In addition, various Instruction subclasses may implement
+other attributes needed for specialized tasks. For example, jump
+instructions need to calculate addresses (relative or absolute) which
+will depend on their enclosing block's address.
+
+"""
 
 from rattlesnake import opcodes
+from rattlesnake.util import decode_oparg
 
 class Instruction:
     """Represent an instruction in either PyVM or RVM.
@@ -28,15 +39,52 @@ class Instruction:
 
     EXT_ARG_OPCODE = opcodes.ISET.opmap["EXTENDED_ARG"]
 
-    def __init__(self, opcode, opargs=(0,)):
-        assert isinstance(opargs, tuple)
+    def __init__(self, opcode, block, opargs=(0,), **kwargs):
         self.opcode = opcode
-        self.opargs = opargs
+        self._opargs = opargs
+        self.block = block
         self.expanded_opargs = ()
+        # unset (or same as previous instruction?)
+        self.line_number = -1
+        for kwd in kwargs:
+            setattr(self, kwd, kwargs[kwd])
 
+    @property
     def name(self):
-        "human-readable name for the opcode"
+        "Human-readable name for the opcode."
         return opcodes.ISET.opname[self.opcode]
+
+    @property
+    def opargs(self):
+        """Overrideable property
+
+        opargs will be composed of different bits for different instructions.
+        """
+        return self._opargs
+
+    @property
+    def source_registers(self):
+        """Return tuple containing whatever register sources this instr has.
+
+        Return empty tuple if the instruction has no source registers.
+        """
+        return ()
+
+    @property
+    def source_name(self):
+        """Return offset into name index for non-register source.
+
+        Return -1 if the instruction has no name source.
+        """
+        return -1
+
+    @property
+    def destination_register(self):
+        """Return whatever register destination register this instr has.
+
+        Return -1 if the instruction writes no value to a register.
+        """
+        return -1
 
     def __len__(self):
         "Compute byte length of instruction."
@@ -44,8 +92,7 @@ class Instruction:
         # byte. If we have more than zero or one arg, we use
         # EXTENDED_ARG instructions to carry the other args, each
         # again two bytes.
-        opargs = self.expanded_opargs or self.opargs
-        return 2 + 2 * len(opargs[1:])
+        return 2 + 2 * len(self.opargs[1:])
 
     def __str__(self):
         return f"Instruction({self.name()}, {self.opargs})"
@@ -59,139 +106,155 @@ class Instruction:
         return self.opcode in opcodes.ISET.rel_jumps
 
     def is_jump(self):
+        "True for any kind of jump."
         return self.is_abs_jump() or self.is_rel_jump()
 
-    def source_registers(self):
-        "Return a tuple of all source registers."
-        return ()
-
-    def dest_registers(self):
-        "Return a tuple of all destination registers."
-        # Tuple returned for consistency. Empty tuple is default.
-        return ()
-
-    def first(self):
-        "Everything preceding the dest register."
-        return ()
-
-    def rest(self):
-        "Everything else."
-        return self.opargs
-
-    def update_opargs(self, first=(), source=(), dest=(), rest=()):
-        if not first:
-            first = self.first()
-        if not source:
-            source = self.source_registers()
-        if not dest:
-            dest = self.dest_registers()
-        if not rest:
-            rest = self.rest()
-        self.opargs = first + dest + source + rest
-
-    def update_expanded_opargs(self, first=(), source=(), dest=(), rest=()):
-        "clunky way to create an opargs with expanded jump targets, etc"
-        # TBD: Need to improve this!
-        save_opargs = self.opargs
-        self.update_opargs(first, source, dest, rest)
-        self.expanded_opargs = self.opargs
-        self.opargs = save_opargs
-
-    def to_bytes(self, address, block_to_address):
-        "to_bytes when target address calculation isn't required."
-        result = []
-        n_ext_arg = 0
-        opargs = self.expanded_opargs or self.opargs
-        for arg in opargs[:-1]:
-            result.extend([self.EXT_ARG_OPCODE, arg])
-        result.extend([self.opcode, opargs[-1]])
-        return bytes(result)
+    def __bytes__(self):
+        "Byte string generation."
+        code = []
+        for arg in self.opargs[:-1]:
+            code.append(self.EXT_ARG_OPCODE, arg)
+        code.append(self.opcode)
+        code.append(self.opargs[-1])
+        return bytes(code)
 
 class JumpInstruction(Instruction):
-    "Some kind of jump."
-    def split_target(self, target):
-        "Maybe extendify a too large target address."
-        split = []
-        while target:
-            split.insert(0, target & 0xff)
-            target >>= 8
-        return tuple(split)
+    """Some kind of jump.
+
+    Requires either a target (block number) or an address (offset from
+    start of code block, target marked as unset).  If an address is
+    given, it will be converted to a target block number later and
+    deleted.
+
+    """
+    def __init__(self, opcode, block, opargs=(0,), **kwargs):
+        if "address" in kwargs:
+            self.target_address = kwargs["address"]
+            del kwargs["address"]
+            self.target = -1    # unset so far
+        else:
+            # target block, not address
+            self.target = kwargs["target"]
+            del kwargs["target"]
+        super().__init__(opcode, block, opargs, **kwargs)
 
 class JumpIfInstruction(JumpInstruction):
     "Specialized behavior for JUMP_IF_(TRUE|FALSE)_REG."
-    def first(self):
-        return self.opargs[0:1]
+    def __init__(self, opcode, block, opargs=(0,), **kwargs):
+        # register with comparison output
+        self.source1 = kwargs["source1"]
+        del kwargs["source1"]
+        super().__init__(opcode, block, opargs, **kwargs)
 
+    @property
     def source_registers(self):
-        return self.opargs[1:2]
+        return (self.source1,)
 
-    def rest(self):
-        return ()
+    @property
+    def opargs(self):
+        """Return target block converted to address, plus src register."""
+        address = decode_oparg(self.block.block_to_address(self.target))
+        return address + self.source1
 
-    def jump_target(self):
-        "Jump target as block number."
-        return self.first()[0]
+class LoadInstruction(Instruction):
+    "Specialized behavior for loads."
+    def __init__(self, opcode, block, opargs=(0,), **kwargs):
+        self.source1 = kwargs["source1"]
+        del kwargs["source1"]
+        self.dest = kwargs["dest"]
+        del kwargs["dest"]
+        super().__init__(opcode, block, opargs, **kwargs)
 
-    def to_bytes(self, address, block_to_address):
-        "Target address calculation, then basic byte string gen."
-        target = block_to_address[self.jump_target()]
-        self.update_expanded_opargs(first=self.split_target(target))
-        return super().to_bytes(address, block_to_address)
-
-class LoadFastInstruction(Instruction):
-    "Specialized behavior for LOAD_FAST_REG."
+    @property
     def source_registers(self):
-        return self.opargs[1:2]
+        return (self.source1,)
 
-    def dest_registers(self):
-        return self.opargs[0:1]
+    @property
+    def destination_register(self):
+        return self.dest
 
-    def rest(self):
-        return ()
+    @property
+    def opargs(self):
+        """Return target block converted to address, plus src register."""
+        return (self.dest, self.source1)
+
+class LoadFastInstruction(LoadInstruction):
+    pass
+
+class LoadGlobalInstruction(LoadInstruction):
+    pass
+
+class LoadConstInstruction(LoadInstruction):
+    pass
 
 # SFI and LFI are really the same instruction. We distinguish only to
 # avoid mistakes using isinstance. There is probably a cleaner way to
 # do this, but this code duplication suffices for the moment.
-class StoreFastInstruction(Instruction):
-    "Specialized behavior for STORE_FAST_REG."
-    def source_registers(self):
-        return self.opargs[1:2]
+class StoreInstruction(Instruction):
+    "Specialized behavior for stores."
+    def __init__(self, opcode, block, opargs=(0,), **kwargs):
+        self.source1 = kwargs["source1"]
+        del kwargs["source1"]
+        self.dest = kwargs["dest"]
+        del kwargs["dest"]
+        super().__init__(opcode, block, opargs, **kwargs)
 
-    def dest_registers(self):
-        return self.opargs[0:1]
+    @property
+    def opargs(self):
+        """Return target block converted to address, plus src register."""
+        return (self.dest, self.source1)
 
-    def rest(self):
-        return ()
+class StoreFastInstruction(StoreInstruction):
+    pass
+
+class StoreGlobalInstruction(StoreInstruction):
+    pass
 
 class CompareOpInstruction(Instruction):
     "Specialized behavior for COMPARE_OP_REG."
-    def source_registers(self):
-        return self.opargs[1:3]
+    def __init__(self, opcode, block, opargs=(0,), **kwargs):
+        self.source1 = kwargs["source1"]
+        del kwargs["source1"]
+        self.source2 = kwargs["source2"]
+        del kwargs["source2"]
+        self.dest = kwargs["dest"]
+        del kwargs["dest"]
+        self.compare_op = kwargs["compare_op"]
+        del kwargs["compare_op"]
+        super().__init__(opcode, block, opargs, **kwargs)
 
-    def dest_registers(self):
-        return self.opargs[0:1]
-
-    def rest(self):
-        return self.opargs[3:]
+    @property
+    def opargs(self):
+        """Return target block converted to address, plus src register."""
+        return (self.dest, self.source1, self.source2, self.compare_op)
 
 class BinOpInstruction(Instruction):
     "Specialized behavior for binary operations."
-    def source_registers(self):
-        return self.opargs[1:3]
+    def __init__(self, opcode, block, opargs=(0,), **kwargs):
+        self.source1 = kwargs["source1"]
+        del kwargs["source1"]
+        self.source2 = kwargs["source2"]
+        del kwargs["source2"]
+        self.dest = kwargs["dest"]
+        del kwargs["dest"]
+        super().__init__(opcode, block, opargs, **kwargs)
 
-    def dest_registers(self):
-        return self.opargs[0:1]
-
-    def rest(self):
-        return ()
+    @property
+    def opargs(self):
+        """Return target block converted to address, plus src register."""
+        return (self.dest, self.source1, self.source2)
 
 class NOPInstruction(Instruction):
-    "Just easier this way..."
+    pass
 
-class LoadGlobalInstruction(Instruction):
-    "LOAD_GLOBAL_REG"
-    def dest_registers(self):
-        return self.opargs[0:1]
+class ReturnInstruction(Instruction):
+    "RETURN_VALUE_REG"
+    def __init__(self, opcode, block, opargs=(0,), **kwargs):
+        self.source1 = kwargs["source1"]
+        del kwargs["source1"]
+        super().__init__(opcode, block, opargs, **kwargs)
 
-    def rest(self):
-        return self.opargs[1:2]
+    @property
+    def opargs(self):
+        """Return target block converted to address, plus src register."""
+        return (self.source1,)
