@@ -8,9 +8,7 @@ __all__ = ["InstructionSet", "ISET"]
 class InstructionSet:
     "Repository of instruction set details. Should absorb into opcode.py"
     def __init__(self):
-        self.opname = [''] * 256
-        for op in range(256):
-            self.opname[op] = '<' + repr(op) + '>'
+        self.opname = [f'<{op}>' for op in range(256)]
         self.opmap = {}
         self.argsmap = {}
         self.jumps = set()
@@ -51,14 +49,8 @@ class InstructionSet:
             self.jumps.add(op)
             self.abs_jumps.add(op)
 
-    def argbytes(self, op):
-        return len(self.argsmap[op])
-
     def format(self, op):
         return self.argsmap[op]
-
-    def has_argument(self, op):
-        return op >= opcode.HAVE_ARGUMENT
 
 OP = 0
 ISET = InstructionSet()
