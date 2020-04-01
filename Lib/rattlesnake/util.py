@@ -17,6 +17,8 @@ def decode_oparg(oparg, minimize=True):
     the tuple.
 
     """
+    if not oparg:
+        return (0,)
     args = [
         oparg >> 24,
         oparg >> 16 & 0xff,
@@ -24,7 +26,7 @@ def decode_oparg(oparg, minimize=True):
         oparg & 0xff,
     ]
     if minimize:
-        while args[0] == 0:
+        while args and args[0] == 0:
             del args[0]
     return tuple(args)
 
