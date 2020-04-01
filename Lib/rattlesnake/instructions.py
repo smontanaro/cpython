@@ -19,21 +19,10 @@ class Instruction:
     Instruction opargs are currently represented by a tuple. It
     consists of up to four parts:
 
-    * first - anything before the destination register
     * dest - destination register
-    * sources - source registers
-    * rest - anything after the source registers
-
-    Any or all of these fields may be empty. By default, the first
-    three are considered empty and the rest is all
-    elements. EXTENDED_ARG needs no special treatment, so is created
-    as an instance of Instruction. Other subclasses carve up opargs in
-    different ways. CompareOpInstruction has a dest, two sources and a
-    comparison operator (rest), but no first. JumpIfInstruction has
-    first (the target block number) and a source (destination register
-    of the previous COMPARE_OP instruction, but no dest or rest
-    elements. The update_opargs method is used to update any piece of
-    opargs.
+    * source1, source2 - source registers
+    * target_address - absolute address of jump target (PyVM)
+    * target - target block number
 
     """
 
@@ -95,7 +84,7 @@ class Instruction:
         return 2 + 2 * len(self.opargs[1:])
 
     def __str__(self):
-        return f"Instruction({self.name()}, {self.opargs})"
+        return f"Instruction({self.name}, {self.opargs})"
 
     def is_abs_jump(self):
         "True if opcode is an absolute jump."
@@ -110,7 +99,7 @@ class Instruction:
         return self.is_abs_jump() or self.is_rel_jump()
 
     def __bytes__(self):
-        "Byte string generation."
+        "Generate wordcode."
         code = []
         for arg in self.opargs[:-1]:
             code.append(self.EXT_ARG_OPCODE, arg)
@@ -153,8 +142,14 @@ class JumpIfInstruction(JumpInstruction):
     @property
     def opargs(self):
         """Return target block converted to address, plus src register."""
-        address = decode_oparg(self.block.block_to_address(self.target))
-        return address + self.source1
+        isc = self.block.parent
+        target_block = isc.blocks[self.block.block_type][self.target]
+        addr_arg = decode_oparg(target_block.address)
+        result = addr_arg + (self.source1,)
+        if result != self._opargs:
+            self._opargs = result
+            self.block.mark_dirty()
+        return result
 
 class LoadInstruction(Instruction):
     "Specialized behavior for loads."
@@ -175,7 +170,6 @@ class LoadInstruction(Instruction):
 
     @property
     def opargs(self):
-        """Return target block converted to address, plus src register."""
         return (self.dest, self.source1)
 
 class LoadFastInstruction(LoadInstruction):
@@ -201,7 +195,6 @@ class StoreInstruction(Instruction):
 
     @property
     def opargs(self):
-        """Return target block converted to address, plus src register."""
         return (self.dest, self.source1)
 
 class StoreFastInstruction(StoreInstruction):
@@ -225,7 +218,6 @@ class CompareOpInstruction(Instruction):
 
     @property
     def opargs(self):
-        """Return target block converted to address, plus src register."""
         return (self.dest, self.source1, self.source2, self.compare_op)
 
 class BinOpInstruction(Instruction):
@@ -241,7 +233,6 @@ class BinOpInstruction(Instruction):
 
     @property
     def opargs(self):
-        """Return target block converted to address, plus src register."""
         return (self.dest, self.source1, self.source2)
 
 class NOPInstruction(Instruction):
@@ -256,5 +247,4 @@ class ReturnInstruction(Instruction):
 
     @property
     def opargs(self):
-        """Return target block converted to address, plus src register."""
         return (self.source1,)

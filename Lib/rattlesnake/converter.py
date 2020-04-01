@@ -29,12 +29,10 @@ pipeline, each one responsible for a single optimization."""
         self.varnames = codeobj.co_varnames
         self.names = codeobj.co_names
         self.constants = codeobj.co_consts
-        self.address_to_block = {}
-        self.block_to_address = {}
-        self.blocks = []
-        self.rvm_blocks = []
-        self.output = []
-        self.line_numbers = {}
+        self.blocks = {
+            "PyVM": [],
+            "RVM": [],
+        }
 
     def findlabels(self, code):
         "Find target addresses in the code."
@@ -59,46 +57,27 @@ pipeline, each one responsible for a single optimization."""
         labels = sorted(labels)
         return labels
 
-    def compute_addr_to_block(self, blocks):
-        "Populate address_to_block dict for a list of blocks (PyVM or RVM)."
-        block_address = 0
-        for (i, block) in enumerate(blocks):
-            self.address_to_block[block_address] = i
-            block_address += block.codelen()
-
-    def compute_block_to_addr(self):
-        "Replace block numbers with offsets."
-        block_address = 0
-        for (i, block) in enumerate(self.rvm_blocks):
-            self.block_to_address[i] = block_address
-            block_address += block.codelen()
-
-    def update_block_offsets(self):
-        "Recompute block numbers and addresses."
-        for blocks in (self.blocks, self.rvm_blocks):
-            address = 0
-            for (i, block) in enumerate(blocks):
-                block.block_number = i
-                block.address = address
-                address += block.codelen()
-
-    def convert_address_to_block(self):
+    def convert_jump_targets_to_blocks(self):
         "Replace jump targets with block numbers in PyVM blocks."
-        for block in self.blocks:
+        blocks = self.blocks["PyVM"]
+        assert blocks[0].block_type == "PyVM"
+        for block in blocks:
             for instr in block:
                 if instr.is_jump():
-                    assert hasattr(instr, "address") and instr.target == -1
-                    instr.target = self.address_to_block[instr.address]
-                    print(f">> mapped {instr.address} to {instr.target}")
-                    del instr.address
+                    for tblock in blocks:
+                        if instr.target_address == tblock.address:
+                            instr.target = tblock.block_number
+                            break
+                    assert instr.target >= 0
+                    del instr.target_address
 
     def find_blocks(self):
         """Convert code byte string to block form.
 
-        At this stage, JUMP instruction opargs retain their address.
+        JUMP instruction targets are converted to block numbers at the end.
 
         """
-        blocks = self.blocks
+        blocks = self.blocks["PyVM"]
         labels = self.findlabels(self.code)
         #print(">>> labels:", labels)
         n = len(self.code)
@@ -106,9 +85,7 @@ pipeline, each one responsible for a single optimization."""
         ext_oparg = 0
         for offset in range(0, n, 2):
             if offset in labels:
-                #print(f">> new block number={len(blocks)} offset={offset}")
-                block = Block("PyVM")
-                block.block_number = block_num
+                block = Block("PyVM", self, block_num)
                 block.address = offset
                 block_num += 1
                 blocks.append(block)
@@ -125,12 +102,11 @@ pipeline, each one responsible for a single optimization."""
                     if instr.is_rel_jump():
                         # Convert to absolute
                         address += offset
-                    print(f">> found a JUMP @ {offset} target_addr={address}")
+                    #print(f">> found a JUMP @ {offset} target_addr={address}")
                     instr = JumpInstruction(op, block, address=address)
                 block.append(instr)
                 ext_oparg = 0
-        self.compute_addr_to_block(blocks)
-
+        self.convert_jump_targets_to_blocks()
 
 class InstructionSetConverter(OptimizeFilter):
     """convert stack-based VM code into register-oriented VM code.
@@ -165,7 +141,7 @@ class InstructionSetConverter(OptimizeFilter):
     def set_block_stacklevel(self, target, level):
         """set the input stack level for particular block"""
         #print(">> set:", (target, level))
-        self.blocks[target].set_stacklevel(level)
+        self.blocks["RVM"][target].set_stacklevel(level)
 
     # series of operations below mimic the stack changes of various
     # stack operations so we know what slot to find particular values in
@@ -203,11 +179,12 @@ class InstructionSetConverter(OptimizeFilter):
         return self.stacklevel
 
     def gen_rvm(self):
-        self.rvm_blocks = []
-        for pyvm_block in self.blocks:
-            rvm_block = pyvm_block.gen_rvm(self)
-            self.rvm_blocks.append(rvm_block)
-        self.update_block_offsets()
+        self.blocks["RVM"] = []
+        for pyvm_block in self.blocks["PyVM"]:
+            rvm_block = Block("RVM", self, block_number=pyvm_block.block_number)
+            self.blocks["RVM"].append(rvm_block)
+        for (rvm, pyvm) in zip(self.blocks["RVM"], self.blocks["PyVM"]):
+            pyvm.gen_rvm(rvm)
 
     # A small, detailed example forward propagating the result of a
     # fast load and backward propagating the result of a fast
@@ -277,7 +254,8 @@ class InstructionSetConverter(OptimizeFilter):
     def forward_propagate_fast_loads(self):
         "LOAD_FAST_REG should be a NOP..."
         prop_dict = {}
-        for block in self.rvm_blocks:
+        dirty = None
+        for block in self.blocks["RVM"]:
             for (i, instr) in enumerate(block):
                 if (isinstance(instr, LoadFastInstruction) and
                     instr.name == "LOAD_FAST_REG"):
@@ -287,6 +265,8 @@ class InstructionSetConverter(OptimizeFilter):
                     # The load is no longer needed, so replace it with
                     # a NOP.
                     block[i] = NOPInstruction(self.NOP_OPCODE, block)
+                    if dirty is None:
+                        dirty = block.block_number
                 else:
                     for srckey in ("source1", "source2"):
                         src = getattr(instr, srckey, None)
@@ -301,7 +281,7 @@ class InstructionSetConverter(OptimizeFilter):
                             del prop_dict[dst]
                         except KeyError:
                             pass
-        self.update_block_offsets()
+        self.mark_dirty(dirty)
 
     def backward_propagate_fast_stores(self):
         "STORE_FAST_REG should be a NOP..."
@@ -310,7 +290,8 @@ class InstructionSetConverter(OptimizeFilter):
         # STORE instructions and update source registers until we see
         # a register appear as a source in an earlier instruction.
         prop_dict = {}
-        for block in self.rvm_blocks:
+        dirty = None
+        for block in self.blocks["RVM"]:
             for (i, instr) in enumerate_reversed(block):
                 if isinstance(instr, StoreFastInstruction):
                     # Will map earlier references to the store's
@@ -318,6 +299,8 @@ class InstructionSetConverter(OptimizeFilter):
                     prop_dict[instr.source1] = instr.dest
                     # Elide...
                     block[i] = NOPInstruction(self.NOP_OPCODE, block)
+                    if dirty is None:
+                        dirty = block.block_number
                 else:
                     dst = getattr(instr, "dest", None)
                     if dst is not None:
@@ -330,15 +313,27 @@ class InstructionSetConverter(OptimizeFilter):
                             del prop_dict[src]
                         except KeyError:
                             pass
-        self.update_block_offsets()
+        self.mark_dirty(dirty)
 
     def delete_nops(self):
         "NOP instructions can safely be removed."
-        for block in self.rvm_blocks:
+        dirty = None
+        for block in self.blocks["RVM"]:
             for (i, instr) in enumerate_reversed(block):
                 if isinstance(instr, NOPInstruction):
                     del block[i]
-        self.update_block_offsets()
+                    if dirty is None:
+                        dirty = block.block_number
+        self.mark_dirty(dirty)
+
+    def mark_dirty(self, dirty):
+        "Reset addresses on dirty blocks."
+        # Every block downstream from the first modified block is
+        # dirty.
+        if dirty is None:
+            return
+        for block in self.blocks["RVM"][dirty:]:
+            block.address = -1
 
     def display_blocks(self, blocks):
         "debug"
@@ -616,11 +611,7 @@ class InstructionSetConverter(OptimizeFilter):
     def __bytes__(self):
         "Return generated byte string."
         instr_bytes = []
-        self.compute_block_to_addr()
-        address = 0
-        for block in self.rvm_blocks:
+        for block in self.blocks["RVM"]:
             for instr in block:
-                instr_bytes.append(instr.to_bytes(address,
-                                                  self.block_to_address))
-                address += len(instr)
+                instr_bytes.append(bytes(instr))
         return b"".join(instr_bytes)

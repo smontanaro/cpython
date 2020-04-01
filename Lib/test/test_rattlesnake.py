@@ -22,21 +22,20 @@ class InstructionTest(unittest.TestCase):
     def test_trivial_function(self):
         isc = InstructionSetConverter(_trivial_func.__code__)
         isc.find_blocks()
-        isc.convert_address_to_block()
-        self.assertEqual(len(isc.blocks), 1)
-        self.assertEqual(isc.blocks[0].codelen(), 8)
+        self.assertEqual(len(isc.blocks["PyVM"]), 1)
+        self.assertEqual(isc.blocks["PyVM"][0].codelen(), 8)
         isc.gen_rvm()
-        self.assertEqual(_get_opcodes(isc.rvm_blocks),
+        self.assertEqual(_get_opcodes(isc.blocks["RVM"]),
                          [
                              [130, 128, 122, 127],
                          ])
-        self.assertEqual(len(isc.rvm_blocks), 1)
-        self.assertEqual(isc.rvm_blocks[0].codelen(), 16)
+        self.assertEqual(len(isc.blocks["RVM"]), 1)
+        self.assertEqual(isc.blocks["RVM"][0].codelen(), 16)
         isc.forward_propagate_fast_loads()
         isc.backward_propagate_fast_stores()
         isc.delete_nops()
-        self.assertEqual(isc.rvm_blocks[0].codelen(), 12)
-        self.assertEqual(_get_opcodes(isc.rvm_blocks),
+        self.assertEqual(isc.blocks["RVM"][0].codelen(), 12)
+        self.assertEqual(_get_opcodes(isc.blocks["RVM"]),
                          [
                              [128, 122, 127],
                          ])
@@ -45,36 +44,35 @@ class InstructionTest(unittest.TestCase):
     def test_simple_branch_function(self):
         isc = InstructionSetConverter(_branch_func.__code__)
         isc.find_blocks()
-        isc.convert_address_to_block()
-        self.assertEqual(len(isc.blocks), 2)
-        self.assertEqual(isc.blocks[0].codelen(), 12)
-        self.assertEqual(isc.blocks[1].codelen(), 12)
-        self.assertEqual(isc.rvm_blocks, [])
+        self.assertEqual(len(isc.blocks["PyVM"]), 2)
+        self.assertEqual(isc.blocks["PyVM"][0].codelen(), 12)
+        self.assertEqual(isc.blocks["PyVM"][1].codelen(), 12)
+        self.assertEqual(isc.blocks["RVM"], [])
         isc.gen_rvm()
-        self.assertEqual(len(isc.rvm_blocks), 2)
-        self.assertEqual(isc.rvm_blocks[0].codelen(), 26)
-        self.assertEqual(isc.rvm_blocks[1].codelen(), 24)
-        self.assertEqual(_get_opcodes(isc.rvm_blocks),
+        self.assertEqual(len(isc.blocks["RVM"]), 2)
+        self.assertEqual(isc.blocks["RVM"][0].codelen(), 26)
+        self.assertEqual(isc.blocks["RVM"][1].codelen(), 24)
+        self.assertEqual(_get_opcodes(isc.blocks["RVM"]),
                          [
                              [130, 128, 132, 133, 130, 127],
                              [130, 128, 122, 131, 130, 127],
                          ])
 
         isc.forward_propagate_fast_loads()
-        self.assertEqual(_get_opcodes(isc.rvm_blocks),
+        self.assertEqual(_get_opcodes(isc.blocks["RVM"]),
                          [
                              [6, 128, 132, 133, 6, 127],
                              [6, 128, 122, 131, 6, 127],
                          ])
         isc.delete_nops()
-        self.assertEqual(_get_opcodes(isc.rvm_blocks),
+        self.assertEqual(_get_opcodes(isc.blocks["RVM"]),
                          [
                              [128, 132, 133, 127],
                              [128, 122, 131, 127],
                          ])
         isc.backward_propagate_fast_stores()
         isc.delete_nops()
-        self.assertEqual(_get_opcodes(isc.rvm_blocks),
+        self.assertEqual(_get_opcodes(isc.blocks["RVM"]),
                          [
                              [128, 132, 133, 127],
                              [128, 122, 127],
@@ -86,14 +84,15 @@ class InstructionTest(unittest.TestCase):
     def test_long_block_function(self):
         isc = InstructionSetConverter(_long_block.__code__)
         isc.find_blocks()
-        isc.convert_address_to_block()
         isc.gen_rvm()
         isc.forward_propagate_fast_loads()
         isc.backward_propagate_fast_stores()
         isc.delete_nops()
-        opcodes = _get_opcodes(isc.rvm_blocks)
-        isc.display_blocks(isc.rvm_blocks)
-        self.assertEqual(opcodes[0][:3], [132, 108, 133])
+        opnames = _get_opnames(isc.blocks["RVM"])
+        self.assertEqual(opnames[0][:3],
+                         ["COMPARE_OP_REG",
+                          "JUMP_IF_FALSE_REG",
+                          "LOAD_CONST_REG"])
 
     def test_util_decode(self):
         self.assertEqual(util.decode_oparg(71682), (1, 24, 2))
@@ -132,6 +131,14 @@ def _get_opcodes(blocks):
         for inst in block:
             ops[-1].append(inst.opcode)
     return ops
+
+def _get_opnames(blocks):
+    names = []
+    for block in blocks:
+        names.append([])
+        for inst in block:
+            names[-1].append(opcodes.ISET.opname[inst.opcode])
+    return names
 
 _A_GLOBAL = 42
 def _long_block(s, b):
