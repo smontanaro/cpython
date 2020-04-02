@@ -87,3 +87,9 @@ class Block:
     def mark_dirty(self):
         "This block is dirty. Implicitly, so is everything downstream."
         self.parent.mark_dirty(self.block_number)
+
+    def __bytes__(self):
+        instr_bytes = []
+        for instr in self.instructions:
+            instr_bytes.append(bytes(instr))
+        return b"".join(instr_bytes)
