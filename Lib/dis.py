@@ -279,6 +279,35 @@ def get_instructions(x, *, first_line=None):
                                    co.co_consts, cell_names, linestarts,
                                    line_offset)
 
+def _get_reg_info(arg):
+    """Register instruction helper - dissect arg into four-element tuple."""
+    tup = [arg >> 24, arg >> 16 & 0xff, arg >> 8 & 0xff, arg & 0xff]
+    argrepr = ", ".join(str(elt) for elt in tup)
+    return arg, argrepr
+
+def _get_regs_info(arg):
+    """Register instruction helper - single source register."""
+    return arg, f"%r{arg & 0xff}"
+
+def _get_regdc_info(arg, constants):
+    """Register instruction helper - dest register and constant."""
+    return arg, f"%r{arg >> 8 & 0xff} <- {repr(constants[arg & 0xff])}"
+
+def _get_regds_info(arg):
+    """Register instruction helper - dest & source registers."""
+    return arg, f"%r{arg >> 8 & 0xff} <- %r{arg & 0xff}"
+
+def _get_regdss_info(arg):
+    """Register instruction helper - dest & two source registers."""
+    return arg, (f"%r{arg >> 16 & 0xff} <- %r{arg >> 8 & 0xff} OP "
+                 f"%r{arg & 0xff}")
+
+def _get_regcmp_info(arg):
+    """Register compare instruction helper"""
+    tup = [f"%r{arg >> 24}", "<-", f"%r{arg >> 16 & 0xff}",
+           cmp_op[arg & 0xff], f"%r{arg >> 8 & 0xff}"]
+    return arg, " ".join(tup)
+
 def _get_const_info(const_index, const_list):
     """Helper to get optional details about const references
 
@@ -333,7 +362,20 @@ def _get_instructions_bytes(code, varnames=None, names=None, constants=None,
             #    _disassemble_bytes needs the string repr of the
             #    raw name index for LOAD_GLOBAL, LOAD_CONST, etc.
             argval = arg
-            if op in hasconst:
+            if op >= HAVE_REGISTERS:
+                if op in hascompare:
+                    argval, argrepr = _get_regcmp_info(arg)
+                elif op in hasregdc:
+                    argval, argrepr = _get_regdc_info(arg, constants)
+                elif op in hasregdss:
+                    argval, argrepr = _get_regdss_info(arg)
+                elif op in hasregds:
+                    argval, argrepr = _get_regds_info(arg)
+                elif op in hasregs:
+                    argval, argrepr = _get_regs_info(arg)
+                else:
+                    argval, argrepr = _get_reg_info(arg)
+            elif op in hasconst:
                 argval, argrepr = _get_const_info(arg, constants)
             elif op in hasname:
                 argval, argrepr = _get_name_info(arg, names)

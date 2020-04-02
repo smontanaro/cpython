@@ -6,7 +6,8 @@ operate on bytecodes (e.g. peephole optimizers).
 
 __all__ = ["cmp_op", "hasconst", "hasname", "hasjrel", "hasjabs",
            "haslocal", "hascompare", "hasfree", "opname", "opmap",
-           "HAVE_ARGUMENT", "EXTENDED_ARG", "hasnargs", "HAVE_REGISTERS"]
+           "HAVE_ARGUMENT", "EXTENDED_ARG", "hasnargs", "HAVE_REGISTERS",
+           "hasregs", "hasregds", "hasregdss", "hasregdn", "hasregdc"]
 
 # It's a chicken-and-egg I'm afraid:
 # We're imported before _opcode's made.
@@ -61,6 +62,11 @@ haslocal = []
 hascompare = []
 hasfree = []
 hasnargs = [] # unused
+hasregs = []
+hasregds = []
+hasregdss = []
+hasregdn = []
+hasregdc = []
 
 opmap = {}
 opname = ['<%r>' % (op,) for op in range(256)]
@@ -226,21 +232,37 @@ def_op('DICT_UPDATE', op) ; op += 1
 
 HAVE_REGISTERS = op
 
+hasregdss.append(op)
 def_op('BINARY_POWER_REG', op) ; op += 1
+hasregdss.append(op)
 def_op('BINARY_MULTIPLY_REG', op) ; op += 1
+hasregdss.append(op)
 def_op('BINARY_MODULO_REG', op) ; op += 1
+hasregdss.append(op)
 def_op('BINARY_ADD_REG', op) ; op += 1
+hasregdss.append(op)
 def_op('BINARY_SUBTRACT_REG', op) ; op += 1
+hasregdss.append(op)
 def_op('BINARY_SUBSCR_REG', op) ; op += 1
+hasregdss.append(op)
 def_op('BINARY_FLOOR_DIVIDE_REG', op) ; op += 1
+hasregdss.append(op)
 def_op('BINARY_TRUE_DIVIDE_REG', op) ; op += 1
+hasregs.append(op)
 def_op('RETURN_VALUE_REG', op) ; op += 1
+hasregdc.append(op)
 def_op('LOAD_CONST_REG', op) ; op += 1
+hasregdn.append(op)
 def_op('LOAD_GLOBAL_REG', op) ; op += 1
+hasregds.append(op)
 def_op('LOAD_FAST_REG', op) ; op += 1
+hasregds.append(op)
 def_op('STORE_FAST_REG', op) ; op += 1
+hascompare.append(op)
 def_op('COMPARE_OP_REG', op) ; op += 1
+hasjabs.append(op)
 def_op('JUMP_IF_FALSE_REG', op) ; op += 1
+hasjabs.append(op)
 def_op('JUMP_IF_TRUE_REG', op) ; op += 1
 
 assert op <= 256, op
