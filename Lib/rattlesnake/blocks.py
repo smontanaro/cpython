@@ -14,19 +14,19 @@ class Block:
 
     def __str__(self):
         "useful summary"
-        return f"Block <{self.block_type}:{self.block_number}:{self._address}:{self.codelen()}>"
+        return f"Block <{self.block_type}:{self.block_number}:{self.address}:{self.codelen()}>"
 
     @property
     def address(self):
-        btype = self.block_type
         if self._address == -1:
             if self.block_number == 0:
                 self._address = 0
             else:
                 blocks = self.parent.blocks[self.block_type]
                 prev_block = blocks[self.block_number - 1]
-                assert btype == prev_block.block_type
-                self._address = prev_block.address + prev_block.codelen()
+                assert self.block_type == prev_block.block_type
+                # pylint: disable=protected-access
+                self._address = prev_block._address + prev_block.codelen()
             self.parent.mark_dirty(self.block_number + 1)
         assert self._address != -1
         return self._address
@@ -36,7 +36,6 @@ class Block:
         self._address = val
 
     def display(self):
-        print(self)
         offset = self.address
         for instr in self.instructions:
             print(f"{offset:4d} {instr}")
