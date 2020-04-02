@@ -19,14 +19,11 @@ class Block:
     @property
     def address(self):
         if self._address == -1:
-            if self.block_number == 0:
-                self._address = 0
-            else:
-                blocks = self.parent.blocks[self.block_type]
-                prev_block = blocks[self.block_number - 1]
-                assert self.block_type == prev_block.block_type
-                # pylint: disable=protected-access
-                self._address = prev_block._address + prev_block.codelen()
+            blocks = self.parent.blocks[self.block_type]
+            prev_block = blocks[self.block_number - 1]
+            assert self.block_type == prev_block.block_type
+            # pylint: disable=protected-access
+            self._address = prev_block._address + prev_block.codelen()
             self.parent.mark_dirty(self.block_number + 1)
         assert self._address != -1
         return self._address
