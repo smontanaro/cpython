@@ -308,6 +308,11 @@ def _get_regcmp_info(arg):
            cmp_op[arg & 0xff], f"%r{arg >> 8 & 0xff}"]
     return arg, " ".join(tup)
 
+def _get_regjc_info(arg):
+    """Register conditional jump instruction helper"""
+    argrepr = f"to {arg >> 8}, %r{arg & 0xff}"
+    return arg, argrepr
+
 def _get_const_info(const_index, const_list):
     """Helper to get optional details about const references
 
@@ -373,6 +378,8 @@ def _get_instructions_bytes(code, varnames=None, names=None, constants=None,
                     argval, argrepr = _get_regds_info(arg)
                 elif op in hasregs:
                     argval, argrepr = _get_regs_info(arg)
+                elif op in hasregjc:
+                    argval, argrepr = _get_regjc_info(arg)
                 else:
                     argval, argrepr = _get_reg_info(arg)
             elif op in hasconst:

@@ -7,7 +7,8 @@ operate on bytecodes (e.g. peephole optimizers).
 __all__ = ["cmp_op", "hasconst", "hasname", "hasjrel", "hasjabs",
            "haslocal", "hascompare", "hasfree", "opname", "opmap",
            "HAVE_ARGUMENT", "EXTENDED_ARG", "hasnargs", "HAVE_REGISTERS",
-           "hasregs", "hasregds", "hasregdss", "hasregdn", "hasregdc"]
+           "hasregs", "hasregds", "hasregdss", "hasregdn", "hasregdc",
+           "hasregjc"]
 
 # It's a chicken-and-egg I'm afraid:
 # We're imported before _opcode's made.
@@ -67,6 +68,7 @@ hasregds = []
 hasregdss = []
 hasregdn = []
 hasregdc = []
+hasregjc = []
 
 opmap = {}
 opname = ['<%r>' % (op,) for op in range(256)]
@@ -260,9 +262,9 @@ hasregds.append(op)
 def_op('STORE_FAST_REG', op) ; op += 1
 hascompare.append(op)
 def_op('COMPARE_OP_REG', op) ; op += 1
-hasjabs.append(op)
+hasregjc.append(op)
 def_op('JUMP_IF_FALSE_REG', op) ; op += 1
-hasjabs.append(op)
+hasregjc.append(op)
 def_op('JUMP_IF_TRUE_REG', op) ; op += 1
 
 assert op <= 256, op
