@@ -21,7 +21,6 @@ class InstructionTest(unittest.TestCase):
 
     def test_trivial_function(self):
         isc = InstructionSetConverter(_trivial_func.__code__)
-        isc.find_blocks()
         self.assertEqual(len(isc.blocks["PyVM"]), 1)
         self.assertEqual(isc.blocks["PyVM"][0].codelen(), 8)
         isc.gen_rvm()
@@ -43,7 +42,6 @@ class InstructionTest(unittest.TestCase):
 
     def test_simple_branch_function(self):
         isc = InstructionSetConverter(_branch_func.__code__)
-        isc.find_blocks()
         self.assertEqual(len(isc.blocks["PyVM"]), 2)
         self.assertEqual(isc.blocks["PyVM"][0].codelen(), 12)
         self.assertEqual(isc.blocks["PyVM"][1].codelen(), 12)
@@ -83,7 +81,6 @@ class InstructionTest(unittest.TestCase):
 
     def test_long_block_function(self):
         isc = InstructionSetConverter(_long_block.__code__)
-        isc.find_blocks()
         isc.gen_rvm()
         isc.forward_propagate_fast_loads()
         isc.backward_propagate_fast_stores()
