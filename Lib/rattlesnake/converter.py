@@ -181,6 +181,7 @@ class InstructionSetConverter(OptimizeFilter):
         return self.stacklevel
 
     def gen_rvm(self):
+        self.find_blocks()
         self.blocks["RVM"] = []
         for pyvm_block in self.blocks["PyVM"]:
             rvm_block = Block("RVM", self, block_number=pyvm_block.block_number)
