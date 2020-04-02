@@ -21,14 +21,14 @@ class InstructionTest(unittest.TestCase):
 
     def test_trivial_function(self):
         isc = InstructionSetConverter(_trivial_func.__code__)
+        isc.gen_rvm()
         self.assertEqual(len(isc.blocks["PyVM"]), 1)
         self.assertEqual(isc.blocks["PyVM"][0].codelen(), 8)
-        isc.gen_rvm()
+        self.assertEqual(len(isc.blocks["RVM"]), 1)
         self.assertEqual(_get_opcodes(isc.blocks["RVM"]),
                          [
                              [130, 128, 122, 127],
                          ])
-        self.assertEqual(len(isc.blocks["RVM"]), 1)
         self.assertEqual(isc.blocks["RVM"][0].codelen(), 16)
         isc.forward_propagate_fast_loads()
         isc.backward_propagate_fast_stores()
@@ -42,11 +42,10 @@ class InstructionTest(unittest.TestCase):
 
     def test_simple_branch_function(self):
         isc = InstructionSetConverter(_branch_func.__code__)
+        isc.gen_rvm()
         self.assertEqual(len(isc.blocks["PyVM"]), 2)
         self.assertEqual(isc.blocks["PyVM"][0].codelen(), 12)
         self.assertEqual(isc.blocks["PyVM"][1].codelen(), 12)
-        self.assertEqual(isc.blocks["RVM"], [])
-        isc.gen_rvm()
         self.assertEqual(len(isc.blocks["RVM"]), 2)
         self.assertEqual(isc.blocks["RVM"][0].codelen(), 28)
         self.assertEqual(isc.blocks["RVM"][1].codelen(), 24)
