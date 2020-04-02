@@ -57,10 +57,6 @@ class Block:
         assert isinstance(instr, Instruction), instr
         self.instructions.append(instr)
 
-    def extend(self, instructions):
-        for instruction in instructions:
-            self.append(instruction)
-
     def __setitem__(self, i, instruction):
         self.instructions[i] = instruction
 
