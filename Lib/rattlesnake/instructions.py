@@ -78,7 +78,7 @@ class Instruction:
         return 2 + 2 * len(self.opargs[1:])
 
     def __str__(self):
-        return f"Instruction({self.name}, {self.opargs})"
+        return f"Instruction({self.line_number}: {self.name}, {self.opargs})"
 
     def is_abs_jump(self):
         "True if opcode is an absolute jump."

@@ -82,6 +82,7 @@ class Block:
         for pyvm_inst in self.instructions:
             convert = self.parent.dispatch[pyvm_inst.opcode]
             rvm_inst = convert(self.parent, pyvm_inst, rvm_block)
+            rvm_inst.line_number = pyvm_inst.line_number
             rvm_block.append(rvm_inst)
 
     def mark_dirty(self):

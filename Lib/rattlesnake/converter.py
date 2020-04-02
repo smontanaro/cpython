@@ -11,7 +11,7 @@ from rattlesnake.instructions import (
     LoadGlobalInstruction, JumpInstruction, ReturnInstruction,
     StoreGlobalInstruction, PyVMInstruction,
 )
-from rattlesnake.util import enumerate_reversed
+from rattlesnake.util import enumerate_reversed, LineNumberDict
 
 class OptimizeFilter:
     """Base peephole optimizer class for Python byte code.
@@ -80,6 +80,7 @@ pipeline, each one responsible for a single optimization."""
         """
         blocks = self.blocks["PyVM"]
         labels = self.findlabels(self.code)
+        line_numbers = LineNumberDict(self.codeobj)
         #print(">>> labels:", labels)
         n = len(self.code)
         block_num = 0
@@ -106,6 +107,7 @@ pipeline, each one responsible for a single optimization."""
                     #print(f">> {block.block_number} found a JUMP"
                     #      f" @ {offset} target_addr={address}")
                     instr = JumpInstruction(op, block, address=address)
+                instr.line_number = line_numbers[offset]
                 block.append(instr)
                 ext_oparg = 0
         self.convert_jump_targets_to_blocks()
@@ -343,6 +345,7 @@ class InstructionSetConverter(OptimizeFilter):
             #print("??? mark block", block.block_number, "dirty")
             block.address = -1
         # Except the address of the first block is always known.
+        # pylint: disable=protected-access
         self.blocks["RVM"][0]._address = 0
 
     def display_blocks(self, blocks):
@@ -351,6 +354,7 @@ class InstructionSetConverter(OptimizeFilter):
         print("locals:", self.varnames)
         print("constants:", self.constants)
         print("code len:", sum(block.codelen() for block in blocks))
+        print("first lineno:", self.codeobj.co_firstlineno)
         for block in blocks:
             print(block)
             block.display()
@@ -624,3 +628,23 @@ class InstructionSetConverter(OptimizeFilter):
         for block in self.blocks["RVM"]:
             instr_bytes.append(bytes(block))
         return b"".join(instr_bytes)
+
+    def get_lnotab(self):
+        firstlineno = self.codeobj.co_firstlineno
+        last_line_number = firstlineno
+        last_address = 0
+        address = 0
+        lnotab = []
+        for block in self.blocks["RVM"]:
+            for instr in block.instructions:
+                line_number = instr.line_number
+                print(f"lno: {address} -> {line_number} ({last_line_number})")
+                if line_number > last_line_number:
+                    offset = line_number - last_line_number
+                    print(f"lno offset: {offset}")
+                    lnotab.append(address - last_address)
+                    lnotab.append(offset)
+                    last_line_number = line_number
+                    last_address = address
+                address += len(instr)
+        return bytes(lnotab)
