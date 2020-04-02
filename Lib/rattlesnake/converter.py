@@ -25,7 +25,7 @@ pipeline, each one responsible for a single optimization."""
     def __init__(self, codeobj):
         """input must be a code object."""
         self.codeobj = codeobj
-        self.code = codeobj.co_code
+        self.codestr = codeobj.co_code
         self.varnames = codeobj.co_varnames
         self.names = codeobj.co_names
         self.constants = codeobj.co_consts
@@ -79,10 +79,10 @@ pipeline, each one responsible for a single optimization."""
 
         """
         blocks = self.blocks["PyVM"]
-        labels = self.findlabels(self.code)
+        labels = self.findlabels(self.codestr)
         line_numbers = LineNumberDict(self.codeobj)
         #print(">>> labels:", labels)
-        n = len(self.code)
+        n = len(self.codestr)
         block_num = 0
         ext_oparg = 0
         for offset in range(0, n, 2):
@@ -91,7 +91,7 @@ pipeline, each one responsible for a single optimization."""
                 block.address = offset
                 block_num += 1
                 blocks.append(block)
-            (op, oparg) = self.code[offset:offset+2]
+            (op, oparg) = self.codestr[offset:offset+2]
             # Elide EXTENDED_ARG opcodes, constructing the effective
             # oparg as we go.
             if op == self.EXT_ARG_OPCODE:
