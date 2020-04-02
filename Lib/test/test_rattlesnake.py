@@ -1,5 +1,6 @@
+"RVM tests"
+
 import unittest
-from test import support
 
 from rattlesnake.converter import InstructionSetConverter
 from rattlesnake import instructions, opcodes, util
@@ -90,11 +91,13 @@ class InstructionTest(unittest.TestCase):
                           "LOAD_CONST_REG"])
 
     def test_util_decode(self):
+        self.assertEqual(util.decode_oparg(0), (0,))
         self.assertEqual(util.decode_oparg(71682), (1, 24, 2))
         self.assertEqual(util.decode_oparg(71682, False), (0, 1, 24, 2))
 
     def test_util_encode(self):
         self.assertEqual(util.encode_oparg((1, 24, 2)), 71682)
+        self.assertEqual(util.encode_oparg(()), 0)
 
     def test_util_LineNumberDict(self):
         lno_dict = util.LineNumberDict(_get_opcodes.__code__)
@@ -103,11 +106,11 @@ class InstructionTest(unittest.TestCase):
         self.assertEqual(lno_dict[0], 1 + first_lineno)
         self.assertEqual(lno_dict[80], 6 + first_lineno)
         with self.assertRaises(KeyError):
-            lno_dict[-10]
+            _x = lno_dict[-10]
 
         lno_dict = util.LineNumberDict(_get_opcodes.__code__, maxkey=75)
         with self.assertRaises(KeyError):
-            lno_dict[80]
+            _x = lno_dict[80]
 
 
 def _branch_func(a):
