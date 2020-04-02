@@ -163,6 +163,22 @@ class JumpIfInstruction(JumpInstruction):
         # and you start chasing your tail.
         return 6                # EXT_ARG, EXT_ARG, INSTR
 
+    def __bytes__(self):
+        # Since we assume two EXT_ARGS instructions in __len__, we
+        # have to force it here as well, even if the eventual jump
+        # address is < 256.
+        code = []
+        opargs = self.opargs
+        if len(opargs) == 2:
+            opargs = (0,) + opargs
+        code.append(self.EXT_ARG_OPCODE)
+        code.append(opargs[0])
+        code.append(self.EXT_ARG_OPCODE)
+        code.append(opargs[1])
+        code.append(self.opcode)
+        code.append(opargs[2])
+        return bytes(code)
+
 class LoadInstruction(Instruction):
     "Specialized behavior for loads."
     def __init__(self, opcode, block, **kwargs):
