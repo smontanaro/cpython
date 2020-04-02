@@ -9,7 +9,7 @@ from rattlesnake.instructions import (
     Instruction, JumpIfInstruction, LoadFastInstruction, StoreFastInstruction,
     CompareOpInstruction, BinOpInstruction, NOPInstruction, LoadConstInstruction,
     LoadGlobalInstruction, JumpInstruction, ReturnInstruction,
-    StoreGlobalInstruction,
+    StoreGlobalInstruction, PyVMInstruction,
 )
 from rattlesnake.util import enumerate_reversed
 
@@ -58,7 +58,7 @@ pipeline, each one responsible for a single optimization."""
         return labels
 
     def convert_jump_targets_to_blocks(self):
-        "Replace jump targets with block numbers in PyVM blocks."
+        "Convert jump target addresses to block numbers in PyVM blocks."
         blocks = self.blocks["PyVM"]
         assert blocks[0].block_type == "PyVM"
         for block in blocks:
@@ -68,7 +68,8 @@ pipeline, each one responsible for a single optimization."""
                         if instr.target_address == tblock.address:
                             instr.target = tblock.block_number
                             break
-                    assert instr.target >= 0
+                    assert instr.target != -1
+                    # No longer required.
                     del instr.target_address
 
     def find_blocks(self):
@@ -96,13 +97,14 @@ pipeline, each one responsible for a single optimization."""
                 ext_oparg = ext_oparg << 8 | oparg
             else:
                 oparg = ext_oparg << 8 | oparg
-                instr = Instruction(op, block, opargs=(oparg,))
+                instr = PyVMInstruction(op, block, opargs=(oparg,))
                 if instr.is_jump():
                     address = oparg
                     if instr.is_rel_jump():
                         # Convert to absolute
                         address += offset
-                    #print(f">> found a JUMP @ {offset} target_addr={address}")
+                    #print(f">> {block.block_number} found a JUMP"
+                    #      f" @ {offset} target_addr={address}")
                     instr = JumpInstruction(op, block, address=address)
                 block.append(instr)
                 ext_oparg = 0
@@ -140,7 +142,7 @@ class InstructionSetConverter(OptimizeFilter):
 
     def set_block_stacklevel(self, target, level):
         """set the input stack level for particular block"""
-        #print(">> set:", (target, level))
+        #print(">> set_block_stacklevel:", (target, level))
         self.blocks["RVM"][target].set_stacklevel(level)
 
     # series of operations below mimic the stack changes of various
@@ -301,6 +303,8 @@ class InstructionSetConverter(OptimizeFilter):
                     block[i] = NOPInstruction(self.NOP_OPCODE, block)
                     if dirty is None:
                         dirty = block.block_number
+                    else:
+                        dirty = min(block.block_number, dirty)
                 else:
                     dst = getattr(instr, "dest", None)
                     if dst is not None:
@@ -324,6 +328,8 @@ class InstructionSetConverter(OptimizeFilter):
                     del block[i]
                     if dirty is None:
                         dirty = block.block_number
+                    else:
+                        dirty = min(block.block_number, dirty)
         self.mark_dirty(dirty)
 
     def mark_dirty(self, dirty):
@@ -333,6 +339,7 @@ class InstructionSetConverter(OptimizeFilter):
         if dirty is None:
             return
         for block in self.blocks["RVM"][dirty:]:
+            #print("??? mark block", block.block_number, "dirty")
             block.address = -1
 
     def display_blocks(self, blocks):
@@ -342,6 +349,7 @@ class InstructionSetConverter(OptimizeFilter):
         print("constants:", self.constants)
         print("code len:", sum(block.codelen() for block in blocks))
         for block in blocks:
+            print(block)
             block.display()
         print()
 
@@ -432,15 +440,14 @@ class InstructionSetConverter(OptimizeFilter):
         oparg = instr.opargs[0] # All PyVM opcodes have a single oparg
         if op == opcodes.ISET.opmap['RETURN_VALUE']:
             opname = f"{opcodes.ISET.opname[op]}_REG"
-            val = self.pop()
             return ReturnInstruction(opcodes.ISET.opmap[opname], block,
-                                     source1=val)
+                                     source1=self.pop())
         if op in (opcodes.ISET.opmap['POP_JUMP_IF_FALSE'],
                     opcodes.ISET.opmap['POP_JUMP_IF_TRUE']):
             opname = f"{opcodes.ISET.opname[op]}_REG"[4:]
             self.set_block_stacklevel(oparg, self.top())
             return JumpIfInstruction(opcodes.ISET.opmap[opname], block,
-                                     target=oparg, source1=self.pop())
+                                     target=instr.target, source1=self.pop())
         # if op in (opcodes.ISET.opmap['JUMP_FORWARD'],
         #             opcodes.ISET.opmap['JUMP_ABSOLUTE']):
         #     opname = f"{opcodes.ISET.opname[op]}_REG"
