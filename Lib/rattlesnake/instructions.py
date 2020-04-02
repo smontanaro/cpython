@@ -29,8 +29,8 @@ class Instruction:
         self.block = block
         # unset (or same as previous instruction?)
         self.line_number = -1
-        for kwd in kwargs:
-            setattr(self, kwd, kwargs[kwd])
+        if kwargs:
+            raise ValueError(f"Non-empty kwargs at top level {kwargs}")
 
     @property
     def name(self):
@@ -44,30 +44,6 @@ class Instruction:
         opargs will be composed of different bits for different instructions.
         """
         return self._opargs
-
-    @property
-    def source_registers(self):
-        """Return tuple containing whatever register sources this instr has.
-
-        Return empty tuple if the instruction has no source registers.
-        """
-        return ()
-
-    @property
-    def source_name(self):
-        """Return offset into name index for non-register source.
-
-        Return -1 if the instruction has no name source.
-        """
-        return -1
-
-    @property
-    def destination_register(self):
-        """Return whatever register destination register this instr has.
-
-        Return -1 if the instruction writes no value to a register.
-        """
-        return -1
 
     def __len__(self):
         "Compute byte length of instruction."
@@ -139,10 +115,6 @@ class JumpIfInstruction(JumpInstruction):
         super().__init__(opcode, block, **kwargs)
 
     @property
-    def source_registers(self):
-        return (self.source1,)
-
-    @property
     def opargs(self):
         """Return target block converted to address, plus src register."""
         isc = self.block.parent
@@ -187,14 +159,6 @@ class LoadInstruction(Instruction):
         self.dest = kwargs["dest"]
         del kwargs["dest"]
         super().__init__(opcode, block, **kwargs)
-
-    @property
-    def source_registers(self):
-        return (self.source1,)
-
-    @property
-    def destination_register(self):
-        return self.dest
 
     @property
     def opargs(self):

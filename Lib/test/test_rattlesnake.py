@@ -15,7 +15,6 @@ class InstructionTest(unittest.TestCase):
         load = instructions.LoadFastInstruction(lfr, 0, dest=1, source1=2)
         self.assertEqual(load.source1, 2)
         self.assertEqual(load.dest, 1)
-        self.assertEqual(load.source_registers, (2,))
         load.source1 = 3
         self.assertEqual(load.opargs, (1, 3))
 
