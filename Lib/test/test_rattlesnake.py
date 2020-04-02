@@ -50,7 +50,7 @@ class InstructionTest(unittest.TestCase):
         self.assertEqual(isc.blocks["RVM"], [])
         isc.gen_rvm()
         self.assertEqual(len(isc.blocks["RVM"]), 2)
-        self.assertEqual(isc.blocks["RVM"][0].codelen(), 26)
+        self.assertEqual(isc.blocks["RVM"][0].codelen(), 28)
         self.assertEqual(isc.blocks["RVM"][1].codelen(), 24)
         self.assertEqual(_get_opcodes(isc.blocks["RVM"]),
                          [
@@ -77,9 +77,9 @@ class InstructionTest(unittest.TestCase):
                              [128, 132, 133, 127],
                              [128, 122, 127],
                          ])
-        # self.assertEqual(bytes(isc), (b'l\x03\x80\x01l\x02l\x00l\x03'
-        #                               b'\x84\x04l\x12\x85\x02\x7f\x02'
-        #                               b'l\x03\x80\x01l\x01l\x03z\x00\x7f\x02'))
+        self.assertEqual(bytes(isc), (b'l\x03\x80\x01l\x02l\x00l\x03'
+                                      b'\x84\x04l\x12\x85\x02\x7f\x02'
+                                      b'l\x03\x80\x01l\x01l\x03z\x00\x7f\x02'))
 
     def test_long_block_function(self):
         isc = InstructionSetConverter(_long_block.__code__)
