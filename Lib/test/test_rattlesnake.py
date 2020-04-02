@@ -75,8 +75,8 @@ class InstructionTest(unittest.TestCase):
                              [128, 122, 127],
                          ])
         self.assertEqual(bytes(isc), (b'l\x03\x80\x01l\x02l\x00l\x03'
-                                      b'\x84\x04l\x12\x85\x02\x7f\x02'
-                                      b'l\x03\x80\x01l\x01l\x03z\x00\x7f\x02'))
+                                      b'\x84\x04l\x00l\x14\x85\x02\x7f\x00'
+                                      b'l\x03\x80\x01l\x01l\x00z\x03\x7f\x01'))
 
     def test_long_block_function(self):
         isc = InstructionSetConverter(_long_block.__code__)
