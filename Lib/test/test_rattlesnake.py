@@ -20,7 +20,8 @@ class InstructionTest(unittest.TestCase):
         self.assertEqual(load.opargs, (1, 3))
 
     def test_trivial_function(self):
-        isc = InstructionSetConverter(_trivial_func.__code__)
+        pyvm_code = _trivial_func.__code__
+        isc = InstructionSetConverter(pyvm_code)
         isc.gen_rvm()
         self.assertEqual(len(isc.blocks["PyVM"]), 1)
         self.assertEqual(isc.blocks["PyVM"][0].codelen(), 8)
@@ -36,9 +37,30 @@ class InstructionTest(unittest.TestCase):
         self.assertEqual(isc.blocks["RVM"][0].codelen(), 12)
         self.assertEqual(_get_opcodes(isc.blocks["RVM"]),
                          [
-                             [128, 122, 127],
+                             [128, 123, 127],
                          ])
-        # self.assertEqual(bytes(isc), b'l\x02\x80\x01l\x01l\x02z\x00\x7f\x01')
+        rvm_code = pyvm_code.replace(co_code=bytes(isc),
+                                     co_lnotab=isc.get_lnotab())
+
+        def pyvm(a): return a
+        pyvm.__code__ = pyvm_code
+
+        def rvm(a): return a
+        rvm.__code__ = rvm_code
+
+        self.assertEqual(pyvm(5), rvm(5))
+
+        # import sys
+        # print(f"5: {sys.getrefcount(5)}"
+        #       f" 4: {sys.getrefcount(4)}"
+        #       f" 1: {sys.getrefcount(1)}")
+
+        # x = rvm(5)
+
+        # print(f"5: {sys.getrefcount(5)}"
+        #       f" 4: {sys.getrefcount(4)}"
+        #       f" x: {sys.getrefcount(x)}"
+        #       f" 1: {sys.getrefcount(1)}")
 
     def test_simple_branch_function(self):
         isc = InstructionSetConverter(_branch_func.__code__)
@@ -120,7 +142,7 @@ def _branch_func(a):
     return b
 
 def _trivial_func(a):
-    return a + 4
+    return a - 4
 
 def _get_opcodes(blocks):
     ops = []
