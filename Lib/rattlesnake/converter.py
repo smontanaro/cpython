@@ -466,20 +466,23 @@ class InstructionSetConverter(OptimizeFilter):
     def load_convert(self, instr, block):
         op = instr.opcode
         oparg = instr.opargs[0] # All PyVM opcodes have a single oparg
-        if op == opcodes.ISET.opmap['LOAD_FAST']:
-            load_class = LoadFastInstruction
-        elif op == opcodes.ISET.opmap['LOAD_CONST']:
-            load_class = LoadConstInstruction
-        elif op == opcodes.ISET.opmap['LOAD_GLOBAL']:
-            load_class = LoadGlobalInstruction
-        else:
-            raise ValueError(f"Unhandled opcode {opcodes.ISET.opname[op]}")
-
         src = oparg         # offset into localsplus
         dst = self.push()
         opname = f"{opcodes.ISET.opname[op]}_REG"
-        return load_class(opcodes.ISET.opmap[opname], block,
-                          dest=dst, source1=src)
+
+        if op == opcodes.ISET.opmap['LOAD_FAST']:
+            instr = LoadFastInstruction(opcodes.ISET.opmap[opname], block,
+                                        dest=dst, source1=src)
+        elif op == opcodes.ISET.opmap['LOAD_CONST']:
+            instr = LoadConstInstruction(opcodes.ISET.opmap[opname], block,
+                                         dest=dst, name1=src)
+        elif op == opcodes.ISET.opmap['LOAD_GLOBAL']:
+            instr = LoadGlobalInstruction(opcodes.ISET.opmap[opname], block,
+                                          dest=dst, name1=src)
+        else:
+            raise ValueError(f"Unhandled opcode {opcodes.ISET.opname[op]}")
+
+        return instr
     dispatch[opcodes.ISET.opmap['LOAD_CONST']] = load_convert
     dispatch[opcodes.ISET.opmap['LOAD_GLOBAL']] = load_convert
     dispatch[opcodes.ISET.opmap['LOAD_FAST']] = load_convert
