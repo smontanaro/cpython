@@ -28,7 +28,7 @@ class InstructionTest(unittest.TestCase):
         self.assertEqual(len(isc.blocks["RVM"]), 1)
         self.assertEqual(_get_opcodes(isc.blocks["RVM"]),
                          [
-                             [130, 128, 122, 127],
+                             [130, 128, 123, 127],
                          ])
         self.assertEqual(isc.blocks["RVM"][0].codelen(), 16)
         isc.forward_propagate_fast_loads()
