@@ -1032,9 +1032,9 @@ _PyEval_EvalFrameDefault(PyThreadState *tstate, PyFrameObject *f, int throwflag)
 
 /* extract arg elements out of oparg. */
 #define REGARG4(oparg) (oparg >> 24)
-#define REGARG3(oparg) (oparg >> 16) & 0xff
-#define REGARG2(oparg) (oparg >> 8) & 0xff
-#define REGARG1(oparg) (oparg) & 0xff
+#define REGARG3(oparg) ((oparg >> 16) & 0xff)
+#define REGARG2(oparg) ((oparg >> 8) & 0xff)
+#define REGARG1(oparg) (oparg & 0xff)
 
 /* OpCode prediction macros
     Some opcodes tend to come in pairs thus making it possible to
@@ -3685,11 +3685,22 @@ main_loop:
             }
             else {
                 sum = PyNumber_Add(left, right);
-                Py_DECREF(left);
             }
-            Py_DECREF(right);
             SETLOCAL(dst, sum);
             if (sum == NULL)
+                goto error;
+            DISPATCH();
+        }
+
+        case TARGET(BINARY_SUBTRACT_REG): {
+            int dst = REGARG3(oparg);
+            int src1 = REGARG2(oparg);
+            int src2 = REGARG1(oparg);
+            PyObject *left = GETLOCAL(src1);
+            PyObject *right = GETLOCAL(src2);
+            PyObject *diff = PyNumber_Subtract(left, right);
+            SETLOCAL(dst, diff);
+            if (diff == NULL)
                 goto error;
             DISPATCH();
         }
@@ -3839,9 +3850,33 @@ main_loop:
             PyObject *right = GETLOCAL(src2);
             PyObject *res = PyObject_RichCompare(left, right, cmpop);
             SETLOCAL(dst, res);
-            Py_DECREF(left);
-            Py_DECREF(right);
             if (res == NULL)
+                goto error;
+            DISPATCH();
+        }
+
+        case TARGET(JUMP_IF_FALSE_REG): {
+            /* PREDICTED(JUMP_IF_FALSE_REG); */
+            int target = REGARG3(oparg) << 8 | REGARG2(oparg);
+            int src = REGARG1(oparg);
+            PyObject *cond = GETLOCAL(src);
+            int err;
+            if (cond == Py_True) {
+                Py_DECREF(cond);
+                DISPATCH();
+            }
+            if (cond == Py_False) {
+                Py_DECREF(cond);
+                JUMPTO(target);
+                DISPATCH();
+            }
+            err = PyObject_IsTrue(cond);
+            Py_DECREF(cond);
+            if (err > 0)
+                ;
+            else if (err == 0)
+                JUMPTO(target);
+            else
                 goto error;
             DISPATCH();
         }
