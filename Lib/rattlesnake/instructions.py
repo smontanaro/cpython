@@ -151,8 +151,8 @@ class JumpIfInstruction(JumpInstruction):
         code.append(opargs[2])
         return bytes(code)
 
-class LoadInstruction(Instruction):
-    "Specialized behavior for loads."
+class LoadFastInstruction(Instruction):
+    "Specialized behavior for fast loads."
     def __init__(self, opcode, block, **kwargs):
         self.source1 = kwargs["source1"]
         del kwargs["source1"]
@@ -164,14 +164,29 @@ class LoadInstruction(Instruction):
     def opargs(self):
         return (self.dest, self.source1)
 
-class LoadFastInstruction(LoadInstruction):
-    pass
+class LoadGlobalInstruction(Instruction):
+    def __init__(self, opcode, block, **kwargs):
+        self.name1 = kwargs["name1"]
+        del kwargs["name1"]
+        self.dest = kwargs["dest"]
+        del kwargs["dest"]
+        super().__init__(opcode, block, **kwargs)
 
-class LoadGlobalInstruction(LoadInstruction):
-    pass
+    @property
+    def opargs(self):
+        return (self.dest, self.name1)
 
-class LoadConstInstruction(LoadInstruction):
-    pass
+class LoadConstInstruction(Instruction):
+    def __init__(self, opcode, block, **kwargs):
+        self.name1 = kwargs["name1"]
+        del kwargs["name1"]
+        self.dest = kwargs["dest"]
+        del kwargs["dest"]
+        super().__init__(opcode, block, **kwargs)
+
+    @property
+    def opargs(self):
+        return (self.dest, self.name1)
 
 # SFI and LFI are really the same instruction. We distinguish only to
 # avoid mistakes using isinstance. There is probably a cleaner way to
