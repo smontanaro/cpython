@@ -3707,6 +3707,10 @@ main_loop:
 
         case TARGET(RETURN_VALUE_REG): {
             retval = GETLOCAL(oparg);
+            /* GETLOCAL(oparg) will be blindly decref'd when registers
+               are cleaned up, so this INCREF guarantees we actually have
+               something to return. */
+            Py_INCREF(retval);
             assert(f->f_iblock == 0);
             goto exiting;
         }
@@ -4005,6 +4009,20 @@ exiting:
                                      tstate, f, PyTrace_RETURN, retval)) {
                 Py_CLEAR(retval);
             }
+        }
+    }
+
+    /* Registers and stack share space, though their reference count
+       semantics are quite different. The stack is transparent to
+       reference counts while registers are treated like local
+       variables.  Accordingly, references in registers in use during
+       the call must be reclaimed.  We use Py_CLEAR here to keep the
+       same registers from potentially being reclaimed a second time
+       in a later code execution using this frame. */
+    if (f->f_code->co_flags & CO_REGISTER) {
+        PyObject **registers = f->f_valuestack;
+        for (Py_ssize_t i = 0; i < f->f_code->co_stacksize; i++) {
+            Py_CLEAR(registers[i]);
         }
     }
 
