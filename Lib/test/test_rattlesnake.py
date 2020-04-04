@@ -1,5 +1,6 @@
 "RVM tests"
 
+import dis
 import unittest
 
 from rattlesnake.converter import InstructionSetConverter
@@ -39,8 +40,15 @@ class InstructionTest(unittest.TestCase):
                          [
                              [128, 123, 127],
                          ])
+
+        for val in dis.COMPILER_FLAG_NAMES:
+            if dis.COMPILER_FLAG_NAMES[val] == "REGISTER":
+                co_register = val
+                break
+
         rvm_code = pyvm_code.replace(co_code=bytes(isc),
-                                     co_lnotab=isc.get_lnotab())
+                                     co_lnotab=isc.get_lnotab(),
+                                     co_flags=pyvm_code.co_flags|co_register)
 
         def pyvm(a): return a
         pyvm.__code__ = pyvm_code
