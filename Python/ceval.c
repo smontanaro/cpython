@@ -3705,6 +3705,19 @@ main_loop:
             DISPATCH();
         }
 
+        case TARGET(BINARY_MULTIPLY_REG): {
+            int dst = REGARG3(oparg);
+            int src1 = REGARG2(oparg);
+            int src2 = REGARG1(oparg);
+            PyObject *left = GETLOCAL(src1);
+            PyObject *right = GETLOCAL(src2);
+            PyObject *product = PyNumber_Multiply(left, right);
+            SETLOCAL(dst, product);
+            if (product == NULL)
+                goto error;
+            DISPATCH();
+        }
+
         case TARGET(RETURN_VALUE_REG): {
             retval = GETLOCAL(oparg);
             /* GETLOCAL(oparg) will be blindly decref'd when registers

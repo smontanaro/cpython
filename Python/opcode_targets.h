@@ -119,7 +119,7 @@ static void *opcode_targets[256] = {
     &&TARGET_DICT_MERGE,
     &&TARGET_DICT_UPDATE,
     &&_unknown_opcode/*TARGET_BINARY_POWER_REG*/,
-    &&_unknown_opcode/*TARGET_BINARY_MULTIPLY_REG*/,
+    &&TARGET_BINARY_MULTIPLY_REG,
     &&_unknown_opcode/*TARGET_BINARY_MODULO_REG*/,
     &&TARGET_BINARY_ADD_REG,
     &&TARGET_BINARY_SUBTRACT_REG,
