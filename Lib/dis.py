@@ -109,6 +109,7 @@ COMPILER_FLAG_NAMES = {
    128: "COROUTINE",
    256: "ITERABLE_COROUTINE",
    512: "ASYNC_GENERATOR",
+  1024: "REGISTER"
 }
 
 def pretty_flags(flags):
