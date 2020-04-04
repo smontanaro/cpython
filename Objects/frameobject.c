@@ -648,11 +648,18 @@ frame_dealloc(PyFrameObject *f)
         p++;
     }
 
-    /* Free stack */
+    /* Free stack if any of it is left.  Under normal circumstances
+       f_stacktop == f_valuestack after a chunk of code is executed,
+       so this is a no-op.  Note that when this space is treated as
+       registers they are cleared at the end of
+       _PyEval_EvalFrameDefault. */
     if (f->f_stacktop != NULL) {
         valuestack = f->f_valuestack;
         for (p = valuestack; p < f->f_stacktop; p++)
-            Py_XDECREF(*p);
+            /* CLEAR instead of just XDECREF to make sure if this
+               space is ever treated as registers we don't
+               accidentally over-DECREF. */
+            Py_CLEAR(*p);
     }
 
     Py_XDECREF(f->f_back);
