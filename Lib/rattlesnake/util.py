@@ -2,6 +2,13 @@
 
 import dis as _dis
 
+CO_REGISTER = None
+for val in _dis.COMPILER_FLAG_NAMES:
+    if _dis.COMPILER_FLAG_NAMES[val] == "REGISTER":
+        CO_REGISTER = val
+        break
+assert CO_REGISTER is not None
+
 def enumerate_reversed(seq):
     "Enumerate a sequence in reverse. Thank you Chris Angelico."
     # https://code.activestate.com/lists/python-list/706210/
