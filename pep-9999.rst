@@ -120,14 +120,34 @@ confined to two files:
   instructions is how they get their data.
 
 - ``Objects/frameobject.c`` - Most of this work has been done already,
-  but more could be done.  The primary work necessary reorganization
-  of the ``f_localsplus`` array so local variables and the stack space
-  were adjacent.  As Stinner noted though [#regstin]_, adding a copy
-  of the code object's constants to the frame object is also a
-  performance win.  This is suggested by the opcode frequencies
+  but more could be done.  The primary work necessary was
+  reorganization of the ``f_localsplus`` array so local variables and
+  the stack space were adjacent.  As Stinner noted though [#regstin]_,
+  adding a copy of the code object's constants to the frame object is
+  also a performance win.  This is suggested by the opcode frequencies
   table.  ``LOAD_CONST`` is the second most frequently executed
   instruction.
 
+
+Reference Counts
+----------------
+
+While the same memory is used for the stack (PyVM) and registers
+(RVM), their semantics are different.  When used as a stack, that
+memory is completely transparent to reference counts.  As objects are
+pushed on and popped from the stack, the responsibility of maintaining
+reference counts lies with the individual instructions.  At the end of
+normal function execution, the stack will have dwindled away to
+nothing, meaning no reference counts need to be decremented.
+
+Such is not the case when that memory is used for registers.  At the
+end of function execution, any number of them might still be active
+and require decrement of their reference counts.  In the current
+implementation, this happens at the end of
+``_PyEval_EvalFrameDefault``.  Since the pattern of use of the
+register space can differ from one call of a function to the next and
+frame objects are reused where possible, the registers are cleared,
+not just decref'd.
 
 
 Backwards Compatibility
@@ -151,11 +171,11 @@ writing (March 2020) it remains quite incomplete.
 Current Status
 --------------
 
-As of March 29, 2020:
+As of April 4, 2020:
 
-- Implemented instructions - BINARY_ADD_REG, RETURN_VALUE_REG,
-  LOAD_CONST_REG, LOAD_FAST_REG, STORE_FAST_REG, LOAD_GLOBAL_REG,
-  COMPARE_OP_REG
+- Implemented several instructions - BINARY_(ADD|SUBTRACT)_REG,
+  RETURN_VALUE_REG, LOAD_CONST_REG, LOAD_FAST_REG, STORE_FAST_REG,
+  LOAD_GLOBAL_REG, COMPARE_OP_REG, JUMP_IF_FALSE_REG
 
 - Implemented translator parts
 
@@ -167,7 +187,10 @@ As of March 29, 2020:
   - Elimination of LOAD_FAST_REG and STORE_FAST_REG by forward
     propagation of the former and backward propagation of the latter.
 
-  - Generation of wordcode from the RVM blocks (still buggy though).
+  - Generation of wordcode from the RVM blocks.
+
+  - Based on current testing, using -R with the run_test.py script,
+    reference counting seems to work.
 
 Rejected Ideas
 ==============
