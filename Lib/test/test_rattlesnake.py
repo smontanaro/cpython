@@ -20,7 +20,7 @@ class InstructionTest(unittest.TestCase):
         load.source1 = 3
         self.assertEqual(load.opargs, (1, 3))
 
-    def test_trivial_function(self):
+    def test_blocks(self):
         pyvm_code = _trivial_func.__code__
         isc = InstructionSetConverter(pyvm_code)
         isc.gen_rvm()
@@ -41,84 +41,17 @@ class InstructionTest(unittest.TestCase):
                              [128, 123, 127],
                          ])
 
-        for val in dis.COMPILER_FLAG_NAMES:
-            if dis.COMPILER_FLAG_NAMES[val] == "REGISTER":
-                co_register = val
-                break
-
-        rvm_code = pyvm_code.replace(co_code=bytes(isc),
-                                     co_lnotab=isc.get_lnotab(),
-                                     co_flags=pyvm_code.co_flags|co_register)
-
-        def pyvm(a): return a
-        pyvm.__code__ = pyvm_code
-
-        def rvm(a): return a
-        rvm.__code__ = rvm_code
-
+    def test_trivial_function(self):
+        (pyvm, rvm) = self._function_helper(_trivial_func)
         self.assertEqual(pyvm(5), rvm(5))
 
-        # import sys
-        # print(f"5: {sys.getrefcount(5)}"
-        #       f" 4: {sys.getrefcount(4)}"
-        #       f" 1: {sys.getrefcount(1)}")
-
-        # x = rvm(5)
-
-        # print(f"5: {sys.getrefcount(5)}"
-        #       f" 4: {sys.getrefcount(4)}"
-        #       f" x: {sys.getrefcount(x)}"
-        #       f" 1: {sys.getrefcount(1)}")
-
     def test_simple_branch_function(self):
-        isc = InstructionSetConverter(_branch_func.__code__)
-        isc.gen_rvm()
-        self.assertEqual(len(isc.blocks["PyVM"]), 2)
-        self.assertEqual(isc.blocks["PyVM"][0].codelen(), 12)
-        self.assertEqual(isc.blocks["PyVM"][1].codelen(), 12)
-        self.assertEqual(len(isc.blocks["RVM"]), 2)
-        self.assertEqual(isc.blocks["RVM"][0].codelen(), 28)
-        self.assertEqual(isc.blocks["RVM"][1].codelen(), 24)
-        self.assertEqual(_get_opcodes(isc.blocks["RVM"]),
-                         [
-                             [130, 128, 132, 133, 130, 127],
-                             [130, 128, 122, 131, 130, 127],
-                         ])
-
-        isc.forward_propagate_fast_loads()
-        self.assertEqual(_get_opcodes(isc.blocks["RVM"]),
-                         [
-                             [6, 128, 132, 133, 6, 127],
-                             [6, 128, 122, 131, 6, 127],
-                         ])
-        isc.delete_nops()
-        self.assertEqual(_get_opcodes(isc.blocks["RVM"]),
-                         [
-                             [128, 132, 133, 127],
-                             [128, 122, 131, 127],
-                         ])
-        isc.backward_propagate_fast_stores()
-        isc.delete_nops()
-        self.assertEqual(_get_opcodes(isc.blocks["RVM"]),
-                         [
-                             [128, 132, 133, 127],
-                             [128, 122, 127],
-                         ])
-        self.assertEqual(bytes(isc), (b'l\x03\x80\x01l\x02l\x00l\x03'
-                                      b'\x84\x04l\x00l\x14\x85\x02\x7f\x00'
-                                      b'l\x03\x80\x01l\x01l\x00z\x03\x7f\x01'))
+        (pyvm, rvm) = self._function_helper(_branch_func)
+        self.assertEqual(pyvm(7), rvm(7))
 
     def test_long_block_function(self):
-        isc = InstructionSetConverter(_long_block.__code__)
-        isc.gen_rvm()
-        isc.forward_propagate_fast_loads()
-        isc.backward_propagate_fast_stores()
-        isc.delete_nops()
-        opnames = _get_opnames(isc.blocks["RVM"])
-        self.assertEqual(opnames[0][:3],
-                         ["COMPARE_OP_REG",
-                          "JUMP_IF_FALSE_REG",
-                          "LOAD_CONST_REG"])
+        (pyvm, rvm) = self._function_helper(_long_block)
+        self.assertEqual(pyvm(3, 7), rvm(3, 7))
 
     def test_util_decode(self):
         self.assertEqual(util.decode_oparg(0), (0,))
@@ -142,6 +75,23 @@ class InstructionTest(unittest.TestCase):
         with self.assertRaises(KeyError):
             _x = lno_dict[80]
 
+    def _function_helper(self, func):
+        pyvm_code = func.__code__
+        isc = InstructionSetConverter(pyvm_code)
+        isc.gen_rvm()
+        isc.forward_propagate_fast_loads()
+        isc.backward_propagate_fast_stores()
+        isc.delete_nops()
+
+        # Lacking a proper API at this point...
+        def rvm(a): return a
+        _rvm_replace_code(rvm, pyvm_code, isc)
+
+        # just for symmetry with construction of rvm...
+        def pyvm(a): return a
+        pyvm.__code__ = pyvm_code
+
+        return (pyvm, rvm)
 
 def _branch_func(a):
     if a > 4:
@@ -205,3 +155,11 @@ def _long_block(s, b):
         s = b - 21
         return s
     return b - 1
+
+def _rvm_replace_code(func, pyvm_code, isc):
+    "Modify func using PyVM bits from pyvm_code & RVM bits from."
+    rvm_flags = pyvm_code.co_flags | util.CO_REGISTER
+    rvm_code = pyvm_code.replace(co_code=bytes(isc),
+                                 co_lnotab=isc.get_lnotab(),
+                                 co_flags=rvm_flags)
+    func.__code__ = rvm_code
