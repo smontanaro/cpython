@@ -8,72 +8,72 @@ from rattlesnake import instructions, opcodes, util
 
 
 class InstructionTest(unittest.TestCase):
-    def test_nop(self):
-        nop = instructions.NOPInstruction(opcodes.ISET.opmap['NOP'], 0)
-        self.assertEqual(nop.opargs, (0,))
+    # def test_nop(self):
+    #     nop = instructions.NOPInstruction(opcodes.ISET.opmap['NOP'], 0)
+    #     self.assertEqual(nop.opargs, (0,))
 
-    def test_src_dst(self):
-        lfr = opcodes.ISET.opmap['LOAD_FAST_REG']
-        load = instructions.LoadFastInstruction(lfr, 0, dest=1, source1=2)
-        self.assertEqual(load.source1, 2)
-        self.assertEqual(load.dest, 1)
-        load.source1 = 3
-        self.assertEqual(load.opargs, (1, 3))
+    # def test_src_dst(self):
+    #     lfr = opcodes.ISET.opmap['LOAD_FAST_REG']
+    #     load = instructions.LoadFastInstruction(lfr, 0, dest=1, source1=2)
+    #     self.assertEqual(load.source1, 2)
+    #     self.assertEqual(load.dest, 1)
+    #     load.source1 = 3
+    #     self.assertEqual(load.opargs, (1, 3))
 
-    def test_blocks(self):
-        pyvm_code = _trivial_func.__code__
-        isc = InstructionSetConverter(pyvm_code)
-        isc.gen_rvm()
-        self.assertEqual(len(isc.blocks["PyVM"]), 1)
-        self.assertEqual(isc.blocks["PyVM"][0].codelen(), 8)
-        self.assertEqual(len(isc.blocks["RVM"]), 1)
-        self.assertEqual(_get_opcodes(isc.blocks["RVM"]),
-                         [
-                             [130, 128, 123, 127],
-                         ])
-        self.assertEqual(isc.blocks["RVM"][0].codelen(), 16)
-        isc.forward_propagate_fast_loads()
-        isc.backward_propagate_fast_stores()
-        isc.delete_nops()
-        self.assertEqual(isc.blocks["RVM"][0].codelen(), 12)
-        self.assertEqual(_get_opcodes(isc.blocks["RVM"]),
-                         [
-                             [128, 123, 127],
-                         ])
+    # def test_blocks(self):
+    #     pyvm_code = _trivial_func.__code__
+    #     isc = InstructionSetConverter(pyvm_code)
+    #     isc.gen_rvm()
+    #     self.assertEqual(len(isc.blocks["PyVM"]), 1)
+    #     self.assertEqual(isc.blocks["PyVM"][0].codelen(), 8)
+    #     self.assertEqual(len(isc.blocks["RVM"]), 1)
+    #     self.assertEqual(_get_opcodes(isc.blocks["RVM"]),
+    #                      [
+    #                          [130, 128, 123, 127],
+    #                      ])
+    #     self.assertEqual(isc.blocks["RVM"][0].codelen(), 16)
+    #     isc.forward_propagate_fast_loads()
+    #     isc.backward_propagate_fast_stores()
+    #     isc.delete_nops()
+    #     self.assertEqual(isc.blocks["RVM"][0].codelen(), 12)
+    #     self.assertEqual(_get_opcodes(isc.blocks["RVM"]),
+    #                      [
+    #                          [128, 123, 127],
+    #                      ])
 
-    def test_trivial_function(self):
-        (pyvm, rvm) = self._function_helper(_trivial_func)
-        self.assertEqual(pyvm(5), rvm(5))
+    # def test_trivial_function(self):
+    #     (pyvm, rvm) = self._function_helper(_trivial_func)
+    #     self.assertEqual(pyvm(5), rvm(5))
 
-    def test_simple_branch_function(self):
-        (pyvm, rvm) = self._function_helper(_branch_func)
-        self.assertEqual(pyvm(7), rvm(7))
+    # def test_simple_branch_function(self):
+    #     (pyvm, rvm) = self._function_helper(_branch_func)
+    #     self.assertEqual(pyvm(7), rvm(7))
 
     def test_long_block_function(self):
         (pyvm, rvm) = self._function_helper(_long_block)
         self.assertEqual(pyvm(3, 7), rvm(3, 7))
 
-    def test_util_decode(self):
-        self.assertEqual(util.decode_oparg(0), (0,))
-        self.assertEqual(util.decode_oparg(71682), (1, 24, 2))
-        self.assertEqual(util.decode_oparg(71682, False), (0, 1, 24, 2))
+    # def test_util_decode(self):
+    #     self.assertEqual(util.decode_oparg(0), (0,))
+    #     self.assertEqual(util.decode_oparg(71682), (1, 24, 2))
+    #     self.assertEqual(util.decode_oparg(71682, False), (0, 1, 24, 2))
 
-    def test_util_encode(self):
-        self.assertEqual(util.encode_oparg((1, 24, 2)), 71682)
-        self.assertEqual(util.encode_oparg(()), 0)
+    # def test_util_encode(self):
+    #     self.assertEqual(util.encode_oparg((1, 24, 2)), 71682)
+    #     self.assertEqual(util.encode_oparg(()), 0)
 
-    def test_util_LineNumberDict(self):
-        lno_dict = util.LineNumberDict(_get_opcodes.__code__)
-        first_lineno = _get_opcodes.__code__.co_firstlineno
-        self.assertEqual(lno_dict[26], 4 + first_lineno)
-        self.assertEqual(lno_dict[0], 1 + first_lineno)
-        self.assertEqual(lno_dict[80], 6 + first_lineno)
-        with self.assertRaises(KeyError):
-            _x = lno_dict[-10]
+    # def test_util_LineNumberDict(self):
+    #     lno_dict = util.LineNumberDict(_get_opcodes.__code__)
+    #     first_lineno = _get_opcodes.__code__.co_firstlineno
+    #     self.assertEqual(lno_dict[26], 4 + first_lineno)
+    #     self.assertEqual(lno_dict[0], 1 + first_lineno)
+    #     self.assertEqual(lno_dict[80], 6 + first_lineno)
+    #     with self.assertRaises(KeyError):
+    #         _x = lno_dict[-10]
 
-        lno_dict = util.LineNumberDict(_get_opcodes.__code__, maxkey=75)
-        with self.assertRaises(KeyError):
-            _x = lno_dict[80]
+    #     lno_dict = util.LineNumberDict(_get_opcodes.__code__, maxkey=75)
+    #     with self.assertRaises(KeyError):
+    #         _x = lno_dict[80]
 
     def _function_helper(self, func):
         pyvm_code = func.__code__
