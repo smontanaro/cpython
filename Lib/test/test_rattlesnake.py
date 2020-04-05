@@ -1,6 +1,5 @@
 "RVM tests"
 
-import dis
 import unittest
 
 from rattlesnake.converter import InstructionSetConverter
@@ -90,6 +89,10 @@ class InstructionTest(unittest.TestCase):
         # just for symmetry with construction of rvm...
         def pyvm(a): return a
         pyvm.__code__ = pyvm_code
+
+        self.assertEqual(pyvm.__code__.co_flags & util.CO_REGISTER, 0)
+        self.assertEqual(rvm.__code__.co_flags & util.CO_REGISTER,
+                         util.CO_REGISTER)
 
         return (pyvm, rvm)
 
