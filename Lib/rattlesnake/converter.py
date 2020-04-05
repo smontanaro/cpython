@@ -29,6 +29,8 @@ pipeline, each one responsible for a single optimization."""
         self.varnames = codeobj.co_varnames
         self.names = codeobj.co_names
         self.constants = codeobj.co_consts
+        self.nlocals = codeobj.co_nlocals
+        self.stacksize = codeobj.co_stacksize
         self.blocks = {
             "PyVM": [],
             "RVM": [],
@@ -132,14 +134,15 @@ class InstructionSetConverter(OptimizeFilter):
 
     def __init__(self, code):
         # input to this guy is a code object
-        self.stacklevel = code.co_nlocals
         super().__init__(code)
         # Stack starts right after locals. Together, the locals and
         # the space allocated for the stack form a single register
         # file.
-        self.max_stacklevel = self.stacklevel + code.co_stacksize
-        #print(">> nlocals:", code.co_nlocals)
-        #print(">> stacksize:", code.co_stacksize)
+        self.stacklevel = self.nlocals
+        self.max_stacklevel = self.stacklevel + self.stacksize
+        #print(">> nlocals:", self.nlocals)
+        #print(">> stacksize:", self.stacksize)
+        #print(">> starting stacklevel:", self.stacklevel)
         assert self.max_stacklevel <= 127, "locals+stack are too big!"
 
     def set_block_stacklevel(self, target, level):
@@ -153,9 +156,9 @@ class InstructionSetConverter(OptimizeFilter):
         """increment and return next writable slot on the stack"""
         self.stacklevel += 1
         #print(">> push:", self.stacklevel)
-        assert self.stacklevel <= self.max_stacklevel, (
-            f"Overran the end of the registers!"
-            f" {self.stacklevel} > {self.max_stacklevel}"
+        assert self.stacklevel <= self.nlocals + self.stacksize, (
+            f"Overran the allocated stack/register space!"
+            f" {self.stacklevel} > {self.nlocals + self.stacksize}"
         )
         return self.stacklevel - 1
 
@@ -163,9 +166,9 @@ class InstructionSetConverter(OptimizeFilter):
         """return top readable slot on the stack and decrement"""
         self.stacklevel -= 1
         #print(">> pop:", self.stacklevel)
-        assert self.stacklevel >= self.codeobj.co_nlocals, (
+        assert self.stacklevel >= self.nlocals, (
             f"Stack slammed into locals!"
-            f" {self.stacklevel} < {self.codeobj.co_nlocals}"
+            f" {self.stacklevel} < {self.nlocals}"
         )
         return self.stacklevel
 
