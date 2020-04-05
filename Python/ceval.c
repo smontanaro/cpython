@@ -3869,6 +3869,7 @@ main_loop:
             SETLOCAL(dst, res);
             if (res == NULL)
                 goto error;
+            Py_INCREF(res);
             DISPATCH();
         }
 
@@ -4026,12 +4027,15 @@ exiting:
     }
 
     /* Registers and stack share space, though their reference count
-       semantics are quite different. The stack is transparent to
-       reference counts while registers are treated like local
-       variables.  Accordingly, references in registers in use during
-       the call must be reclaimed.  We use Py_CLEAR here to keep the
-       same registers from potentially being reclaimed a second time
-       in a later code execution using this frame. */
+       semantics are different. The stack is transparent to reference
+       counts (all INCREF and DECREF is done by the code pushing and
+       popping values) while registers are treated like local
+       variables, even to the point of using SETLOCAL (which XDECREFs
+       whatever is already in the register).  Accordingly, references
+       in registers at the end of the call are live and must have
+       their reference counts decremented.  Use Py_CLEAR here to keep
+       the same registers from potentially being DECREFd a second time
+       in a later call which reuses the current frame. */
     if (f->f_code->co_flags & CO_REGISTER) {
         PyObject **registers = f->f_valuestack;
         for (Py_ssize_t i = 0; i < f->f_code->co_stacksize; i++) {
