@@ -26,6 +26,16 @@ FORMAT_VALUE_CONVERTERS = (
 MAKE_FUNCTION = opmap['MAKE_FUNCTION']
 MAKE_FUNCTION_FLAGS = ('defaults', 'kwdefaults', 'annotations', 'closure')
 
+BINOPS = {
+    119: '**',
+    120: '*',
+    121: '%',
+    122: '+',
+    123: '-',
+    124: '[]',
+    125: '//',
+    126: '/',
+}
 
 def _try_compile(source, name):
     """Attempts to compile the given source, first as an expression and
@@ -294,13 +304,20 @@ def _get_regdc_info(arg, constants):
     """Register instruction helper - dest register and constant."""
     return arg, f"%r{arg >> 8 & 0xff} <- {repr(constants[arg & 0xff])}"
 
+def _get_regdn_info(arg, names):
+    """Register instruction helper - dest register and constant."""
+    if names is not None:
+        return arg, f"%r{arg >> 8 & 0xff} <- {names[arg & 0xff]}"
+    else:
+        return _get_reg_info(arg)
+
 def _get_regds_info(arg):
     """Register instruction helper - dest & source registers."""
     return arg, f"%r{arg >> 8 & 0xff} <- %r{arg & 0xff}"
 
-def _get_regdss_info(arg):
+def _get_regdss_info(arg, binop):
     """Register instruction helper - dest & two source registers."""
-    return arg, (f"%r{arg >> 16 & 0xff} <- %r{arg >> 8 & 0xff} OP "
+    return arg, (f"%r{arg >> 16 & 0xff} <- %r{arg >> 8 & 0xff} {binop} "
                  f"%r{arg & 0xff}")
 
 def _get_regcmp_info(arg):
@@ -373,8 +390,11 @@ def _get_instructions_bytes(code, varnames=None, names=None, constants=None,
                     argval, argrepr = _get_regcmp_info(arg)
                 elif op in hasregdc:
                     argval, argrepr = _get_regdc_info(arg, constants)
+                elif op in hasregdn:
+                    argval, argrepr = _get_regdn_info(arg, names)
                 elif op in hasregdss:
-                    argval, argrepr = _get_regdss_info(arg)
+                    binop = BINOPS.get(op, "OP")
+                    argval, argrepr = _get_regdss_info(arg, binop)
                 elif op in hasregds:
                     argval, argrepr = _get_regds_info(arg)
                 elif op in hasregs:
