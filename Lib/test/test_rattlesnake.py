@@ -44,6 +44,10 @@ class InstructionTest(unittest.TestCase):
         (pyvm, rvm) = self._function_helper(_trivial_func)
         self.assertEqual(pyvm(5), rvm(5))
 
+    def test_trivial_str_function(self):
+        (pyvm, rvm) = self._function_helper(_trivial_str_func)
+        self.assertEqual(pyvm("xyz"), rvm("xyz"))
+
     def test_simple_branch_function(self):
         (pyvm, rvm) = self._function_helper(_branch_func)
         self.assertEqual(pyvm(7), rvm(7))
@@ -105,6 +109,9 @@ def _branch_func(a):
 
 def _trivial_func(a):
     return a - 4
+
+def _trivial_str_func(a):
+    return a + "abc"
 
 def _get_opcodes(blocks):
     ops = []
