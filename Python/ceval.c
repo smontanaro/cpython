@@ -3682,6 +3682,7 @@ main_loop:
                      PyUnicode_CheckExact(right)) {
                 sum = unicode_concatenate(tstate, left, right, f, next_instr);
                 /* unicode_concatenate consumed the ref to left */
+                Py_INCREF(left);
             }
             else {
                 sum = PyNumber_Add(left, right);
