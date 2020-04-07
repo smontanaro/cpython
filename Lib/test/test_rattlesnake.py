@@ -53,9 +53,10 @@ class InstructionTest(unittest.TestCase):
         self.assertEqual(pyvm(7), rvm(7))
 
     def test_long_block_function(self):
-        (pyvm, rvm) = self._function_helper(_long_block)
-        self.assertEqual(pyvm(7, 3), rvm(7, 3))
-        self.assertEqual(pyvm(3, 7), rvm(3, 7))
+        for prop in (True, False):
+            (pyvm, rvm) = self._function_helper(_long_block, propagate=prop)
+            self.assertEqual(pyvm(7, 3), rvm(7, 3))
+            self.assertEqual(pyvm(3, 7), rvm(3, 7))
 
     def test_util_decode(self):
         self.assertEqual(util.decode_oparg(0), (0,))
@@ -79,13 +80,14 @@ class InstructionTest(unittest.TestCase):
         with self.assertRaises(KeyError):
             _x = lno_dict[80]
 
-    def _function_helper(self, func):
+    def _function_helper(self, func, propagate=True):
         pyvm_code = func.__code__
         isc = InstructionSetConverter(pyvm_code)
         isc.gen_rvm()
-        isc.forward_propagate_fast_loads()
-        isc.backward_propagate_fast_stores()
-        isc.delete_nops()
+        if propagate:
+            isc.forward_propagate_fast_loads()
+            isc.backward_propagate_fast_stores()
+            isc.delete_nops()
 
         # Lacking a proper API at this point...
         def rvm(a): return a
