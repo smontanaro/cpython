@@ -20,7 +20,7 @@ class InstructionTest(unittest.TestCase):
         self.assertEqual(load.opargs, (1, 3))
 
     def test_blocks(self):
-        pyvm_code = _trivial_func.__code__
+        pyvm_code = _add.__code__
         isc = InstructionSetConverter(pyvm_code)
         isc.gen_rvm()
         self.assertEqual(len(isc.blocks["PyVM"]), 1)
@@ -28,7 +28,7 @@ class InstructionTest(unittest.TestCase):
         self.assertEqual(len(isc.blocks["RVM"]), 1)
         self.assertEqual(_get_opcodes(isc.blocks["RVM"]),
                          [
-                             [130, 128, 123, 127],
+                             [130, 128, 122, 127],
                          ])
         self.assertEqual(isc.blocks["RVM"][0].codelen(), 16)
         isc.forward_propagate_fast_loads()
@@ -37,15 +37,34 @@ class InstructionTest(unittest.TestCase):
         self.assertEqual(isc.blocks["RVM"][0].codelen(), 12)
         self.assertEqual(_get_opcodes(isc.blocks["RVM"]),
                          [
-                             [128, 123, 127],
+                             [128, 122, 127],
                          ])
 
-    def test_trivial_function(self):
-        (pyvm, rvm) = self._function_helper(_trivial_func)
+    def test_product(self):
+        (pyvm, rvm) = self._function_helper(_product)
+        self.assertEqual(pyvm(1, 5), rvm(1, 5))
+        self.assertEqual(pyvm(5, 1), rvm(5, 1))
+
+    def test_true_divide(self):
+        (pyvm, rvm) = self._function_helper(_true_divide)
+        self.assertEqual(pyvm(1, 5), rvm(1, 5))
+        self.assertEqual(pyvm(5, 1), rvm(5, 1))
+
+    def test_floor_divide(self):
+        (pyvm, rvm) = self._function_helper(_floor_divide)
+        self.assertEqual(pyvm(1, 5), rvm(1, 5))
+        self.assertEqual(pyvm(5, 1), rvm(5, 1))
+
+    def test_add(self):
+        (pyvm, rvm) = self._function_helper(_add)
         self.assertEqual(pyvm(5), rvm(5))
 
-    def test_trivial_str_function(self):
-        (pyvm, rvm) = self._function_helper(_trivial_str_func)
+    def test_subtract(self):
+        (pyvm, rvm) = self._function_helper(_subtract)
+        self.assertEqual(pyvm(5), rvm(5))
+
+    def test_add_str(self):
+        (pyvm, rvm) = self._function_helper(_add_str)
         self.assertEqual(pyvm("xyz"), rvm("xyz"))
 
     def test_simple_branch_function(self):
@@ -109,10 +128,22 @@ def _branch_func(a):
     b = a + 4
     return b
 
-def _trivial_func(a):
+def _true_divide(a, b):
+    return a / b
+
+def _floor_divide(a, b):
+    return a // b
+
+def _product(a, b):
+    return a * b
+
+def _add(a):
+    return a + 4
+
+def _subtract(a):
     return a - 4
 
-def _trivial_str_func(a):
+def _add_str(a):
     return a + "abc"
 
 def _get_opcodes(blocks):
@@ -138,7 +169,7 @@ def _long_block(s, b):
         b = s * 44
         s = b + 4
         b = s - 21
-        s = b + _A_GLOBAL
+        s = b + False
         b = s + 24
         s = b - 21
         b = s * 44
@@ -146,7 +177,7 @@ def _long_block(s, b):
         b = s - 21
         s = b + _A_GLOBAL
         b = s + 24
-        s = b - 21
+        s = b - True
         b = s * 44
         b = s - 21
         s = b + _A_GLOBAL

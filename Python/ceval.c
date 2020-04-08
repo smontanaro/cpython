@@ -3719,6 +3719,32 @@ main_loop:
             DISPATCH();
         }
 
+        case TARGET(BINARY_TRUE_DIVIDE_REG): {
+            int dst = REGARG3(oparg);
+            int src1 = REGARG2(oparg);
+            int src2 = REGARG1(oparg);
+            PyObject *dividend = GETLOCAL(src1);
+            PyObject *divisor = GETLOCAL(src2);
+            PyObject *quotient = PyNumber_TrueDivide(dividend, divisor);
+            SETLOCAL(dst, quotient);
+            if (quotient == NULL)
+                goto error;
+            DISPATCH();
+        }
+
+        case TARGET(BINARY_FLOOR_DIVIDE_REG): {
+            int dst = REGARG3(oparg);
+            int src1 = REGARG2(oparg);
+            int src2 = REGARG1(oparg);
+            PyObject *dividend = GETLOCAL(src1);
+            PyObject *divisor = GETLOCAL(src2);
+            PyObject *quotient = PyNumber_FloorDivide(dividend, divisor);
+            SETLOCAL(dst, quotient);
+            if (quotient == NULL)
+                goto error;
+            DISPATCH();
+        }
+
         case TARGET(RETURN_VALUE_REG): {
             retval = GETLOCAL(oparg);
             /* GETLOCAL(oparg) will be blindly decref'd when registers
