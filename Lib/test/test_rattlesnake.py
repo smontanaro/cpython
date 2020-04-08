@@ -28,16 +28,16 @@ class InstructionTest(unittest.TestCase):
         self.assertEqual(len(isc.blocks["RVM"]), 1)
         self.assertEqual(_get_opcodes(isc.blocks["RVM"]),
                          [
-                             [130, 128, 122, 127],
+                             [130, 130, 122, 127],
                          ])
         self.assertEqual(isc.blocks["RVM"][0].codelen(), 16)
         isc.forward_propagate_fast_loads()
         isc.backward_propagate_fast_stores()
         isc.delete_nops()
-        self.assertEqual(isc.blocks["RVM"][0].codelen(), 12)
+        self.assertEqual(isc.blocks["RVM"][0].codelen(), 8)
         self.assertEqual(_get_opcodes(isc.blocks["RVM"]),
                          [
-                             [128, 122, 127],
+                             [122, 127],
                          ])
 
     def test_product(self):
@@ -55,17 +55,19 @@ class InstructionTest(unittest.TestCase):
         self.assertEqual(pyvm(1, 5), rvm(1, 5))
         self.assertEqual(pyvm(5, 1), rvm(5, 1))
 
-    def test_add(self):
-        (pyvm, rvm) = self._function_helper(_add)
-        self.assertEqual(pyvm(5), rvm(5))
-
     def test_subtract(self):
         (pyvm, rvm) = self._function_helper(_subtract)
         self.assertEqual(pyvm(5), rvm(5))
 
-    def test_add_str(self):
-        (pyvm, rvm) = self._function_helper(_add_str)
-        self.assertEqual(pyvm("xyz"), rvm("xyz"))
+    def test_add(self):
+        (pyvm, rvm) = self._function_helper(_add)
+        self.assertEqual(pyvm(5, 70), rvm(5, 70))
+        self.assertEqual(pyvm("xyz", "abc"), rvm("xyz", "abc"))
+
+    def test_modulo(self):
+        (pyvm, rvm) = self._function_helper(_modulo)
+        self.assertEqual(pyvm(5, 2), rvm(5, 2))
+        self.assertEqual(pyvm("%s", 47), rvm("%s", 47))
 
     def test_simple_branch_function(self):
         (pyvm, rvm) = self._function_helper(_branch_func)
@@ -137,14 +139,17 @@ def _floor_divide(a, b):
 def _product(a, b):
     return a * b
 
-def _add(a):
-    return a + 4
+def _power(a, b):
+    return a ** b
+
+def _modulo(a, b):
+    return a % b
+
+def _add(a, b):
+    return a + b
 
 def _subtract(a):
     return a - 4
-
-def _add_str(a):
-    return a + "abc"
 
 def _get_opcodes(blocks):
     ops = []

@@ -3707,6 +3707,19 @@ main_loop:
             DISPATCH();
         }
 
+        case TARGET(BINARY_POWER_REG): {
+            int dst = REGARG3(oparg);
+            int src1 = REGARG2(oparg);
+            int src2 = REGARG1(oparg);
+            PyObject *exp = GETLOCAL(src1);
+            PyObject *base = GETLOCAL(src2);
+            PyObject *res = PyNumber_Power(base, exp, Py_None);
+            SETLOCAL(dst, res);
+            if (res == NULL)
+                goto error;
+            DISPATCH();
+        }
+
         case TARGET(BINARY_MULTIPLY_REG): {
             int dst = REGARG3(oparg);
             int src1 = REGARG2(oparg);
@@ -3742,6 +3755,27 @@ main_loop:
             PyObject *quotient = PyNumber_FloorDivide(dividend, divisor);
             SETLOCAL(dst, quotient);
             if (quotient == NULL)
+                goto error;
+            DISPATCH();
+        }
+
+        case TARGET(BINARY_MODULO_REG): {
+            int dst = REGARG3(oparg);
+            int src1 = REGARG2(oparg);
+            int src2 = REGARG1(oparg);
+            PyObject *dividend = GETLOCAL(src1);
+            PyObject *divisor = GETLOCAL(src2);
+            PyObject *res;
+            if (PyUnicode_CheckExact(dividend) && (
+                  !PyUnicode_Check(divisor) || PyUnicode_CheckExact(divisor))) {
+              // fast path; string formatting, but not if the RHS is a str subclass
+              // (see issue28598)
+              res = PyUnicode_Format(dividend, divisor);
+            } else {
+              res = PyNumber_Remainder(dividend, divisor);
+            }
+            SETLOCAL(dst, res);
+            if (res == NULL)
                 goto error;
             DISPATCH();
         }
