@@ -5,12 +5,7 @@
 
 from rattlesnake import opcodes
 from rattlesnake.blocks import Block
-from rattlesnake.instructions import (
-    Instruction, JumpIfInstruction, LoadFastInstruction, StoreFastInstruction,
-    CompareOpInstruction, BinOpInstruction, NOPInstruction, LoadConstInstruction,
-    LoadGlobalInstruction, JumpInstruction, ReturnInstruction,
-    StoreGlobalInstruction, PyVMInstruction,
-)
+from rattlesnake.instructions import *
 from rattlesnake.util import enumerate_reversed, LineNumberDict
 
 class OptimizeFilter:
@@ -355,16 +350,16 @@ class InstructionSetConverter(OptimizeFilter):
             block.display()
         print()
 
-    # def unary_convert(self, instr, block):
-    #     opname = "%s_REG" % opcodes.ISET.opname[instr.opcode]
-    #     src = self.pop()
-    #     dst = self.push()
-    #     return Instruction(opcodes.ISET.opmap[opname], block,
-    #                        dest=dst, source1=src)
-    # dispatch[opcodes.ISET.opmap['UNARY_INVERT']] = unary_convert
-    # dispatch[opcodes.ISET.opmap['UNARY_POSITIVE']] = unary_convert
-    # dispatch[opcodes.ISET.opmap['UNARY_NEGATIVE']] = unary_convert
-    # dispatch[opcodes.ISET.opmap['UNARY_NOT']] = unary_convert
+    def unary_convert(self, instr, block):
+        opname = "%s_REG" % opcodes.ISET.opname[instr.opcode]
+        src = self.pop()
+        dst = self.push()
+        return UnaryOpInstruction(opcodes.ISET.opmap[opname], block,
+                                  dest=dst, source1=src)
+    dispatch[opcodes.ISET.opmap['UNARY_INVERT']] = unary_convert
+    dispatch[opcodes.ISET.opmap['UNARY_POSITIVE']] = unary_convert
+    dispatch[opcodes.ISET.opmap['UNARY_NEGATIVE']] = unary_convert
+    dispatch[opcodes.ISET.opmap['UNARY_NOT']] = unary_convert
 
     def binary_convert(self, instr, block):
         opname = "%s_REG" % opcodes.ISET.opname[instr.opcode]
@@ -388,15 +383,10 @@ class InstructionSetConverter(OptimizeFilter):
     dispatch[opcodes.ISET.opmap['BINARY_AND']] = binary_convert
     dispatch[opcodes.ISET.opmap['BINARY_XOR']] = binary_convert
     dispatch[opcodes.ISET.opmap['BINARY_OR']] = binary_convert
+    dispatch[opcodes.ISET.opmap['BINARY_SUBSCR']] = binary_convert
 
     # def subscript_convert(self, instr, block):
     #     op = instr.opcode
-    #     if op == opcodes.ISET.opmap['BINARY_SUBSCR']:
-    #         index = self.pop()
-    #         obj = self.pop()
-    #         dst = self.push()
-    #         return Instruction(opcodes.ISET.opmap['BINARY_SUBSCR_REG'],
-    #                            (obj, index, dst))
     #     if op == opcodes.ISET.opmap['STORE_SUBSCR']:
     #         index = self.pop()
     #         obj = self.pop()
@@ -409,7 +399,6 @@ class InstructionSetConverter(OptimizeFilter):
     #         return Instruction(opcodes.ISET.opmap['DELETE_SUBSCR_REG'],
     #                            (obj, index))
     #     raise ValueError(f"Unhandled opcode {opcodes.ISET.opname[op]}")
-    # dispatch[opcodes.ISET.opmap['BINARY_SUBSCR']] = subscript_convert
     # dispatch[opcodes.ISET.opmap['STORE_SUBSCR']] = subscript_convert
     # dispatch[opcodes.ISET.opmap['DELETE_SUBSCR']] = subscript_convert
 

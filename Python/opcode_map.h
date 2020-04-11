@@ -134,7 +134,7 @@ static char *opcode_map[256] = {
     "COMPARE_OP_REG",
     "JUMP_IF_FALSE_REG",
     "JUMP_IF_TRUE_REG",
-    "unknown",
+    "UNARY_NOT_REG",
     "unknown",
     "unknown",
     "unknown",

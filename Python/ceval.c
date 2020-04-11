@@ -3707,12 +3707,25 @@ main_loop:
             DISPATCH();
         }
 
+        case TARGET(BINARY_SUBSCR_REG): {
+            int dst = REGARG3(oparg);
+            int src1 = REGARG2(oparg);
+            int src2 = REGARG1(oparg);
+            PyObject *container = GETLOCAL(src1);
+            PyObject *sub = GETLOCAL(src2);
+            PyObject *res = PyObject_GetItem(container, sub);
+            SETLOCAL(dst, res);
+            if (res == NULL)
+                goto error;
+            DISPATCH();
+        }
+
         case TARGET(BINARY_POWER_REG): {
             int dst = REGARG3(oparg);
             int src1 = REGARG2(oparg);
             int src2 = REGARG1(oparg);
-            PyObject *exp = GETLOCAL(src1);
-            PyObject *base = GETLOCAL(src2);
+            PyObject *exp = GETLOCAL(src2);
+            PyObject *base = GETLOCAL(src1);
             PyObject *res = PyNumber_Power(base, exp, Py_None);
             SETLOCAL(dst, res);
             if (res == NULL)
@@ -3931,27 +3944,22 @@ main_loop:
             SETLOCAL(dst, res);
             if (res == NULL)
                 goto error;
-            Py_INCREF(res);
             DISPATCH();
         }
 
         case TARGET(JUMP_IF_FALSE_REG): {
-            /* PREDICTED(JUMP_IF_FALSE_REG); */
             int target = REGARG3(oparg) << 8 | REGARG2(oparg);
             int src = REGARG1(oparg);
             PyObject *cond = GETLOCAL(src);
             int err;
             if (cond == Py_True) {
-                Py_DECREF(cond);
                 DISPATCH();
             }
             if (cond == Py_False) {
-                Py_DECREF(cond);
                 JUMPTO(target);
                 DISPATCH();
             }
             err = PyObject_IsTrue(cond);
-            Py_DECREF(cond);
             if (err > 0)
                 ;
             else if (err == 0)
@@ -3959,6 +3967,46 @@ main_loop:
             else
                 goto error;
             DISPATCH();
+        }
+
+        case TARGET(JUMP_IF_TRUE_REG): {
+            int target = REGARG3(oparg) << 8 | REGARG2(oparg);
+            int src = REGARG1(oparg);
+            PyObject *cond = GETLOCAL(src);
+            int err;
+            if (cond == Py_False) {
+                DISPATCH();
+            }
+            if (cond == Py_True) {
+                JUMPTO(target);
+                DISPATCH();
+            }
+            err = PyObject_IsTrue(cond);
+            if (err > 0)
+                JUMPTO(target);
+            else if (err == 0)
+                ;
+            else
+                goto error;
+            DISPATCH();
+        }
+
+        case TARGET(UNARY_NOT_REG): {
+            int dst = REGARG2(oparg);
+            int src = REGARG1(oparg);
+            PyObject *value = GETLOCAL(src);
+            int err = PyObject_IsTrue(value);
+            if (err == 0) {
+                Py_INCREF(Py_True);
+                SETLOCAL(dst, Py_True);
+                DISPATCH();
+            }
+            else if (err > 0) {
+                Py_INCREF(Py_False);
+                SETLOCAL(dst, Py_False);
+                DISPATCH();
+            }
+            goto error;
         }
 
 #if USE_COMPUTED_GOTOS
