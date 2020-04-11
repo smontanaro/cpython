@@ -150,6 +150,87 @@ frame objects are reused where possible, the registers are cleared,
 not just decref'd.
 
 
+A Conundrum
+'''''''''''
+
+Consider these two simple functions::
+
+    def f(a):
+        if a:
+            return 42
+        return 42
+
+    def g(a):
+        if a != 0:
+            return 42
+        return 42
+
+In PyVM, their conditional statements disassemble as follows::
+
+    >>> dis.dis(f)
+      3           0 LOAD_FAST                   0 (a)
+                  2 POP_JUMP_IF_FALSE           8
+                  ...
+
+    >>> dis.dis(g)
+      3           0 LOAD_FAST                   0 (a)
+                  2 LOAD_CONST                  1 (0)
+                  4 COMPARE_OP                  3 (!=)
+                  6 POP_JUMP_IF_FALSE          12
+                  ...
+
+In RVM, the start of disassembly looks like this (simplified by
+eliding the ``EXTENDED_ARG`` instructions which have no bearing on this
+discussion)::
+
+    >>> dis.dis(rvm)    # f
+      3           4 JUMP_IF_FALSE_REG        3072 (to 12, %r0)
+                  ...
+
+    >>> dis.dis(rvm)    # g
+      3           2 LOAD_CONST_REG            513 (%r2 <- 0)
+                 10 COMPARE_OP_REG       16777731 (%r1 <- %r0 != %r2)
+                 16 JUMP_IF_FALSE_REG        6145 (to 24, %r1)
+                 ...
+
+Function f first considers the "truthiness" of its local variable
+``a`` (though a bit more rigorously than Stephen Colbert might).  If
+we execute ``f(5)``, what happens to the reference count on the small
+integer object with value ``5``?  In the PyVM case, its reference
+count is incremented by the ``LOAD_FAST`` when it's pushed onto the
+stack, then decremented again by the ``POP_JUMP_IF_FALSE``
+instruction, so the net change to ``5``'s reference count is zero.
+
+Now look at the RVM formulation.  It needs no ``LOAD_FAST_REG``
+instruction to make ``a`` available for the test.  If
+``JUMP_IF_FALSE_REG`` decrements the reference count of its source
+register (``%r0`` == ``a`` == ``5``), the reference count of ``5``
+would drop.  That would be bad.  Okay, so don't decrement.  Problem
+solved.
+
+Well, perhaps not.  Look at the beginning of function ``g``.  It makes
+a slightly more complicated comparison involving a constant load of
+``0``, comparison with ``%r0``, then a jump decision based on the
+output of the comparison in ``%r1``.  The ``COMPARE_OP_REG``
+instruction calls ``PyObject_RichCompare()`` to do its work, which
+returns a new reference to the result (``Py_True`` or ``Py_False``).
+If ``JUMP_IF_FALSE_REG`` doesn't decrement the reference count of the
+value in ``%r1``, we leak that new reference.
+
+Now we could perhaps get away with decrementing the reference count of
+the object returned by ``COMPARE_OP_REG`` because we know it will be
+``Py_True`` or ``Py_False``, both of which will have large non-zero
+reference counts in steady state operation::
+
+    >>> sys.getrefcount(True)
+    193
+    >>> sys.getrefcount(False)
+    206
+
+Maybe that's the way to go, but it seems a bit sketchy to me.  Still,
+that seems to work, so I'm going with it for the time being.
+
+
 Backwards Compatibility
 =======================
 
