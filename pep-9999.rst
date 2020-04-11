@@ -18,7 +18,7 @@ existing Python virtual machine, with the intent that they eventually
 replace the existing stack-based opcodes.  Though both sets of
 instructions are active in this effort, they are almost completely
 distinct.  Within a single function only one set of opcodes or the
-other will be used at any one time. (A few instructions are used by
+other will be used at any one time.  (A few instructions are used by
 both.)  Considering that, the current stack-based opcodes are referred
 to below as the Python Virtual Machine ("PyVM") and the new
 register-based opcodes are referred to as the Register Virtual Machine
@@ -229,6 +229,29 @@ reference counts in steady state operation::
 
 Maybe that's the way to go, but it seems a bit sketchy to me.  Still,
 that seems to work, so I'm going with it for the time being.
+
+
+Object Lifetime
+'''''''''''''''
+
+Closely related to reference counts is the notion of object lifetime.
+When an object's reference count drops to zero, CPython's semantics
+mean it will be reclaimed immediately.  What happens if an object is
+created and completely used early during the execution of a
+long-running function but its reference count doesn't drop to zero
+until the end of the function?  Consider this function::
+
+    def long_running(stuff_file):
+        fp = open(stuff_file)
+        char = fp.read(1)
+        result = do_something(char)
+        return result
+
+The object returned by the call to ``open`` sticks around until
+function return.  For that length of time, a file descriptor (scarce
+resource) is consumed unnecessarily.  Since fp isn't used after the
+second statement, its reference count could be decremented at that
+point.
 
 
 Backwards Compatibility
