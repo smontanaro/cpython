@@ -281,7 +281,7 @@ class BuildSeqInstruction(Instruction):
 
     @property
     def opargs(self):
-        return (self.length, self.dest, self.source1)
+        return (self.dest, self.source1, self.length)
 
 class ExtendSeqInstruction(Instruction):
     "Specialized behavior for LIST_EXTEND operation."

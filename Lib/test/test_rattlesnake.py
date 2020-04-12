@@ -72,7 +72,7 @@ class InstructionTest(unittest.TestCase):
 
     def test_tuple(self):
         (pyvm, rvm) = self.function_helper(_tuple)
-        self.assertEqual(pyvm(), rvm())
+        self.assertEqual(pyvm(1, 2, 3), rvm(1, 2, 3))
 
     def test_list(self):
         (pyvm, rvm) = self.function_helper(_list)
@@ -167,7 +167,9 @@ class InstructionTest(unittest.TestCase):
                          util.CO_REGISTER)
 
         if verbose:
+            print()
             dis.dis(pyvm)
+            print()
             dis.dis(rvm)
         return (pyvm, rvm)
 
@@ -177,8 +179,8 @@ def _branch_func(a):
     b = a + 4
     return b
 
-def _tuple():
-    return (1, 2, 3)
+def _tuple(a, b, c):
+    return (a, b, c)
 
 def _list():
     return ['a', 'b', 'c']
