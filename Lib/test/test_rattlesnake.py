@@ -1,5 +1,6 @@
 "RVM tests"
 
+import dis
 import unittest
 
 from rattlesnake.converter import InstructionSetConverter
@@ -69,6 +70,14 @@ class InstructionTest(unittest.TestCase):
             self.assertEqual(pyvm(container, index),
                              rvm(container, index))
 
+    def test_tuple(self):
+        (pyvm, rvm) = self.function_helper(_tuple)
+        self.assertEqual(pyvm(), rvm())
+
+    def test_list(self):
+        (pyvm, rvm) = self.function_helper(_list)
+        self.assertEqual(pyvm(), rvm())
+
     def test_power(self):
         (pyvm, rvm) = self.function_helper(_power)
         self.assertEqual(pyvm(5.0, 7), rvm(5.0, 7))
@@ -136,7 +145,7 @@ class InstructionTest(unittest.TestCase):
         with self.assertRaises(KeyError):
             _x = lno_dict[80]
 
-    def function_helper(self, func, propagate=True):
+    def function_helper(self, func, propagate=True, verbose=False):
         pyvm_code = func.__code__
         isc = InstructionSetConverter(pyvm_code)
         isc.gen_rvm()
@@ -157,6 +166,9 @@ class InstructionTest(unittest.TestCase):
         self.assertEqual(rvm.__code__.co_flags & util.CO_REGISTER,
                          util.CO_REGISTER)
 
+        if verbose:
+            dis.dis(pyvm)
+            dis.dis(rvm)
         return (pyvm, rvm)
 
 def _branch_func(a):
@@ -164,6 +176,12 @@ def _branch_func(a):
         return a
     b = a + 4
     return b
+
+def _tuple():
+    return (1, 2, 3)
+
+def _list():
+    return ['a', 'b', 'c']
 
 def _not(val):
     return not val

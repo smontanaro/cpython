@@ -145,6 +145,9 @@ extern "C" {
 #define JUMP_IF_FALSE_REG       133
 #define JUMP_IF_TRUE_REG        134
 #define UNARY_NOT_REG           135
+#define BUILD_TUPLE_REG         136
+#define BUILD_LIST_REG          137
+#define LIST_EXTEND_REG         138
 
 /* EXCEPT_HANDLER is a special, implicit block type which is created when
    entering an except handler. It is not an opcode but we define it here

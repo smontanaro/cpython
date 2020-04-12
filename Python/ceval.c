@@ -4013,6 +4013,60 @@ main_loop:
             goto error;
         }
 
+        case TARGET(BUILD_TUPLE_REG): {
+            /* registers go from src to src+len */
+            int dst = REGARG3(oparg);
+            int src = REGARG2(oparg);
+            int len = REGARG1(oparg);
+            PyObject *tup = PyTuple_New(len);
+            if (tup == NULL)
+                goto error;
+            while (--len >= 0) {
+                PyObject *item = GETLOCAL(src+len);
+                PyTuple_SET_ITEM(tup, len, item);
+            }
+            SETLOCAL(dst, tup);
+            DISPATCH();
+        }
+
+        case TARGET(BUILD_LIST_REG): {
+            /* registers go from src to src+len */
+            int dst = REGARG3(oparg);
+            int src = REGARG2(oparg);
+            int len = REGARG1(oparg);
+            PyObject *list = PyList_New(len);
+            if (list == NULL)
+                goto error;
+            while (--len >= 0) {
+                PyObject *item = GETLOCAL(src+len);
+                PyList_SET_ITEM(list, len, item);
+            }
+            SETLOCAL(dst, list);
+            DISPATCH();
+        }
+
+        case TARGET(LIST_EXTEND_REG): {
+            int dst = REGARG2(oparg);
+            int src = REGARG1(oparg);
+            PyObject *iterable = GETLOCAL(src);
+            PyObject *list = GETLOCAL(dst);
+            PyObject *none_val = _PyList_Extend((PyListObject *)list, iterable);
+            if (none_val == NULL) {
+                if (_PyErr_ExceptionMatches(tstate, PyExc_TypeError) &&
+                   (Py_TYPE(iterable)->tp_iter == NULL && !PySequence_Check(iterable)))
+                {
+                    _PyErr_Clear(tstate);
+                    _PyErr_Format(tstate, PyExc_TypeError,
+                          "Value after * must be an iterable, not %.200s",
+                          Py_TYPE(iterable)->tp_name);
+                }
+                Py_DECREF(iterable);
+                goto error;
+            }
+            Py_DECREF(none_val);
+            DISPATCH();
+        }
+
 #if USE_COMPUTED_GOTOS
         _unknown_opcode:
 #endif

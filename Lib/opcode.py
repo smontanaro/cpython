@@ -267,6 +267,9 @@ def_op('JUMP_IF_FALSE_REG', op) ; op += 1
 hasregjc.append(op)
 def_op('JUMP_IF_TRUE_REG', op) ; op += 1
 def_op('UNARY_NOT_REG', op) ; op += 1
+def_op('BUILD_TUPLE_REG', op) ; op += 1
+def_op('BUILD_LIST_REG', op) ; op += 1
+def_op('LIST_EXTEND_REG', op) ; op += 1
 
 assert op <= 256, op
 

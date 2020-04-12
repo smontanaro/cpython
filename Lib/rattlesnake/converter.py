@@ -167,6 +167,14 @@ class InstructionSetConverter(OptimizeFilter):
         )
         return self.stacklevel
 
+    def peek(self, n):
+        """return n'th readable slot in the stack without decrement."""
+        assert self.stacklevel - n >= self.nlocals, (
+            f"Peek read past bottom of locals!"
+            f" {self.stacklevel - n} < {self.nlocals}"
+        )
+        return self.stacklevel - n
+
     def top(self):
         """return top readable slot on the stack"""
         #print(">> top:", self.stacklevel)
@@ -179,7 +187,11 @@ class InstructionSetConverter(OptimizeFilter):
             rvm_block = Block("RVM", self, block_number=pyvm_block.block_number)
             self.blocks["RVM"].append(rvm_block)
         for (rvm, pyvm) in zip(self.blocks["RVM"], self.blocks["PyVM"]):
-            pyvm.gen_rvm(rvm)
+            try:
+                pyvm.gen_rvm(rvm)
+            except KeyError:
+                self.display_blocks(self.blocks["PyVM"])
+                raise
 
     # A small, detailed example forward propagating the result of a
     # fast load and backward propagating the result of a fast
@@ -522,33 +534,38 @@ class InstructionSetConverter(OptimizeFilter):
     # dispatch[opcodes.ISET.opmap['DELETE_ATTR']] = attr_convert
     # dispatch[opcodes.ISET.opmap['LOAD_ATTR']] = attr_convert
 
-    # def seq_convert(self, instr, block):
-    #     op = instr.opcode
-    #     oparg = instr.opargs[0] # All PyVM opcodes have a single oparg
-    #     if op == opcodes.ISET.opmap['BUILD_MAP']:
-    #         dst = self.push()
-    #         return Instruction(opcodes.ISET.opmap['BUILD_MAP_REG'], block,
-    #                            (dst,))
-    #     opname = "%s_REG" % opcodes.ISET.opname[op]
-    #     if op in (opcodes.ISET.opmap['BUILD_LIST'],
-    #                  opcodes.ISET.opmap['BUILD_TUPLE']):
-    #         n = oparg
-    #         for _ in range(n):
-    #             self.pop()
-    #         src = self.top()
-    #         dst = self.push()
-    #         return Instruction(opcodes.ISET.opmap[opname], block,
-    #                            (dst, n, src))
-    #     if op == opcodes.ISET.opmap['UNPACK_SEQUENCE']:
-    #         n = oparg
-    #         src = self.pop()
-    #         for _ in range(n):
-    #             self.push()
-    #         return Instruction(opcodes.ISET.opmap[opname], block,
-    #                            (n, src))
-    #     raise ValueError(f"Unhandled opcode {opcodes.ISET.opname[op]}")
-    # dispatch[opcodes.ISET.opmap['BUILD_TUPLE']] = seq_convert
-    # dispatch[opcodes.ISET.opmap['BUILD_LIST']] = seq_convert
+    def seq_convert(self, instr, block):
+        op = instr.opcode
+        oparg = instr.opargs[0] # All PyVM opcodes have a single oparg
+        # if op == opcodes.ISET.opmap['BUILD_MAP']:
+        #     dst = self.push()
+        #     return Instruction(opcodes.ISET.opmap['BUILD_MAP_REG'], block)
+        opname = "%s_REG" % opcodes.ISET.opname[op]
+        if op in (opcodes.ISET.opmap['BUILD_LIST'],
+                  opcodes.ISET.opmap['BUILD_TUPLE']):
+            n = oparg
+            for _ in range(n):
+                self.pop()
+            src = self.top()
+            dst = self.push()
+            return BuildSeqInstruction(opcodes.ISET.opmap[opname], block,
+                                       length=n, source1=src, dest=dst)
+        if op == opcodes.ISET.opmap['LIST_EXTEND']:
+            src = self.pop()
+            dst = self.peek(oparg)
+            return ExtendSeqInstruction(opcodes.ISET.opmap[opname], block,
+                                        source1=src, dest=dst)
+
+        # if op == opcodes.ISET.opmap['UNPACK_SEQUENCE']:
+        #     n = oparg
+        #     src = self.pop()
+        #     for _ in range(n):
+        #         self.push()
+        #     return Instruction(opcodes.ISET.opmap[opname], block)
+        raise ValueError(f"Unhandled opcode {opcodes.ISET.opname[op]}")
+    dispatch[opcodes.ISET.opmap['BUILD_TUPLE']] = seq_convert
+    dispatch[opcodes.ISET.opmap['BUILD_LIST']] = seq_convert
+    dispatch[opcodes.ISET.opmap['LIST_EXTEND']] = seq_convert
     # dispatch[opcodes.ISET.opmap['BUILD_MAP']] = seq_convert
     # dispatch[opcodes.ISET.opmap['UNPACK_SEQUENCE']] = seq_convert
 

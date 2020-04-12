@@ -255,6 +255,48 @@ class UnaryOpInstruction(Instruction):
     def opargs(self):
         return (self.dest, self.source1)
 
+class UnaryOpInstruction(Instruction):
+    "Specialized behavior for unary operations."
+    def __init__(self, opcode, block, **kwargs):
+        self.source1 = kwargs["source1"]
+        del kwargs["source1"]
+        self.dest = kwargs["dest"]
+        del kwargs["dest"]
+        super().__init__(opcode, block, **kwargs)
+
+    @property
+    def opargs(self):
+        return (self.dest, self.source1)
+
+class BuildSeqInstruction(Instruction):
+    "Specialized behavior for sequence construction operations."
+    def __init__(self, opcode, block, **kwargs):
+        self.length = kwargs["length"]
+        del kwargs["length"]
+        self.source1 = kwargs["source1"]
+        del kwargs["source1"]
+        self.dest = kwargs["dest"]
+        del kwargs["dest"]
+        super().__init__(opcode, block, **kwargs)
+
+    @property
+    def opargs(self):
+        return (self.length, self.dest, self.source1)
+
+class ExtendSeqInstruction(Instruction):
+    "Specialized behavior for LIST_EXTEND operation."
+    # dest is modified in-place.
+    def __init__(self, opcode, block, **kwargs):
+        self.source1 = kwargs["source1"]
+        del kwargs["source1"]
+        self.dest = kwargs["dest"]
+        del kwargs["dest"]
+        super().__init__(opcode, block, **kwargs)
+
+    @property
+    def opargs(self):
+        return (self.dest, self.source1)
+
 class NOPInstruction(Instruction):
     pass
 

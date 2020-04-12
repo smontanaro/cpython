@@ -207,7 +207,10 @@ def_op('STORE_FAST_REG', OP, 'rr0') ; OP += 1
 def_op('COMPARE_OP_REG', OP, '<rr') ; OP += 1
 def_op('JUMP_IF_FALSE_REG', OP, 'A') ; OP += 1
 def_op('JUMP_IF_TRUE_REG', OP, 'A') ; OP += 1
-def_op('UNARY_NOT_REG', OP, 'A') ; OP += 1
+def_op('UNARY_NOT_REG', OP, 'rr') ; OP += 1
+def_op('BUILD_TUPLE_REG', OP, 'rrr') ; OP += 1
+def_op('BUILD_LIST_REG', OP, 'rrr') ; OP += 1
+def_op('LIST_EXTEND_REG', OP, 'rrr') ; OP += 1
 
 assert OP <= 256, OP
 
