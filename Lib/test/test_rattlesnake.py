@@ -41,9 +41,9 @@ class InstructionTest(unittest.TestCase):
                              [122, 127],
                          ])
 
-    def test_callfunc(self):
-        (pyvm, rvm) = self.function_helper(_callfunc, verbose=True)
-        self.assertEqual(pyvm(), rvm())
+    # def test_callfunc(self):
+    #     (pyvm, rvm) = self.function_helper(_callfunc, verbose=True)
+    #     self.assertEqual(pyvm(), rvm())
 
     def test_product(self):
         (pyvm, rvm) = self.function_helper(_product)
