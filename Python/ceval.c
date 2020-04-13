@@ -4023,6 +4023,7 @@ main_loop:
                 goto error;
             while (--len >= 0) {
                 PyObject *item = GETLOCAL(src+len);
+                Py_INCREF(item);
                 PyTuple_SET_ITEM(tup, len, item);
             }
             SETLOCAL(dst, tup);
@@ -4039,6 +4040,7 @@ main_loop:
                 goto error;
             while (--len >= 0) {
                 PyObject *item = GETLOCAL(src+len);
+                Py_INCREF(item);
                 PyList_SET_ITEM(list, len, item);
             }
             SETLOCAL(dst, list);
@@ -4066,6 +4068,21 @@ main_loop:
             Py_DECREF(none_val);
             DISPATCH();
         }
+
+        case TARGET(CALL_FUNCTION_REG): {
+            PyObject **sp, *res;
+            int dst = REGARG2(oparg);
+            int nargs = REGARG1(oparg);
+            sp = &GETLOCAL(dst + nargs + 1);
+            res = call_function(tstate, &sp, nargs, NULL);
+            /* stack_pointer = sp; */
+            SETLOCAL(dst, res);
+            if (res == NULL) {
+                goto error;
+            }
+            DISPATCH();
+        }
+
 
 #if USE_COMPUTED_GOTOS
         _unknown_opcode:
