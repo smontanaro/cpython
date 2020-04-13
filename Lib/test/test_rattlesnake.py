@@ -41,6 +41,10 @@ class InstructionTest(unittest.TestCase):
                              [122, 127],
                          ])
 
+    def test_callfunc(self):
+        (pyvm, rvm) = self.function_helper(_callfunc, verbose=True)
+        self.assertEqual(pyvm(), rvm())
+
     def test_product(self):
         (pyvm, rvm) = self.function_helper(_product)
         self.assertEqual(pyvm(1, 5), rvm(1, 5))
@@ -76,7 +80,7 @@ class InstructionTest(unittest.TestCase):
 
     def test_list(self):
         (pyvm, rvm) = self.function_helper(_list)
-        self.assertEqual(pyvm(), rvm())
+        self.assertEqual(pyvm(42), rvm(42))
 
     def test_power(self):
         (pyvm, rvm) = self.function_helper(_power)
@@ -147,6 +151,14 @@ class InstructionTest(unittest.TestCase):
 
     def function_helper(self, func, propagate=True, verbose=False):
         pyvm_code = func.__code__
+
+        # just for symmetry with construction of rvm below...
+        def pyvm(a): return a
+        pyvm.__code__ = pyvm_code
+        if verbose:
+            print()
+            dis.dis(pyvm)
+
         isc = InstructionSetConverter(pyvm_code)
         isc.gen_rvm()
         if propagate:
@@ -158,17 +170,11 @@ class InstructionTest(unittest.TestCase):
         def rvm(a): return a
         rvm_replace_code(rvm, pyvm_code, isc)
 
-        # just for symmetry with construction of rvm...
-        def pyvm(a): return a
-        pyvm.__code__ = pyvm_code
-
         self.assertEqual(pyvm.__code__.co_flags & util.CO_REGISTER, 0)
         self.assertEqual(rvm.__code__.co_flags & util.CO_REGISTER,
                          util.CO_REGISTER)
 
         if verbose:
-            print()
-            dis.dis(pyvm)
             print()
             dis.dis(rvm)
         return (pyvm, rvm)
@@ -182,8 +188,8 @@ def _branch_func(a):
 def _tuple(a, b, c):
     return (a, b, c)
 
-def _list():
-    return ['a', 'b', 'c']
+def _list(x):
+    return ['a', x, 'c']
 
 def _not(val):
     return not val
@@ -237,6 +243,9 @@ def _jump_if_false(a):
     if a:
         return 42
     return 42
+
+def _callfunc():
+    return [bin(2796202), list(enumerate("1234", 2))]
 
 _A_GLOBAL = 42
 def _long_block(s, b):
