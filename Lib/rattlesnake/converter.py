@@ -260,12 +260,14 @@ class InstructionSetConverter(OptimizeFilter):
 
     def forward_propagate_fast_loads(self):
         "LOAD_FAST_REG should be a NOP..."
+        self.mark_protected_loads()
         prop_dict = {}
         dirty = None
         for block in self.blocks["RVM"]:
             for (i, instr) in enumerate(block):
                 if (isinstance(instr, LoadFastInstruction) and
-                    instr.name == "LOAD_FAST_REG"):
+                    instr.name == "LOAD_FAST_REG" and
+                    not instr.protected):
                     # Will map future references to the load's
                     # destination register to its source.
                     prop_dict[instr.dest] = instr.source1
@@ -323,6 +325,40 @@ class InstructionSetConverter(OptimizeFilter):
                         except KeyError:
                             pass
         self.mark_dirty(dirty)
+
+    def mark_protected_loads(self):
+        "Identify LoadFastInstructions which must not be removed."
+        # Sometimes registers are used implicitly, so LOADs into them
+        # can't be removed so easily.  Consider the code necessary to
+        # construct this list:
+        #
+        # [1, x, y]
+        #
+        # Basic RVM code looks like this (ignoring EXT_ARG instructions):
+        #
+        # LOAD_CONST_REG            769 (%r3 <- 1)
+        # LOAD_FAST_REG            1024 (%r4 <- %r0)
+        # LOAD_FAST_REG            1281 (%r5 <- %r1)
+        # BUILD_LIST_REG         131843 (0, 2, 3, 3)
+        #
+        # The BUILD_LIST_REG instruction requires its inputs be in
+        # registers %r3 through %r5.  Accordingly, the two LOAD_FAST_REG
+        # instructions used to (partially) construct its inputs must be
+        # preserved.  BUILD_TUPLE_REG and CALL_FUNCTION_REG will have
+        # similar implicit references.  Other instructions might as well.
+        # One way to deal with this might be to identify such implicit
+        # uses and mark the corresponding LOADs as "protected."  Then
+        # execute the normal forward propagation code, skipping over those
+        # LOADs.
+        for block in self.blocks["RVM"]:
+            for (i, instr) in enumerate(block):
+                if isinstance(instr, BuildSeqInstruction):
+                    # Any LoadFastInstructions in the immediately
+                    # preceding instr.length instructions must be
+                    # protected from later removal.
+                    for j in range(i - instr.length, i):
+                        if isinstance(block[j], LoadFastInstruction):
+                            block[j].protected = True
 
     def delete_nops(self):
         "NOP instructions can safely be removed."
@@ -414,29 +450,18 @@ class InstructionSetConverter(OptimizeFilter):
     # dispatch[opcodes.ISET.opmap['STORE_SUBSCR']] = subscript_convert
     # dispatch[opcodes.ISET.opmap['DELETE_SUBSCR']] = subscript_convert
 
-    # def function_convert(self, instr, block):
-    #     op = instr.opcode
-    #     oparg = instr.opargs[0] # All PyVM opcodes have a single oparg
-    #     if op == opcodes.ISET.opmap['CALL_FUNCTION']:
-    #         na = oparg[0]
-    #         nk = oparg[1]
-    #         src = self.top()
-    #         for _ in range(na):
-    #             src = self.pop()
-    #         for _ in range(nk*2):
-    #             src = self.pop()
-    #         return Instruction(opcodes.ISET.opmap['CALL_FUNCTION_REG'],
-    #                            (na, nk, src))
-    #     if op == opcodes.ISET.opmap['MAKE_FUNCTION']:
-    #         code = self.pop()
-    #         n = oparg[0]|(oparg[1]<<8)
-    #         dst = self.push()
-    #         return Instruction(opcodes.ISET.opmap['MAKE_FUNCTION_REG'],
-    #                            (code, n, dst))
-    #     raise ValueError(f"Unhandled opcode {opcodes.ISET.opname[op]}")
-    # dispatch[opcodes.ISET.opmap['MAKE_FUNCTION']] = function_convert
-    # dispatch[opcodes.ISET.opmap['CALL_FUNCTION']] = function_convert
-    # # dispatch[opcodes.ISET.opmap['BUILD_CLASS']] = function_convert
+    def function_convert(self, instr, block):
+        op = instr.opcode
+        oparg = instr.opargs[0] # All PyVM opcodes have a single oparg
+        if op == opcodes.ISET.opmap['CALL_FUNCTION']:
+            nargs = oparg
+            dest = self.top() - nargs - 1
+            for _ in range(nargs):
+                _x = self.pop()
+            return CallInstruction(opcodes.ISET.opmap['CALL_FUNCTION_REG'],
+                                   block, nargs=nargs, dest=dest)
+        raise ValueError(f"Unhandled opcode {opcodes.ISET.opname[op]}")
+    dispatch[opcodes.ISET.opmap['CALL_FUNCTION']] = function_convert
 
     def jump_convert(self, instr, block):
         op = instr.opcode
