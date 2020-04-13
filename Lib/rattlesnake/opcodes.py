@@ -211,6 +211,7 @@ def_op('UNARY_NOT_REG', OP, 'rr') ; OP += 1
 def_op('BUILD_TUPLE_REG', OP, 'rrr') ; OP += 1
 def_op('BUILD_LIST_REG', OP, 'rrr') ; OP += 1
 def_op('LIST_EXTEND_REG', OP, 'rrr') ; OP += 1
+def_op('CALL_FUNCTION_REG', OP, 'rrN') ; OP += 1
 
 assert OP <= 256, OP
 

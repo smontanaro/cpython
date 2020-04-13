@@ -138,7 +138,7 @@ static void *opcode_targets[256] = {
     &&TARGET_BUILD_TUPLE_REG,
     &&TARGET_BUILD_LIST_REG,
     &&TARGET_LIST_EXTEND_REG,
-    &&_unknown_opcode,
+    &&TARGET_CALL_FUNCTION_REG,
     &&_unknown_opcode,
     &&_unknown_opcode,
     &&_unknown_opcode,
