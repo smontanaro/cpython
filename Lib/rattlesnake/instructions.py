@@ -151,6 +151,19 @@ class JumpIfInstruction(JumpInstruction):
         code.append(opargs[2])
         return bytes(code)
 
+class CallInstruction(Instruction):
+    "Basic CALL_FUNCTION_REG."
+    def __init__(self, opcode, block, **kwargs):
+        self.nargs = kwargs["nargs"]
+        del kwargs["nargs"]
+        self.dst = kwargs["dest"]
+        del kwargs["dest"]
+        super().__init__(opcode, block, **kwargs)
+
+    @property
+    def opargs(self):
+        return (self.dst, self.nargs)
+
 class LoadFastInstruction(Instruction):
     "Specialized behavior for fast loads."
     def __init__(self, opcode, block, **kwargs):
@@ -159,6 +172,26 @@ class LoadFastInstruction(Instruction):
         self.dest = kwargs["dest"]
         del kwargs["dest"]
         super().__init__(opcode, block, **kwargs)
+        # Used during forward propagation
+        self.protected = False
+
+    @property
+    def opargs(self):
+        return (self.dest, self.source1)
+
+# SFI and LFI are really the same instruction. We distinguish only to
+# avoid mistakes using isinstance. There is probably a cleaner way to
+# do this, but this code duplication suffices for the moment.
+class StoreFastInstruction(Instruction):
+    "Specialized behavior for fast stores."
+    def __init__(self, opcode, block, **kwargs):
+        self.source1 = kwargs["source1"]
+        del kwargs["source1"]
+        self.dest = kwargs["dest"]
+        del kwargs["dest"]
+        super().__init__(opcode, block, **kwargs)
+        # (Might be) used during backward propagation
+        self.protected = False
 
     @property
     def opargs(self):
@@ -188,27 +221,18 @@ class LoadConstInstruction(Instruction):
     def opargs(self):
         return (self.dest, self.name1)
 
-# SFI and LFI are really the same instruction. We distinguish only to
-# avoid mistakes using isinstance. There is probably a cleaner way to
-# do this, but this code duplication suffices for the moment.
-class StoreInstruction(Instruction):
+class StoreGlobalInstruction(Instruction):
     "Specialized behavior for stores."
     def __init__(self, opcode, block, **kwargs):
         self.source1 = kwargs["source1"]
         del kwargs["source1"]
-        self.dest = kwargs["dest"]
-        del kwargs["dest"]
+        self.name1 = kwargs["name1"]
+        del kwargs["name1"]
         super().__init__(opcode, block, **kwargs)
 
     @property
     def opargs(self):
-        return (self.dest, self.source1)
-
-class StoreFastInstruction(StoreInstruction):
-    pass
-
-class StoreGlobalInstruction(StoreInstruction):
-    pass
+        return (self.name1, self.source1)
 
 class CompareOpInstruction(Instruction):
     "Specialized behavior for COMPARE_OP_REG."
