@@ -5468,10 +5468,14 @@ call_function(PyThreadState *tstate, PyObject ***pp_stack, Py_ssize_t oparg, PyO
 
     assert((x != NULL) ^ (_PyErr_Occurred(tstate) != NULL));
 
-    /* Clear the stack of the function object. */
-    while ((*pp_stack) > pfunc) {
-        w = EXT_POP(*pp_stack);
-        Py_DECREF(w);
+    if (tstate->frame->f_code->co_flags & CO_REGISTER)
+        ;
+    else {
+        /* Clear the stack of the function object. */
+        while ((*pp_stack) > pfunc) {
+            w = EXT_POP(*pp_stack);
+            Py_DECREF(w);
+        }
     }
 
     return x;
