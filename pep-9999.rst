@@ -336,6 +336,12 @@ A large number of issues remain unresolved.
   worth considering if a 32-bit instruction size for RVM makes more
   sense.
 
+- Early DECREF - Currently, RVM clears registers at the end of frame
+  execution.  Instead, registers should be cleared upon last
+  reference.
+
+- LOAD_GLOBAL_REF opcache - Haven't yet figured out how to exercise
+  the opcache code in this opcode.
 
 References
 ==========
