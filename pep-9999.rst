@@ -333,8 +333,8 @@ A large number of issues remain unresolved.
   retargeted.
 
 - Instruction implementation - As of this writing (April 2020), only a
-  about 25 instructions have been implemented.  (The PyVM instruction
-  set currently contains 119 instructions.)  Since the PyVM instruction
+  38 instructions have been implemented.  (The PyVM instruction set
+  currently contains 119 instructions.)  Since the PyVM instruction
   set has grown significantly over the past two decades, it makes
   sense that this be tackled by multiple people in parallel.
 
