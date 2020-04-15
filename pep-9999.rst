@@ -343,6 +343,8 @@ A large number of issues remain unresolved.
 - LOAD_GLOBAL_REF opcache - Haven't yet figured out how to exercise
   the opcache code in this opcode.
 
+- Unify Lib/opcode.py and Lib/rattlesnake/opcodes.py.
+
 References
 ==========
 
