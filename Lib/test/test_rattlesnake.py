@@ -86,6 +86,10 @@ class InstructionTest(unittest.TestCase):
         (pyvm, rvm) = self.function_helper(_list)
         self.assertEqual(pyvm(42), rvm(42))
 
+    def test_list_extend(self):
+        (pyvm, rvm) = self.function_helper(_listextend)
+        self.assertEqual(pyvm(), rvm())
+
     def test_power(self):
         (pyvm, rvm) = self.function_helper(_power)
         self.assertEqual(pyvm(5.0, 7), rvm(5.0, 7))
@@ -102,8 +106,23 @@ class InstructionTest(unittest.TestCase):
 
     def test_not(self):
         (pyvm, rvm) = self.function_helper(_not)
-        self.assertEqual(rvm(5), False)
-        self.assertEqual(rvm(None), True)
+        for val in (5, None, ()):
+            self.assertEqual(pyvm(val), rvm(val))
+
+    def test_invert(self):
+        (pyvm, rvm) = self.function_helper(_invert)
+        for val in (5, -99):
+            self.assertEqual(pyvm(val), rvm(val))
+
+    def test_positive(self):
+        (pyvm, rvm) = self.function_helper(_positive)
+        for val in (5, -99):
+            self.assertEqual(pyvm(val), rvm(val))
+
+    def test_negative(self):
+        (pyvm, rvm) = self.function_helper(_negative)
+        for val in (5, -99):
+            self.assertEqual(pyvm(val), rvm(val))
 
     def test_simple_branch_function(self):
         (pyvm, rvm) = self.function_helper(_branch_func)
@@ -195,8 +214,20 @@ def _tuple(a, b, c):
 def _list(x):
     return ['a', x, 'c']
 
+def _listextend():
+    return [1, 2, 3]
+
 def _not(val):
     return not val
+
+def _negative(val):
+    return -val
+
+def _positive(val):
+    return +val
+
+def _invert(val):
+    return ~val
 
 def _true_divide(a, b):
     return a / b

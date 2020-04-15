@@ -1135,7 +1135,10 @@ stack_effect(int opcode, int oparg, int jump)
         case COMPARE_OP_REG:
         case JUMP_IF_FALSE_REG:
         case JUMP_IF_TRUE_REG:
+        case UNARY_POSITIVE_REG:
+        case UNARY_NEGATIVE_REG:
         case UNARY_NOT_REG:
+        case UNARY_INVERT_REG:
         case BUILD_TUPLE_REG:
         case BUILD_LIST_REG:
         case LIST_EXTEND_REG:

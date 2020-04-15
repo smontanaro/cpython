@@ -4106,6 +4106,39 @@ main_loop:
             DISPATCH();
         }
 
+        case TARGET(UNARY_INVERT_REG): {
+            int dst = REGARG2(oparg);
+            int src = REGARG1(oparg);
+            PyObject *value = GETLOCAL(src);
+            PyObject *res = PyNumber_Invert(value);
+            SETLOCAL(dst, res);
+            if (res == NULL)
+                goto error;
+            DISPATCH();
+        }
+
+        case TARGET(UNARY_NEGATIVE_REG): {
+            int dst = REGARG2(oparg);
+            int src = REGARG1(oparg);
+            PyObject *value = GETLOCAL(src);
+            PyObject *res = PyNumber_Negative(value);
+            SETLOCAL(dst, res);
+            if (res == NULL)
+                goto error;
+            DISPATCH();
+        }
+
+        case TARGET(UNARY_POSITIVE_REG): {
+            int dst = REGARG2(oparg);
+            int src = REGARG1(oparg);
+            PyObject *value = GETLOCAL(src);
+            PyObject *res = PyNumber_Positive(value);
+            SETLOCAL(dst, res);
+            if (res == NULL)
+                goto error;
+            DISPATCH();
+        }
+
 #if USE_COMPUTED_GOTOS
         _unknown_opcode:
 #endif

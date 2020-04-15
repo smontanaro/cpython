@@ -213,6 +213,9 @@ def_op('BUILD_LIST_REG', OP, 'rrr') ; OP += 1
 def_op('LIST_EXTEND_REG', OP, 'rrr') ; OP += 1
 def_op('CALL_FUNCTION_REG', OP, 'rrN') ; OP += 1
 def_op('CALL_FUNCTION_KW_REG', OP, 'rrN') ; OP += 1
+def_op('UNARY_INVERT_REG', OP, 'rr') ; OP += 1
+def_op('UNARY_NEGATIVE_REG', OP, 'rr') ; OP += 1
+def_op('UNARY_POSITIVE_REG', OP, 'rr') ; OP += 1
 
 assert OP <= 256, OP
 

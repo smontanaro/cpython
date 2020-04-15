@@ -150,6 +150,9 @@ extern "C" {
 #define LIST_EXTEND_REG         138
 #define CALL_FUNCTION_REG       139
 #define CALL_FUNCTION_KW_REG    140
+#define UNARY_INVERT_REG        141
+#define UNARY_NEGATIVE_REG      142
+#define UNARY_POSITIVE_REG      143
 
 /* EXCEPT_HANDLER is a special, implicit block type which is created when
    entering an except handler. It is not an opcode but we define it here
