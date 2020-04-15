@@ -345,6 +345,10 @@ A large number of issues remain unresolved.
 
 - Unify Lib/opcode.py and Lib/rattlesnake/opcodes.py.
 
+- Implement opcode prediction/fast dispatch.  Without that, you can't
+  make apples-to-apples performance comparisons.
+
+
 References
 ==========
 
