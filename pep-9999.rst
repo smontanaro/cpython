@@ -366,6 +366,22 @@ medium, hard) is given.
   required, and ISC itself could probably be split into multiple mixin
   classes.  (easy)
 
+- Rework dis module or instruction names - Tacking on "_REG" to a
+  bunch of instructions threw off the dis module's output formatting.
+  Increasing dis._OPNAME_WIDTH from 20 to 23 and reformatting every
+  expected output helped for awhile until even longer instruction
+  names arrived.  All that reformatting was tedious.  Fixing dis to be
+  more resilient might be a better way to go.  OTOH, maybe the RVM
+  opcode names could be more traditionally assembler-like.  (The
+  author is getting on in years and finds something which looks more
+  like assembler attractive, given his initial experience programming
+  computers in the dark ages.)  Instead of BINARY_ADD_REG, you might
+  call it BAR.  Simply constructing opcode names by joining first letters
+  of each word won't work (collisions - BINARY_ADD_REG and
+  BINARY_AND_REG would both map to "BAR"), so you'd have to implement
+  a scheme which overrides in specific instances (BAR and BANDR, for
+  example).  (easy?)
+
 
 References
 ==========
