@@ -239,19 +239,26 @@ When an object's reference count drops to zero, CPython's semantics
 mean it will be reclaimed immediately.  What happens if an object is
 created and completely used early during the execution of a
 long-running function but its reference count doesn't drop to zero
-until the end of the function?  Consider this function::
+until the end of the function?  Consider this (silly) function::
 
-    def long_running(stuff_file):
-        fp = open(stuff_file)
-        char = fp.read(1)
-        result = do_something(char)
+    def long_running():
+        x = [1] * int(10e7)
+        y = [2] * int(10e7)
+        z = (x + y) * 3
+        # Could reclaim x and y here
+        char = z[99]
+        # Could reclaim z here
+        result = do_something_long_running(char)
         return result
 
-The object returned by the call to ``open`` sticks around until
-function return.  For that length of time, a file descriptor (scarce
-resource) is consumed unnecessarily.  Since fp isn't used after the
-second statement, its reference count could be decremented at that
-point.
+Currently, RVM clears registers at the end of frame execution.
+Instead, registers should be cleared upon last reference.  All three
+large lists currently stick around until function return, but are
+unused after extracting the single character which is used.  For that
+length of time, a large amount of memory is consumed unnecessarily.
+The comments above indicate where registers holding x, y and z should
+be cleared.  Victor Stinner's implementation [#regstin] does this
+correctly.
 
 
 Backwards Compatibility
@@ -335,10 +342,6 @@ A large number of issues remain unresolved.
   ``EXTENDED_ARG`` is really only half an instruction, it would be
   worth considering if a 32-bit instruction size for RVM makes more
   sense.
-
-- Early DECREF - Currently, RVM clears registers at the end of frame
-  execution.  Instead, registers should be cleared upon last
-  reference.
 
 - LOAD_GLOBAL_REF opcache - Haven't yet figured out how to exercise
   the opcache code in this opcode.
