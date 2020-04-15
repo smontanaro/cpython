@@ -318,25 +318,27 @@ stone.
 Open Issues
 ===========
 
-A large number of issues remain unresolved.
+A large number of issues remain unresolved.  A crude estimate (easy,
+medium, hard) is given.
 
 - Register allocation - A long lost observation by Tim Peters that the
   existing stack space could be used for registers is employed to
   avoid increasing space taken by the frame object.  The downside is
   that there are a limited number of registers available to the
   translator.  The current translator does no proper register
-  allocation.  Stinner's implementation did [#regstin]_.
+  allocation.  Stinner's implementation did [#regstin]_.  (hard)
 
 - Proper implementation - As noted above, the current implementation
   is a translator of existing wordcode, essentially a complex peephole
   optimizer.  At some point, the AST-based compiler will need to be
-  retargeted.
+  retargeted. (hard?)
 
 - Instruction implementation - As of this writing (April 2020), only a
   38 instructions have been implemented.  (The PyVM instruction set
   currently contains 119 instructions.)  Since the PyVM instruction
   set has grown significantly over the past two decades, it makes
-  sense that this be tackled by multiple people in parallel.
+  sense that this be tackled by multiple people in parallel.  (easy to
+  medium)
 
 - Wordcode - To simplify the work, wordcode was retained.  This works,
   but relies heavily on the ``EXTENDED_ARG`` instruction to provide
@@ -345,19 +347,25 @@ A large number of issues remain unresolved.
   instructions implemented so far must be prefixed by at least one of
   them.  It would be worth considering if a 32-bit instruction size
   for RVM makes more sense, both as a performance improvement and to
-  reduce the size of the generated code.
+  reduce the size of the generated code.  (medium)
 
 - LOAD_GLOBAL_REF opcache - Haven't yet figured out how to exercise
-  the opcache code in this instruction.
+  the opcache code in this instruction.  (easy?)
 
-- Unify Lib/opcode.py and Lib/rattlesnake/opcodes.py.
+- Unify Lib/opcode.py and Lib/rattlesnake/opcodes.py.  (easy)
 
 - Implement opcode prediction/fast dispatch.  Without that, you can't
-  make apples-to-apples performance comparisons.
+  make apples-to-apples performance comparisons.  (easy)
 
 - Translation of larger compilation units than functions (classes,
   modules and packages) with output to a bytecode file (perhaps with
-  ".pyr" extension).
+  ".pyr" extension).  (medium?)
+
+- Refactor InstructionSetConverter - This still contains remnants of
+  the original peephole optimizer.  The base class is likely no longer
+  required, and ISC itself could probably be split into multiple mixin
+  classes.  (easy)
+
 
 References
 ==========
