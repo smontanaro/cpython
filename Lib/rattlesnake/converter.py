@@ -460,8 +460,18 @@ class InstructionSetConverter(OptimizeFilter):
                 _x = self.pop()
             return CallInstruction(opcodes.ISET.opmap['CALL_FUNCTION_REG'],
                                    block, nargs=nargs, dest=dest)
+        if op == opcodes.ISET.opmap['CALL_FUNCTION_KW']:
+            nargs = oparg
+            nreg = self.top() - 1
+            dest = self.top() - nargs - 2
+            print(nargs, nreg, dest)
+            for _ in range(nargs + 1):
+                _x = self.pop()
+            return CallInstructionKW(opcodes.ISET.opmap['CALL_FUNCTION_KW_REG'],
+                                     block, nargs=nargs, nreg=nreg, dest=dest)
         raise ValueError(f"Unhandled opcode {opcodes.ISET.opname[op]}")
     dispatch[opcodes.ISET.opmap['CALL_FUNCTION']] = function_convert
+    dispatch[opcodes.ISET.opmap['CALL_FUNCTION_KW']] = function_convert
 
     def jump_convert(self, instr, block):
         op = instr.opcode

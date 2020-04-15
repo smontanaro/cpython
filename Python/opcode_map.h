@@ -139,7 +139,7 @@ static char *opcode_map[256] = {
     "BUILD_LIST_REG",
     "LIST_EXTEND_REG",
     "CALL_FUNCTION_REG",
-    "unknown",
+    "CALL_FUNCTION_KW_REG",
     "unknown",
     "unknown",
     "unknown",

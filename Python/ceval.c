@@ -4075,7 +4075,6 @@ main_loop:
             int nargs = REGARG1(oparg);
             sp = &GETLOCAL(dst + nargs + 1);
             res = call_function(tstate, &sp, nargs, NULL);
-            /* stack_pointer = sp; */
             SETLOCAL(dst, res);
             if (res == NULL) {
                 goto error;
@@ -4083,6 +4082,29 @@ main_loop:
             DISPATCH();
         }
 
+        case TARGET(CALL_FUNCTION_KW_REG): {
+            PyObject **sp, *res, *names;
+            int dst = REGARG3(oparg);
+            /* register containing kw names tuple */
+            int nreg = REGARG2(oparg);
+            int nargs = REGARG1(oparg);
+
+            names = GETLOCAL(nreg);
+            Py_INCREF(names);
+            Py_CLEAR(GETLOCAL(nreg));
+            assert(PyTuple_Check(names));
+            assert(PyTuple_GET_SIZE(names) <= nargs);
+            /* We assume without checking that names contains only strings */
+            sp = &GETLOCAL(dst + nargs + 1);
+            res = call_function(tstate, &sp, nargs, names);
+            Py_DECREF(names);
+            SETLOCAL(dst, res);
+
+            if (res == NULL) {
+                goto error;
+            }
+            DISPATCH();
+        }
 
 #if USE_COMPUTED_GOTOS
         _unknown_opcode:

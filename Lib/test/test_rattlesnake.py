@@ -41,9 +41,13 @@ class InstructionTest(unittest.TestCase):
                              [122, 127],
                          ])
 
-    # def test_callfunc(self):
-    #     (pyvm, rvm) = self.function_helper(_callfunc, verbose=True)
-    #     self.assertEqual(pyvm(), rvm())
+    def test_callfunc(self):
+        (pyvm, rvm) = self.function_helper(_callfunc)
+        self.assertEqual(pyvm(), rvm())
+
+    def test_callfunc_kw(self):
+        (pyvm, rvm) = self.function_helper(_callfunc_kw)
+        self.assertEqual(pyvm(), rvm())
 
     def test_product(self):
         (pyvm, rvm) = self.function_helper(_product)
@@ -246,6 +250,12 @@ def _jump_if_false(a):
 
 def _callfunc():
     return [bin(2796202), list(enumerate("1234", 2))]
+
+def _kw_func(a, b=None):
+    return (a, b)
+
+def _callfunc_kw():
+    return _kw_func(14, b="hello world")
 
 _A_GLOBAL = 42
 def _long_block(s, b):

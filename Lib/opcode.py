@@ -271,6 +271,7 @@ def_op('BUILD_TUPLE_REG', op) ; op += 1
 def_op('BUILD_LIST_REG', op) ; op += 1
 def_op('LIST_EXTEND_REG', op) ; op += 1
 def_op('CALL_FUNCTION_REG', op) ; op += 1
+def_op('CALL_FUNCTION_KW_REG', op) ; op += 1
 
 assert op <= 256, op
 

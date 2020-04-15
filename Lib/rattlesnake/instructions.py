@@ -164,6 +164,21 @@ class CallInstruction(Instruction):
     def opargs(self):
         return (self.dst, self.nargs)
 
+class CallInstructionKW(Instruction):
+    "Basic CALL_FUNCTION_KW_REG."
+    def __init__(self, opcode, block, **kwargs):
+        self.nargs = kwargs["nargs"]
+        del kwargs["nargs"]
+        self.nreg = kwargs["nreg"]
+        del kwargs["nreg"]
+        self.dst = kwargs["dest"]
+        del kwargs["dest"]
+        super().__init__(opcode, block, **kwargs)
+
+    @property
+    def opargs(self):
+        return (self.dst, self.nreg, self.nargs)
+
 class LoadFastInstruction(Instruction):
     "Specialized behavior for fast loads."
     def __init__(self, opcode, block, **kwargs):
