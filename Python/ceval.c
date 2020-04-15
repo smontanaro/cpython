@@ -4139,6 +4139,169 @@ main_loop:
             DISPATCH();
         }
 
+        case TARGET(INPLACE_OR_REG): {
+            int dst = REGARG2(oparg);
+            int src = REGARG1(oparg);
+            PyObject *right = GETLOCAL(dst);
+            PyObject *left = GETLOCAL(src);
+            PyObject *res = PyNumber_InPlaceOr(left, right);
+            SETLOCAL(dst, res);
+            if (res == NULL)
+                goto error;
+            DISPATCH();
+        }
+
+        case TARGET(INPLACE_POWER_REG): {
+            int dst = REGARG2(oparg);
+            int src = REGARG1(oparg);
+            PyObject *left = GETLOCAL(dst);
+            PyObject *right = GETLOCAL(src);
+            PyObject *res = PyNumber_InPlacePower(left, right, Py_None);
+            SETLOCAL(dst, res);
+            if (res == NULL)
+                goto error;
+            DISPATCH();
+        }
+
+        case TARGET(INPLACE_MULTIPLY_REG): {
+            int dst = REGARG2(oparg);
+            int src = REGARG1(oparg);
+            PyObject *right = GETLOCAL(dst);
+            PyObject *left = GETLOCAL(src);
+            PyObject *res = PyNumber_InPlaceMultiply(left, right);
+            SETLOCAL(dst, res);
+            if (res == NULL)
+                goto error;
+            DISPATCH();
+        }
+
+        case TARGET(INPLACE_MATRIX_MULTIPLY_REG): {
+            int dst = REGARG2(oparg);
+            int src = REGARG1(oparg);
+            PyObject *right = GETLOCAL(dst);
+            PyObject *left = GETLOCAL(src);
+            PyObject *res = PyNumber_InPlaceMatrixMultiply(left, right);
+            SETLOCAL(dst, res);
+            if (res == NULL)
+                goto error;
+            DISPATCH();
+        }
+
+        case TARGET(INPLACE_TRUE_DIVIDE_REG): {
+            int dst = REGARG2(oparg);
+            int src = REGARG1(oparg);
+            PyObject *left = GETLOCAL(dst);
+            PyObject *right = GETLOCAL(src);
+            PyObject *res = PyNumber_InPlaceTrueDivide(left, right);
+            SETLOCAL(dst, res);
+            if (res == NULL)
+                goto error;
+            DISPATCH();
+        }
+
+        case TARGET(INPLACE_FLOOR_DIVIDE_REG): {
+            int dst = REGARG2(oparg);
+            int src = REGARG1(oparg);
+            PyObject *left = GETLOCAL(dst);
+            PyObject *right = GETLOCAL(src);
+            PyObject *res = PyNumber_InPlaceFloorDivide(left, right);
+            SETLOCAL(dst, res);
+            if (res == NULL)
+                goto error;
+            DISPATCH();
+        }
+
+        case TARGET(INPLACE_MODULO_REG): {
+            int dst = REGARG2(oparg);
+            int src = REGARG1(oparg);
+            PyObject *right = GETLOCAL(dst);
+            PyObject *left = GETLOCAL(src);
+            PyObject *res = PyNumber_InPlaceRemainder(left, right);
+            SETLOCAL(dst, res);
+            if (res == NULL)
+                goto error;
+            DISPATCH();
+        }
+
+        case TARGET(INPLACE_ADD_REG): {
+            int dst = REGARG2(oparg);
+            int src = REGARG1(oparg);
+            PyObject *right = GETLOCAL(dst);
+            PyObject *left = GETLOCAL(src);
+            PyObject *sum;
+            if (PyUnicode_CheckExact(left) && PyUnicode_CheckExact(right)) {
+                sum = unicode_concatenate(tstate, left, right, f, next_instr);
+                /* unicode_concatenate consumed the ref to left */
+            }
+            else {
+                sum = PyNumber_InPlaceAdd(left, right);
+            }
+            SETLOCAL(dst, sum);
+            if (sum == NULL)
+                goto error;
+            DISPATCH();
+        }
+
+        case TARGET(INPLACE_LSHIFT_REG): {
+            int dst = REGARG2(oparg);
+            int src = REGARG1(oparg);
+            PyObject *left = GETLOCAL(dst);
+            PyObject *right = GETLOCAL(src);
+            PyObject *res = PyNumber_InPlaceLshift(left, right);
+            SETLOCAL(dst, res);
+            if (res == NULL)
+                goto error;
+            DISPATCH();
+        }
+
+        case TARGET(INPLACE_RSHIFT_REG): {
+            int dst = REGARG2(oparg);
+            int src = REGARG1(oparg);
+            PyObject *right = GETLOCAL(dst);
+            PyObject *left = GETLOCAL(src);
+            PyObject *res = PyNumber_InPlaceRshift(left, right);
+            SETLOCAL(dst, res);
+            if (res == NULL)
+                goto error;
+            DISPATCH();
+        }
+
+        case TARGET(INPLACE_AND_REG): {
+            int dst = REGARG2(oparg);
+            int src = REGARG1(oparg);
+            PyObject *right = GETLOCAL(dst);
+            PyObject *left = GETLOCAL(src);
+            PyObject *res = PyNumber_InPlaceAnd(left, right);
+            SETLOCAL(dst, res);
+            if (res == NULL)
+                goto error;
+            DISPATCH();
+        }
+
+        case TARGET(INPLACE_XOR_REG): {
+            int dst = REGARG2(oparg);
+            int src = REGARG1(oparg);
+            PyObject *right = GETLOCAL(dst);
+            PyObject *left = GETLOCAL(src);
+            PyObject *res = PyNumber_InPlaceXor(left, right);
+            SETLOCAL(dst, res);
+            if (res == NULL)
+                goto error;
+            DISPATCH();
+        }
+
+        case TARGET(INPLACE_SUBTRACT_REG): {
+            int dst = REGARG2(oparg);
+            int src = REGARG1(oparg);
+            PyObject *left = GETLOCAL(dst);
+            PyObject *right = GETLOCAL(src);
+            PyObject *res = PyNumber_InPlaceSubtract(left, right);
+            SETLOCAL(dst, res);
+            if (res == NULL)
+                goto error;
+            DISPATCH();
+        }
+
 #if USE_COMPUTED_GOTOS
         _unknown_opcode:
 #endif

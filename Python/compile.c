@@ -1119,31 +1119,44 @@ stack_effect(int opcode, int oparg, int jump)
         /* Ideally, everything >= HAVE_REGISTERS would result in a
            stack effect of 0, but the way test__opcode.py is
            (currently) written we must enumerate each instruction. */
-        case BINARY_POWER_REG:
-        case BINARY_MULTIPLY_REG:
-        case BINARY_MODULO_REG:
         case BINARY_ADD_REG:
-        case BINARY_SUBTRACT_REG:
-        case BINARY_SUBSCR_REG:
         case BINARY_FLOOR_DIVIDE_REG:
+        case BINARY_MODULO_REG:
+        case BINARY_MULTIPLY_REG:
+        case BINARY_POWER_REG:
+        case BINARY_SUBSCR_REG:
+        case BINARY_SUBTRACT_REG:
         case BINARY_TRUE_DIVIDE_REG:
-        case RETURN_VALUE_REG:
-        case LOAD_CONST_REG:
-        case LOAD_GLOBAL_REG:
-        case LOAD_FAST_REG:
-        case STORE_FAST_REG:
+        case BUILD_LIST_REG:
+        case BUILD_TUPLE_REG:
+        case CALL_FUNCTION_KW_REG:
+        case CALL_FUNCTION_REG:
         case COMPARE_OP_REG:
+        case INPLACE_ADD_REG:
+        case INPLACE_AND_REG:
+        case INPLACE_FLOOR_DIVIDE_REG:
+        case INPLACE_LSHIFT_REG:
+        case INPLACE_MATRIX_MULTIPLY_REG:
+        case INPLACE_MODULO_REG:
+        case INPLACE_MULTIPLY_REG:
+        case INPLACE_OR_REG:
+        case INPLACE_POWER_REG:
+        case INPLACE_RSHIFT_REG:
+        case INPLACE_SUBTRACT_REG:
+        case INPLACE_TRUE_DIVIDE_REG:
+        case INPLACE_XOR_REG:
         case JUMP_IF_FALSE_REG:
         case JUMP_IF_TRUE_REG:
-        case UNARY_POSITIVE_REG:
+        case LIST_EXTEND_REG:
+        case LOAD_CONST_REG:
+        case LOAD_FAST_REG:
+        case LOAD_GLOBAL_REG:
+        case RETURN_VALUE_REG:
+        case STORE_FAST_REG:
+        case UNARY_INVERT_REG:
         case UNARY_NEGATIVE_REG:
         case UNARY_NOT_REG:
-        case UNARY_INVERT_REG:
-        case BUILD_TUPLE_REG:
-        case BUILD_LIST_REG:
-        case LIST_EXTEND_REG:
-        case CALL_FUNCTION_REG:
-        case CALL_FUNCTION_KW_REG:
+        case UNARY_POSITIVE_REG:
             return 0;
         default:
             return PY_INVALID_STACK_EFFECT;

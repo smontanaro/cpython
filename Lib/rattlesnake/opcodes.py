@@ -216,6 +216,19 @@ def_op('CALL_FUNCTION_KW_REG', OP, 'rrN') ; OP += 1
 def_op('UNARY_INVERT_REG', OP, 'rr') ; OP += 1
 def_op('UNARY_NEGATIVE_REG', OP, 'rr') ; OP += 1
 def_op('UNARY_POSITIVE_REG', OP, 'rr') ; OP += 1
+def_op('INPLACE_ADD_REG', OP, 'rr') ; OP += 1
+def_op('INPLACE_AND_REG', OP, 'rr') ; OP += 1
+def_op('INPLACE_FLOOR_DIVIDE_REG', OP, 'rr') ; OP += 1
+def_op('INPLACE_LSHIFT_REG', OP, 'rr') ; OP += 1
+def_op('INPLACE_MATRIX_MULTIPLY_REG', OP, 'rr') ; OP += 1
+def_op('INPLACE_MODULO_REG', OP, 'rr') ; OP += 1
+def_op('INPLACE_MULTIPLY_REG', OP, 'rr') ; OP += 1
+def_op('INPLACE_OR_REG', OP, 'rr') ; OP += 1
+def_op('INPLACE_POWER_REG', OP, 'rr') ; OP += 1
+def_op('INPLACE_RSHIFT_REG', OP, 'rr') ; OP += 1
+def_op('INPLACE_SUBTRACT_REG', OP, 'rr') ; OP += 1
+def_op('INPLACE_TRUE_DIVIDE_REG', OP, 'rr') ; OP += 1
+def_op('INPLACE_XOR_REG', OP, 'rr') ; OP += 1
 
 assert OP <= 256, OP
 

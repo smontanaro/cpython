@@ -94,6 +94,56 @@ class InstructionTest(unittest.TestCase):
         (pyvm, rvm) = self.function_helper(_power)
         self.assertEqual(pyvm(5.0, 7), rvm(5.0, 7))
 
+    def test_inplace_add(self):
+        (pyvm, rvm) = self.function_helper(_inplace_add)
+        self.assertEqual(pyvm(5, 9), rvm(5, 9))
+
+    def test_inplace_and(self):
+        (pyvm, rvm) = self.function_helper(_inplace_and)
+        self.assertEqual(pyvm(5, 99), rvm(5, 99))
+
+    def test_inplace_floor_divide(self):
+        (pyvm, rvm) = self.function_helper(_inplace_floor_divide)
+        self.assertEqual(pyvm(5, 9), rvm(5, 9))
+        self.assertEqual(pyvm(9, 5), rvm(9, 5))
+
+    def test_inplace_lshift(self):
+        (pyvm, rvm) = self.function_helper(_inplace_lshift)
+        self.assertEqual(pyvm(5, 9), rvm(5, 9))
+
+    def test_inplace_mod(self):
+        (pyvm, rvm) = self.function_helper(_inplace_or)
+        self.assertEqual(pyvm(15, 9), rvm(15, 9))
+
+    def test_inplace_mul(self):
+        (pyvm, rvm) = self.function_helper(_inplace_mul)
+        self.assertEqual(pyvm(5, 9), rvm(5, 9))
+
+    def test_inplace_or(self):
+        (pyvm, rvm) = self.function_helper(_inplace_or)
+        self.assertEqual(pyvm(5, 9), rvm(5, 9))
+
+    def test_inplace_pow(self):
+        (pyvm, rvm) = self.function_helper(_inplace_pow)
+        self.assertEqual(pyvm(5, 9.1), rvm(5, 9.1))
+
+    def test_inplace_rshift(self):
+        (pyvm, rvm) = self.function_helper(_inplace_or)
+        self.assertEqual(pyvm(5 ** 9, 4), rvm(5 ** 9, 4))
+
+    def test_inplace_subtract(self):
+        (pyvm, rvm) = self.function_helper(_inplace_subtract)
+        self.assertEqual(pyvm(5, 9), rvm(5, 9))
+
+    def test_inplace_true_divide(self):
+        (pyvm, rvm) = self.function_helper(_inplace_true_divide)
+        self.assertEqual(pyvm(5, 9), rvm(5, 9))
+        self.assertEqual(pyvm(9.0, 4), rvm(9.0, 4))
+
+    def test_inplace_xor(self):
+        (pyvm, rvm) = self.function_helper(_inplace_xor)
+        self.assertEqual(pyvm(5, 9), rvm(5, 9))
+
     def test_add(self):
         (pyvm, rvm) = self.function_helper(_add)
         self.assertEqual(pyvm(5, 70), rvm(5, 70))
@@ -249,6 +299,58 @@ def _add(a, b):
 
 def _subtract(a, b):
     return a - b
+
+def _inplace_add(a, b):
+    a += b
+    return a
+
+def _inplace_and(a, b):
+    a &= b
+    return a
+
+def _inplace_floor_divide(a, b):
+    a //= b
+    return a
+
+def _inplace_lshift(a, b):
+    a <<= b
+    return a
+
+def _inplace_matmul(a, b):
+    a @= b
+    return a
+
+def _inplace_mod(a, b):
+    a %= b
+    return a
+
+def _inplace_mul(a, b):
+    a *= b
+    return a
+
+def _inplace_or(a, b):
+    a |= b
+    return a
+
+def _inplace_pow(a, b):
+    a **= b
+    return a
+
+def _inplace_rshift(a, b):
+    a >>= b
+    return a
+
+def _inplace_subtract(a, b):
+    a -= b
+    return a
+
+def _inplace_true_divide(a, b):
+    a /= b
+    return a
+
+def _inplace_xor(a, b):
+    a ^= b
+    return a
 
 def _subscript(container, index):
     return container[index]

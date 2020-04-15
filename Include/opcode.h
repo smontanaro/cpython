@@ -153,6 +153,19 @@ extern "C" {
 #define UNARY_INVERT_REG        141
 #define UNARY_NEGATIVE_REG      142
 #define UNARY_POSITIVE_REG      143
+#define INPLACE_ADD_REG         144
+#define INPLACE_AND_REG         145
+#define INPLACE_FLOOR_DIVIDE_REG 146
+#define INPLACE_LSHIFT_REG      147
+#define INPLACE_MATRIX_MULTIPLY_REG 148
+#define INPLACE_MODULO_REG      149
+#define INPLACE_MULTIPLY_REG    150
+#define INPLACE_OR_REG          151
+#define INPLACE_POWER_REG       152
+#define INPLACE_RSHIFT_REG      153
+#define INPLACE_SUBTRACT_REG    154
+#define INPLACE_TRUE_DIVIDE_REG 155
+#define INPLACE_XOR_REG         156
 
 /* EXCEPT_HANDLER is a special, implicit block type which is created when
    entering an except handler. It is not an opcode but we define it here
