@@ -83,8 +83,9 @@ the possibility it represented.  It lives on, providing much of the
 initial starting framework for the current translator.
 
 In 2012, Victor Stinner implemented a nearly complete system
-[#regstin].  It failed for a number of reasons, but seems like it was
-very close to a complete system.
+[#regstin].  It failed for a number of reasons, but it demonstrated a
+significant performance improvement and was very close to a complete
+system.
 
 Both systems worked from PyVM bytecode as the starting point, and both
 were based on the old bytecode instruction format which used variable
@@ -331,26 +332,32 @@ A large number of issues remain unresolved.
   optimizer.  At some point, the AST-based compiler will need to be
   retargeted.
 
-- Instruction implementation - As of this writing (March 2020), only a
-  few instructions have been implemented.  Since the PyVM instruction
+- Instruction implementation - As of this writing (April 2020), only a
+  about 25 instructions have been implemented.  (The PyVM instruction
+  set currently contains 119 instructions.)  Since the PyVM instruction
   set has grown significantly over the past two decades, it makes
   sense that this be tackled by multiple people in parallel.
 
 - Wordcode - To simplify the work, wordcode was retained.  This works,
   but relies heavily on the ``EXTENDED_ARG`` instruction to provide
   arguments to instructions which need more than one.  While
-  ``EXTENDED_ARG`` is really only half an instruction, it would be
-  worth considering if a 32-bit instruction size for RVM makes more
-  sense.
+  ``EXTENDED_ARG`` is really only half an instruction, most RVM
+  instructions implemented so far must be prefixed by at least one of
+  them.  It would be worth considering if a 32-bit instruction size
+  for RVM makes more sense, both as a performance improvement and to
+  reduce the size of the generated code.
 
 - LOAD_GLOBAL_REF opcache - Haven't yet figured out how to exercise
-  the opcache code in this opcode.
+  the opcache code in this instruction.
 
 - Unify Lib/opcode.py and Lib/rattlesnake/opcodes.py.
 
 - Implement opcode prediction/fast dispatch.  Without that, you can't
   make apples-to-apples performance comparisons.
 
+- Translation of larger compilation units than functions (classes,
+  modules and packages) with output to a bytecode file (perhaps with
+  ".pyr" extension).
 
 References
 ==========
