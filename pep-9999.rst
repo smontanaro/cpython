@@ -8,7 +8,8 @@ Created: 28-Mar-2020
 Python-Version: 4.0
 Post-History: dd-mmm-yyyy
 
-.. contents:: :depth: 2
+.. Process with rstpep2html to get table of contents and preserve
+   above header.
 
 Abstract
 ========
