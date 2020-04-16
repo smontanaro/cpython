@@ -29,7 +29,7 @@ class InstructionTest(unittest.TestCase):
         self.assertEqual(len(isc.blocks["RVM"]), 1)
         self.assertEqual(_get_opcodes(isc.blocks["RVM"]),
                          [
-                             [130, 130, 122, 127],
+                             [136, 136, 119, 133],
                          ])
         self.assertEqual(isc.blocks["RVM"][0].codelen(), 16)
         isc.forward_propagate_fast_loads()
@@ -38,7 +38,7 @@ class InstructionTest(unittest.TestCase):
         self.assertEqual(isc.blocks["RVM"][0].codelen(), 8)
         self.assertEqual(_get_opcodes(isc.blocks["RVM"]),
                          [
-                             [122, 127],
+                             [119, 133],
                          ])
 
     def test_callfunc(self):
@@ -112,7 +112,7 @@ class InstructionTest(unittest.TestCase):
         self.assertEqual(pyvm(5, 9), rvm(5, 9))
 
     def test_inplace_mod(self):
-        (pyvm, rvm) = self.function_helper(_inplace_or)
+        (pyvm, rvm) = self.function_helper(_inplace_mod)
         self.assertEqual(pyvm(15, 9), rvm(15, 9))
 
     def test_inplace_mul(self):
@@ -128,7 +128,7 @@ class InstructionTest(unittest.TestCase):
         self.assertEqual(pyvm(5, 9.1), rvm(5, 9.1))
 
     def test_inplace_rshift(self):
-        (pyvm, rvm) = self.function_helper(_inplace_or)
+        (pyvm, rvm) = self.function_helper(_inplace_rshift)
         self.assertEqual(pyvm(5 ** 9, 4), rvm(5 ** 9, 4))
 
     def test_inplace_subtract(self):
@@ -148,6 +148,26 @@ class InstructionTest(unittest.TestCase):
         (pyvm, rvm) = self.function_helper(_add)
         self.assertEqual(pyvm(5, 70), rvm(5, 70))
         self.assertEqual(pyvm("xyz", "abc"), rvm("xyz", "abc"))
+
+    def test_and(self):
+        (pyvm, rvm) = self.function_helper(_and)
+        self.assertEqual(pyvm(5, 70), rvm(5, 70))
+
+    def test_xor(self):
+        (pyvm, rvm) = self.function_helper(_xor)
+        self.assertEqual(pyvm(5, 70), rvm(5, 70))
+
+    def test_or(self):
+        (pyvm, rvm) = self.function_helper(_or)
+        self.assertEqual(pyvm(5, 70), rvm(5, 70))
+
+    def test_lshift(self):
+        (pyvm, rvm) = self.function_helper(_lshift)
+        self.assertEqual(pyvm(70, 5), rvm(70, 5))
+
+    def test_rshift(self):
+        (pyvm, rvm) = self.function_helper(_rshift)
+        self.assertEqual(pyvm(79999, 3), rvm(79999, 3))
 
     def test_modulo(self):
         (pyvm, rvm) = self.function_helper(_modulo)
@@ -299,6 +319,21 @@ def _add(a, b):
 
 def _subtract(a, b):
     return a - b
+
+def _lshift(a, b):
+    return a << b
+
+def _rshift(a, b):
+    return a >> b
+
+def _and(a, b):
+    return a & b
+
+def _or(a, b):
+    return a | b
+
+def _xor(a, b):
+    return a ^ b
 
 def _inplace_add(a, b):
     a += b

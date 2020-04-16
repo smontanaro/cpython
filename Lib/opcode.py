@@ -235,21 +235,33 @@ def_op('DICT_UPDATE', op) ; op += 1
 HAVE_REGISTERS = op
 
 hasregdss.append(op)
-def_op('BINARY_POWER_REG', op) ; op += 1
-hasregdss.append(op)
-def_op('BINARY_MULTIPLY_REG', op) ; op += 1
-hasregdss.append(op)
-def_op('BINARY_MODULO_REG', op) ; op += 1
-hasregdss.append(op)
 def_op('BINARY_ADD_REG', op) ; op += 1
 hasregdss.append(op)
-def_op('BINARY_SUBTRACT_REG', op) ; op += 1
-hasregdss.append(op)
-def_op('BINARY_SUBSCR_REG', op) ; op += 1
+def_op('BINARY_AND_REG', op) ; op += 1
 hasregdss.append(op)
 def_op('BINARY_FLOOR_DIVIDE_REG', op) ; op += 1
 hasregdss.append(op)
+def_op('BINARY_LSHIFT_REG', op) ; op += 1
+hasregdss.append(op)
+def_op('BINARY_MATRIX_MULTIPLY_REG', op) ; op += 1
+hasregdss.append(op)
+def_op('BINARY_MODULO_REG', op) ; op += 1
+hasregdss.append(op)
+def_op('BINARY_MULTIPLY_REG', op) ; op += 1
+hasregdss.append(op)
+def_op('BINARY_OR_REG', op) ; op += 1
+hasregdss.append(op)
+def_op('BINARY_POWER_REG', op) ; op += 1
+hasregdss.append(op)
+def_op('BINARY_RSHIFT_REG', op) ; op += 1
+hasregdss.append(op)
+def_op('BINARY_SUBSCR_REG', op) ; op += 1
+hasregdss.append(op)
+def_op('BINARY_SUBTRACT_REG', op) ; op += 1
+hasregdss.append(op)
 def_op('BINARY_TRUE_DIVIDE_REG', op) ; op += 1
+hasregdss.append(op)
+def_op('BINARY_XOR_REG', op) ; op += 1
 hasregs.append(op)
 def_op('RETURN_VALUE_REG', op) ; op += 1
 hasregdc.append(op)
@@ -266,15 +278,15 @@ hasregjc.append(op)
 def_op('JUMP_IF_FALSE_REG', op) ; op += 1
 hasregjc.append(op)
 def_op('JUMP_IF_TRUE_REG', op) ; op += 1
+def_op('UNARY_INVERT_REG', op) ; op += 1
+def_op('UNARY_NEGATIVE_REG', op) ; op += 1
 def_op('UNARY_NOT_REG', op) ; op += 1
+def_op('UNARY_POSITIVE_REG', op) ; op += 1
 def_op('BUILD_TUPLE_REG', op) ; op += 1
 def_op('BUILD_LIST_REG', op) ; op += 1
 def_op('LIST_EXTEND_REG', op) ; op += 1
 def_op('CALL_FUNCTION_REG', op) ; op += 1
 def_op('CALL_FUNCTION_KW_REG', op) ; op += 1
-def_op('UNARY_INVERT_REG', op) ; op += 1
-def_op('UNARY_NEGATIVE_REG', op) ; op += 1
-def_op('UNARY_POSITIVE_REG', op) ; op += 1
 def_op('INPLACE_ADD_REG', op) ; op += 1
 def_op('INPLACE_AND_REG', op) ; op += 1
 def_op('INPLACE_FLOOR_DIVIDE_REG', op) ; op += 1
