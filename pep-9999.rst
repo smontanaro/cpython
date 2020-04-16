@@ -326,24 +326,14 @@ medium, hard) is given.
 
 - This proto-PEP - It is still quite incomplete.
 
-- Register allocation - A long lost observation by Tim Peters that the
-  existing stack space could be used for registers is employed to
-  avoid increasing space taken by the frame object.  The downside is
-  that there are a limited number of registers available to the
-  translator.  The current translator does no proper register
-  allocation.  Stinner's implementation did [#regstin]_.  (hard)
+- Proper register allocation - See [#issue1] (hard)
 
-- Proper implementation - As noted above, the current implementation
-  is a translator of existing wordcode, essentially a complex peephole
-  optimizer.  At some point, the AST-based compiler will need to be
-  retargeted. (hard?)
+- Support code in modules and classes - See [#issue2] (easy)
 
-- Instruction implementation - Instruction implementation in both the
-  translator and ceval.c is incomplete (See Current Status for
-  details.)  The PyVM instruction set currently contains 119
-  instructions.  Since the PyVM instruction set has grown
-  significantly over the past two decades, it makes sense that this be
-  tackled by multiple people in parallel.  (easy to medium)
+- Proper AST-based implementation - See [#issue3] (hard - but perhaps
+  not for someone with experience with the existing compiler)
+
+- Complete instruction implementation - See [#issue4] (easy to medium)
 
 - Wordcode - To simplify the work, wordcode was retained.  This works,
   but relies heavily on the ``EXTENDED_ARG`` instruction to provide
@@ -405,6 +395,17 @@ References
 
 .. [#instpage] Profiling CPython at Instagram, Page
    (https://instagram-engineering.com/profiling-cpython-at-instagram-89d4cbeeb898)
+.. [#issue1] Proper register allocation
+   (https://github.com/smontanaro/cpython/issues/1)
+
+.. [#issue2] Support code in modules and classes
+   (https://github.com/smontanaro/cpython/issues/2)
+
+.. [#issue3] Modify existing compiler to support RVM
+   (https://github.com/smontanaro/cpython/issues/3)
+
+.. [#issue4] Complete instruction implementation
+   (https://github.com/smontanaro/cpython/issues/4)
 
 .. [#peephett] Improve code generation Hettinger, et al
    (https://github.com/python/cpython/commit/f6f575ae6fc4b58f8735b6aebaa422d48bedcef4)
