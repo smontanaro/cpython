@@ -27,14 +27,20 @@ MAKE_FUNCTION = opmap['MAKE_FUNCTION']
 MAKE_FUNCTION_FLAGS = ('defaults', 'kwdefaults', 'annotations', 'closure')
 
 BINOPS = {
-    119: '**',
-    120: '*',
-    121: '%',
-    122: '+',
-    123: '-',
-    124: '[]',
-    125: '//',
-    126: '/',
+    119: '+',
+    120: '&',
+    121: '//',
+    122: '<<',
+    123: '@',
+    124: '%',
+    125: '*',
+    126: '|',
+    127: '**',
+    128: '>>',
+    129: '[]',
+    130: '-',
+    131: '/',
+    132: '^',
 }
 
 def _try_compile(source, name):
