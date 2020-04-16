@@ -81,6 +81,8 @@ class InstructionTest(unittest.TestCase):
     def test_tuple(self):
         (pyvm, rvm) = self.function_helper(_tuple)
         self.assertEqual(pyvm(1, 2, 3), rvm(1, 2, 3))
+        (pyvm, rvm) = self.function_helper(_tuple2)
+        self.assertEqual(pyvm(42), rvm(42))
 
     def test_list(self):
         (pyvm, rvm) = self.function_helper(_list)
@@ -280,6 +282,9 @@ def _branch_func(a):
 
 def _tuple(a, b, c):
     return (a, b, c)
+
+def _tuple2(a):
+    return (a, a+1, a+2, a+3)
 
 def _list(x):
     return ['a', x, 'c']
