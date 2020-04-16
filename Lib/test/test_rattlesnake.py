@@ -49,6 +49,10 @@ class InstructionTest(unittest.TestCase):
         (pyvm, rvm) = self.function_helper(_callfunc_kw)
         self.assertEqual(pyvm(), rvm())
 
+    def test_callfunc_protected_reg(self):
+        (pyvm, rvm) = self.function_helper(_callfunc_protected_reg)
+        self.assertEqual(pyvm(13.0), rvm(13.0))
+
     def test_product(self):
         (pyvm, rvm) = self.function_helper(_product)
         self.assertEqual(pyvm(1, 5), rvm(1, 5))
@@ -420,6 +424,12 @@ def _jump_if_false(a):
     if a:
         return 42
     return 42
+
+def _test_cf(a, b, c):
+    return a + b + c
+
+def _callfunc_protected_reg(a):
+    return _test_cf(a, a ** 2, a / 7)
 
 def _callfunc():
     return [bin(2796202), list(enumerate("1234", 2))]
