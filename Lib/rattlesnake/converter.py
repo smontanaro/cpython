@@ -350,15 +350,67 @@ class InstructionSetConverter(OptimizeFilter):
         # uses and mark the corresponding LOADs as "protected."  Then
         # execute the normal forward propagation code, skipping over those
         # LOADs.
+        #
+        # This example is more challenging:
+        #
+        # def _tuple(a):
+        #     return (a, a+2, a+3, a+4)
+        #
+        # Note that the LOAD_FAST_REG of the initial 'a' won't
+        # immediately precede the BUILD_TUPLE_REG instruction. The
+        # various expression evaluations separate them.  Instead of
+        # just looking at the immediately preceding instr.length
+        # instructions and marking LOAD_FAST_REG as protected, we need
+        # to look at the last writes to all registers between
+        # instr.dest and instr.dest+instr.length
+        #
+        # I've hacked something together here.  Not sure it's entirely
+        # correct (it's certainly still incomplete, failing to
+        # consider calls at this point), but the failing test passes,
+        # so we're done. :-)
         for block in self.blocks["RVM"]:
             for (i, instr) in enumerate(block):
                 if isinstance(instr, BuildSeqInstruction):
-                    # Any LoadFastInstructions in the immediately
-                    # preceding instr.length instructions must be
-                    # protected from later removal.
-                    for j in range(i - instr.length, i):
-                        if isinstance(block[j], LoadFastInstruction):
-                            block[j].protected = True
+                    first = instr.dest
+                    last = instr.dest + instr.length
+                else:
+                    # Not yet handled, CallInstruction, and perhaps
+                    # others.
+                    continue
+                saved = {}
+                reg = first
+                while reg < last:
+                    saved[reg] = False
+                    reg += 1
+
+                # Look backward to find writes to the registers in
+                # the saved dict.
+                for index in range(i - 1, -1, -1):
+                    reg = getattr(block[index], "dest", None)
+                    if reg not in saved:
+                        # No mention of any of our registers.
+                        continue
+                    if saved[reg]:
+                        # This operation is earlier than the
+                        # latest write to reg, so it's okay to
+                        # elide it.
+                        continue
+                    if hasattr(block[index], "protected"):
+                        # One of our registers is mentioned in a
+                        # LOAD, so protect it and mark the
+                        # register as saved.
+                        block[index].protected = True
+                        saved[reg] = True
+                    if all(saved.values()):
+                        # We've protected every LOAD into one of
+                        # our registers, so we're done
+                        break
+                else:
+                    # We got here without marking every register
+                    # of interest saved.  That's okay, as not
+                    # everything which affects our input registers
+                    # will be a LOAD.
+                    pass
 
     def delete_nops(self):
         "NOP instructions can safely be removed."
