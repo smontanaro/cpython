@@ -372,10 +372,12 @@ class InstructionSetConverter(OptimizeFilter):
             for (i, instr) in enumerate(block):
                 if isinstance(instr, BuildSeqInstruction):
                     first = instr.dest
-                    last = instr.dest + instr.length
+                    last = first + instr.length
+                elif isinstance(instr, CallInstruction):
+                    first = instr.dest
+                    last = first + instr.nargs
                 else:
-                    # Not yet handled, CallInstruction, and perhaps
-                    # others.
+                    # Maybe others not yet handled?
                     continue
                 saved = {}
                 reg = first
