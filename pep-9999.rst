@@ -324,6 +324,8 @@ Open Issues
 A large number of issues remain unresolved.  A crude estimate (easy,
 medium, hard) is given.
 
+- This proto-PEP - It is still quite incomplete.
+
 - Register allocation - A long lost observation by Tim Peters that the
   existing stack space could be used for registers is employed to
   avoid increasing space taken by the frame object.  The downside is
