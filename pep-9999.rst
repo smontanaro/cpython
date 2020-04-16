@@ -326,14 +326,14 @@ medium, hard) is given.
 
 - This proto-PEP - It is still quite incomplete.
 
-- Proper register allocation - See [#issue1] (hard)
+- Proper register allocation - See [#issue1]_ (hard)
 
-- Support code in modules and classes - See [#issue2] (easy)
+- Support code in modules and classes - See [#issue2]_ (easy)
 
-- Proper AST-based implementation - See [#issue3] (hard - but perhaps
+- Proper AST-based implementation - See [#issue3]_ (hard - but perhaps
   not for someone with experience with the existing compiler)
 
-- Complete instruction implementation - See [#issue4] (easy to medium)
+- Complete instruction implementation - See [#issue4]_ (easy to medium)
 
 - Wordcode - To simplify the work, wordcode was retained.  This works,
   but relies heavily on the ``EXTENDED_ARG`` instruction to provide
