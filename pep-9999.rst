@@ -283,11 +283,12 @@ writing (March 2020) it remains quite incomplete.
 Current Status
 --------------
 
-As of April 4, 2020:
+As of April 15, 2020:
 
-- Implemented several instructions - BINARY_(ADD|SUBTRACT)_REG,
-  RETURN_VALUE_REG, LOAD_CONST_REG, LOAD_FAST_REG, STORE_FAST_REG,
-  LOAD_GLOBAL_REG, COMPARE_OP_REG, JUMP_IF_FALSE_REG
+- Implemented 44 instructions - BINARY_*_REG, INPLACE_*_REG,
+  UNARY_*_REG, RETURN_VALUE_REG, LOAD_*_REG, STORE_FAST_REG,
+  COMPARE_OP_REG, JUMP_IF_(TRUE|FALSE)_REG, CALL_FUNCTION_REG,
+  CALL_FUNCTION_KW_REG, BUILD_(TUPLE|LIST)_REG, LIST_EXTEND_REG.
 
 - Implemented translator parts
 
@@ -297,7 +298,9 @@ As of April 4, 2020:
     instructions (much leftover from Rattlesnake, but not yet tested)
 
   - Elimination of LOAD_FAST_REG and STORE_FAST_REG by forward
-    propagation of the former and backward propagation of the latter.
+    propagation of the former and backward propagation of the latter
+    when those registers are used explicitly.  When used implicitly
+    (CALL_FUNCTION, BUILD_LIST, etc) they are retained.
 
   - Generation of wordcode from the RVM blocks.
 
@@ -333,12 +336,12 @@ medium, hard) is given.
   optimizer.  At some point, the AST-based compiler will need to be
   retargeted. (hard?)
 
-- Instruction implementation - As of this writing (April 2020), only a
-  38 instructions have been implemented.  (The PyVM instruction set
-  currently contains 119 instructions.)  Since the PyVM instruction
-  set has grown significantly over the past two decades, it makes
-  sense that this be tackled by multiple people in parallel.  (easy to
-  medium)
+- Instruction implementation - Instruction implementation in both the
+  translator and ceval.c is incomplete (See Current Status for
+  details.)  The PyVM instruction set currently contains 119
+  instructions.  Since the PyVM instruction set has grown
+  significantly over the past two decades, it makes sense that this be
+  tackled by multiple people in parallel.  (easy to medium)
 
 - Wordcode - To simplify the work, wordcode was retained.  This works,
   but relies heavily on the ``EXTENDED_ARG`` instruction to provide
@@ -349,7 +352,7 @@ medium, hard) is given.
   for RVM makes more sense, both as a performance improvement and to
   reduce the size of the generated code.  (medium)
 
-- LOAD_GLOBAL_REF opcache - Haven't yet figured out how to exercise
+- LOAD_GLOBAL_REG opcache - Haven't yet figured out how to exercise
   the opcache code in this instruction.  (easy?)
 
 - Unify Lib/opcode.py and Lib/rattlesnake/opcodes.py.  (easy)
@@ -381,6 +384,9 @@ medium, hard) is given.
   BINARY_AND_REG would both map to "BAR"), so you'd have to implement
   a scheme which overrides in specific instances (BAR and BANDR, for
   example).  (easy?)
+
+- Matrix multiplication is so far untested, mostly because I can't
+  handle classes yet.
 
 
 References
