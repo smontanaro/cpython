@@ -82,6 +82,15 @@ class InstructionTest(unittest.TestCase):
             self.assertEqual(pyvm(container, index),
                              rvm(container, index))
 
+    # Currently failing...
+    # def test_while1(self):
+    #     (pyvm, rvm) = self.function_helper(_while1, verbose=True)
+    #     self.assertEqual(pyvm(), rvm())
+
+    def test_while2(self):
+        (pyvm, rvm) = self.function_helper(_while2, verbose=True)
+        self.assertEqual(pyvm(12.1), rvm(12.1))
+
     def test_tuple(self):
         (pyvm, rvm) = self.function_helper(_tuple)
         self.assertEqual(pyvm(1, 2, 3), rvm(1, 2, 3))
@@ -439,6 +448,15 @@ def _kw_func(a, b=None):
 
 def _callfunc_kw():
     return _kw_func(14, b="hello world")
+
+def _while1():
+    while True:
+        break
+
+def _while2(a):
+    while a >= 0:
+        a -= 1
+    return a
 
 _A_GLOBAL = 42
 def _long_block(s, b):
