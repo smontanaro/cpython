@@ -561,11 +561,12 @@ class InstructionSetConverter(OptimizeFilter):
             self.set_block_stacklevel(oparg, self.top())
             return JumpIfInstruction(opcodes.ISET.opmap[opname], block,
                                      target=instr.target, source1=self.pop())
-        # if op in (opcodes.ISET.opmap['JUMP_FORWARD'],
-        #             opcodes.ISET.opmap['JUMP_ABSOLUTE']):
-        #     opname = f"{opcodes.ISET.opname[op]}_REG"
-        #     self.set_block_stacklevel(oparg, self.top())
-        #     return Instruction(opcodes.ISET.opmap[opname], block, (oparg,))
+        if op in (opcodes.ISET.opmap['JUMP_FORWARD'],
+                    opcodes.ISET.opmap['JUMP_ABSOLUTE']):
+            # Reused unchanged from PyVM
+            opname = f"{opcodes.ISET.opname[op]}"
+            return JumpInstruction(opcodes.ISET.opmap[opname], block,
+                                   target=instr.target)
         raise ValueError(f"Unhandled opcode {opcodes.ISET.opname[op]}")
     dispatch[opcodes.ISET.opmap['JUMP_FORWARD']] = jump_convert
     dispatch[opcodes.ISET.opmap['JUMP_ABSOLUTE']] = jump_convert
