@@ -54,7 +54,7 @@ class Block:
                 print("multiple times.")
             else:
                 raise ValueError(f"Already set stacklevel to {self.stacklevel} "
-                                 "for this block")
+                                 f"for this block ({level})")
         else:
             self.stacklevel = level
 
