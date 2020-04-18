@@ -82,13 +82,12 @@ class InstructionTest(unittest.TestCase):
             self.assertEqual(pyvm(container, index),
                              rvm(container, index))
 
-    # Currently failing...
-    # def test_while1(self):
-    #     (pyvm, rvm) = self.function_helper(_while1, verbose=True)
-    #     self.assertEqual(pyvm(), rvm())
+    def test_while1(self):
+        (pyvm, rvm) = self.function_helper(_while1)
+        self.assertEqual(pyvm(), rvm())
 
     def test_while2(self):
-        (pyvm, rvm) = self.function_helper(_while2, verbose=True)
+        (pyvm, rvm) = self.function_helper(_while2)
         self.assertEqual(pyvm(12.1), rvm(12.1))
 
     def test_tuple(self):

@@ -151,6 +151,43 @@ class JumpIfInstruction(JumpInstruction):
         code.append(opargs[2])
         return bytes(code)
 
+class JumpAbsInstruction(JumpInstruction):
+    "Specialized behavior for JUMP_IF_ABSOLUTE_REG."
+    @property
+    def opargs(self):
+        """Return target block converted to address, plus src register."""
+        isc = self.block.parent
+        target_block = isc.blocks[self.block.block_type][self.target]
+        addr_arg = decode_oparg(target_block.address)
+        result = addr_arg
+        if result != self._opargs:
+            self._opargs = result
+            self.block.mark_dirty()
+        return result
+
+    def __len__(self):
+        # Short circuit the length calculation to avoid unbounded
+        # recursion.  Suppose this instruction is in block N and has
+        # block N+1 as a target.  To compute the target address of
+        # block N+1 you need the length of block N, which needs the
+        # lengths of all its instructions, which leads you back here
+        # and you start chasing your tail.
+        return 4                # EXT_ARG, INSTR
+
+    def __bytes__(self):
+        # Since we assume one EXT_ARG instruction in __len__, we have
+        # to force it here as well, even if the eventual jump address
+        # is < 256.
+        code = []
+        opargs = self.opargs
+        while len(opargs) < 2:
+            opargs = (0,) + opargs
+        code.append(self.EXT_ARG_OPCODE)
+        code.append(opargs[0])
+        code.append(self.opcode)
+        code.append(opargs[1])
+        return bytes(code)
+
 class CallInstruction(Instruction):
     "Basic CALL_FUNCTION_REG."
     def __init__(self, opcode, block, **kwargs):

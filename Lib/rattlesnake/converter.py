@@ -86,9 +86,11 @@ pipeline, each one responsible for a single optimization."""
             if offset in labels:
                 block = Block("PyVM", self, block_num)
                 block.address = offset
+                #print(">>> new block:", block, "@", offset)
                 block_num += 1
                 blocks.append(block)
             (op, oparg) = self.codestr[offset:offset+2]
+            #print(">>>", op, opcodes.ISET.opname[op], oparg)
             # Elide EXTENDED_ARG opcodes, constructing the effective
             # oparg as we go.
             if op == self.EXT_ARG_OPCODE:
@@ -105,6 +107,7 @@ pipeline, each one responsible for a single optimization."""
                     #      f" @ {offset} target_addr={address}")
                     instr = JumpInstruction(op, block, address=address)
                 instr.line_number = line_numbers[offset]
+                #print(">>>", instr)
                 block.append(instr)
                 ext_oparg = 0
         self.convert_jump_targets_to_blocks()
@@ -565,8 +568,8 @@ class InstructionSetConverter(OptimizeFilter):
                     opcodes.ISET.opmap['JUMP_ABSOLUTE']):
             # Reused unchanged from PyVM
             opname = f"{opcodes.ISET.opname[op]}"
-            return JumpInstruction(opcodes.ISET.opmap[opname], block,
-                                   target=instr.target)
+            return JumpAbsInstruction(opcodes.ISET.opmap[opname], block,
+                                      target=instr.target)
         raise ValueError(f"Unhandled opcode {opcodes.ISET.opname[op]}")
     dispatch[opcodes.ISET.opmap['JUMP_FORWARD']] = jump_convert
     dispatch[opcodes.ISET.opmap['JUMP_ABSOLUTE']] = jump_convert
