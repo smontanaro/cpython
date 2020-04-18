@@ -362,15 +362,13 @@ class BuildSeqInstruction(Instruction):
     def __init__(self, opcode, block, **kwargs):
         self.length = kwargs["length"]
         del kwargs["length"]
-        self.source1 = kwargs["source1"]
-        del kwargs["source1"]
         self.dest = kwargs["dest"]
         del kwargs["dest"]
         super().__init__(opcode, block, **kwargs)
 
     @property
     def opargs(self):
-        return (self.dest, self.source1, self.length)
+        return (self.dest, self.length)
 
 class ExtendSeqInstruction(Instruction):
     "Specialized behavior for LIST_EXTEND operation."

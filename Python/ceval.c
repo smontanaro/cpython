@@ -4093,14 +4093,13 @@ main_loop:
 
         case TARGET(BUILD_TUPLE_REG): {
             /* registers go from src to src+len */
-            int dst = REGARG3(oparg);
-            int src = REGARG2(oparg);
+            int dst = REGARG2(oparg);
             int len = REGARG1(oparg);
             PyObject *tup = PyTuple_New(len);
             if (tup == NULL)
                 goto error;
             while (--len >= 0) {
-                PyObject *item = GETLOCAL(src+len);
+                PyObject *item = GETLOCAL(dst+len);
                 Py_INCREF(item);
                 PyTuple_SET_ITEM(tup, len, item);
             }
@@ -4108,16 +4107,38 @@ main_loop:
             DISPATCH();
         }
 
+        case TARGET(BUILD_MAP_REG): {
+            int dst = REGARG2(oparg);
+            int size = REGARG1(oparg);
+            int start = dst + 2 * size;
+            Py_ssize_t i;
+            PyObject *map = _PyDict_NewPresized((Py_ssize_t)size);
+            if (map == NULL)
+                goto error;
+            for (i = size; i > 0; i--) {
+                int err;
+                PyObject *key = GETLOCAL(start - 2*i);
+                PyObject *value = GETLOCAL(start - 2*i - 1);
+                err = PyDict_SetItem(map, key, value);
+                if (err != 0) {
+                    Py_DECREF(map);
+                    goto error;
+                }
+            }
+
+            SETLOCAL(dst, map);
+            DISPATCH();
+        }
+
         case TARGET(BUILD_LIST_REG): {
             /* registers go from src to src+len */
-            int dst = REGARG3(oparg);
-            int src = REGARG2(oparg);
+            int dst = REGARG2(oparg);
             int len = REGARG1(oparg);
             PyObject *list = PyList_New(len);
             if (list == NULL)
                 goto error;
             while (--len >= 0) {
-                PyObject *item = GETLOCAL(src+len);
+                PyObject *item = GETLOCAL(dst+len);
                 Py_INCREF(item);
                 PyList_SET_ITEM(list, len, item);
             }

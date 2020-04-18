@@ -59,6 +59,18 @@ class InstructionTest(unittest.TestCase):
         (pyvm, rvm) = self.function_helper(_callfunc_protected_reg)
         self.assertEqual(pyvm(13.0), rvm(13.0))
 
+    def test_build_dict(self):
+        def build_dict(a, b):
+            return {a: b}
+        (pyvm, rvm) = self.function_helper(build_dict)
+        self.assertEqual(pyvm("a", 1), rvm("a", 1))
+
+    def test_build_empty_dict(self):
+        def build_empty_dict():
+            return {}
+        (pyvm, rvm) = self.function_helper(build_empty_dict)
+        self.assertEqual(pyvm(), rvm())
+
     def test_floor_divide(self):
         def floor_divide(a, b):
             return a // b
@@ -458,11 +470,7 @@ def _build_slice(*args):
     dct = dict(zip(keys, vals))
     return dct
 
-def _build_dict(a, b):
-    return {a: b}
-
-def _build_empty_dict():
-    return {}
+# ... and many more ...
 
 # HELPERS:
 

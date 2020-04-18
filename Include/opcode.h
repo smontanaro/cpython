@@ -155,23 +155,24 @@ extern "C" {
 #define UNARY_NOT_REG           143
 #define UNARY_POSITIVE_REG      144
 #define BUILD_TUPLE_REG         145
-#define BUILD_LIST_REG          146
-#define LIST_EXTEND_REG         147
-#define CALL_FUNCTION_REG       148
-#define CALL_FUNCTION_KW_REG    149
-#define INPLACE_ADD_REG         150
-#define INPLACE_AND_REG         151
-#define INPLACE_FLOOR_DIVIDE_REG 152
-#define INPLACE_LSHIFT_REG      153
-#define INPLACE_MATRIX_MULTIPLY_REG 154
-#define INPLACE_MODULO_REG      155
-#define INPLACE_MULTIPLY_REG    156
-#define INPLACE_OR_REG          157
-#define INPLACE_POWER_REG       158
-#define INPLACE_RSHIFT_REG      159
-#define INPLACE_SUBTRACT_REG    160
-#define INPLACE_TRUE_DIVIDE_REG 161
-#define INPLACE_XOR_REG         162
+#define BUILD_MAP_REG           146
+#define BUILD_LIST_REG          147
+#define LIST_EXTEND_REG         148
+#define CALL_FUNCTION_REG       149
+#define CALL_FUNCTION_KW_REG    150
+#define INPLACE_ADD_REG         151
+#define INPLACE_AND_REG         152
+#define INPLACE_FLOOR_DIVIDE_REG 153
+#define INPLACE_LSHIFT_REG      154
+#define INPLACE_MATRIX_MULTIPLY_REG 155
+#define INPLACE_MODULO_REG      156
+#define INPLACE_MULTIPLY_REG    157
+#define INPLACE_OR_REG          158
+#define INPLACE_POWER_REG       159
+#define INPLACE_RSHIFT_REG      160
+#define INPLACE_SUBTRACT_REG    161
+#define INPLACE_TRUE_DIVIDE_REG 162
+#define INPLACE_XOR_REG         163
 
 /* EXCEPT_HANDLER is a special, implicit block type which is created when
    entering an except handler. It is not an opcode but we define it here

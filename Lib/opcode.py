@@ -283,6 +283,7 @@ def_op('UNARY_NEGATIVE_REG', op) ; op += 1
 def_op('UNARY_NOT_REG', op) ; op += 1
 def_op('UNARY_POSITIVE_REG', op) ; op += 1
 def_op('BUILD_TUPLE_REG', op) ; op += 1
+def_op('BUILD_MAP_REG', op) ; op += 1
 def_op('BUILD_LIST_REG', op) ; op += 1
 def_op('LIST_EXTEND_REG', op) ; op += 1
 def_op('CALL_FUNCTION_REG', op) ; op += 1

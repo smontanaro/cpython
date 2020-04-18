@@ -676,19 +676,19 @@ class InstructionSetConverter(OptimizeFilter):
     def seq_convert(self, instr, block):
         op = instr.opcode
         oparg = instr.opargs[0] # All PyVM opcodes have a single oparg
-        # if op == opcodes.ISET.opmap['BUILD_MAP']:
-        #     dst = self.push()
-        #     return Instruction(opcodes.ISET.opmap['BUILD_MAP_REG'], block)
         opname = "%s_REG" % opcodes.ISET.opname[op]
+        build_map = opcodes.ISET.opmap['BUILD_MAP']
         if op in (opcodes.ISET.opmap['BUILD_LIST'],
-                  opcodes.ISET.opmap['BUILD_TUPLE']):
+                  opcodes.ISET.opmap['BUILD_TUPLE'],
+                  build_map):
+            eltlen = 2 if op == build_map else 1
             n = oparg
-            for _ in range(n):
+            for _ in range(n * eltlen):
                 self.pop()
-            src = self.top()
             dst = self.push()
+            #print(f">>> dst: {dst}, len: {n}")
             return BuildSeqInstruction(opcodes.ISET.opmap[opname], block,
-                                       length=n, source1=src, dest=dst)
+                                       length=n, dest=dst)
         if op == opcodes.ISET.opmap['LIST_EXTEND']:
             src = self.pop()
             dst = self.peek(oparg)
@@ -705,7 +705,7 @@ class InstructionSetConverter(OptimizeFilter):
     dispatch[opcodes.ISET.opmap['BUILD_TUPLE']] = seq_convert
     dispatch[opcodes.ISET.opmap['BUILD_LIST']] = seq_convert
     dispatch[opcodes.ISET.opmap['LIST_EXTEND']] = seq_convert
-    # dispatch[opcodes.ISET.opmap['BUILD_MAP']] = seq_convert
+    dispatch[opcodes.ISET.opmap['BUILD_MAP']] = seq_convert
     # dispatch[opcodes.ISET.opmap['UNPACK_SEQUENCE']] = seq_convert
 
     def compare_convert(self, instr, block):

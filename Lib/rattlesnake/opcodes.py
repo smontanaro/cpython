@@ -18,10 +18,9 @@ class InstructionSet:
     def def_op(self, name, op, argfmt):
         """Associate an opcode with a name & describe arguments.
 
-        Note: In the wordcode system (stack instruction set) each
-        instruction has a one-byte oparg. In the quadcode system
-        (register instruction set) each instruction has three one-byte
-        args (trailing 0 for all unused args).
+        TBD: argfmt is mostly a lie at this point. The table below
+        dates from the early Rattlesnake days.  Eventually, this will
+        get merged back into Lib/opcode.py.
 
         Argfmt's contents interpret each byte's functionality.  The
         different characters in an argfmt mean:
@@ -218,6 +217,7 @@ def_op('UNARY_NEGATIVE_REG', OP, 'rr') ; OP += 1
 def_op('UNARY_NOT_REG', OP, 'rr') ; OP += 1
 def_op('UNARY_POSITIVE_REG', OP, 'rr') ; OP += 1
 def_op('BUILD_TUPLE_REG', OP, 'rrr') ; OP += 1
+def_op('BUILD_MAP_REG', OP, 'rrr') ; OP += 1
 def_op('BUILD_LIST_REG', OP, 'rrr') ; OP += 1
 def_op('LIST_EXTEND_REG', OP, 'rrr') ; OP += 1
 def_op('CALL_FUNCTION_REG', OP, 'rrN') ; OP += 1
