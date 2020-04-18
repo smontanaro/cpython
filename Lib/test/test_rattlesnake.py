@@ -465,6 +465,20 @@ def _while3():
     while True:
         pass
 
+# TO DO:
+
+def _build_slice(*args):
+    keys = args[::2]
+    vals = args[1::2]
+    dct = dict(zip(keys, vals))
+    return dct
+
+def _build_dict(a, b):
+    return {a: b}
+
+def _build_empty_dict():
+    return {}
+
 _A_GLOBAL = 42
 def _long_block(s, b):
     if s > b:
