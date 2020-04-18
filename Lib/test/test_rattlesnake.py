@@ -6,6 +6,7 @@ import unittest
 from rattlesnake.converter import InstructionSetConverter
 from rattlesnake import instructions, opcodes, util
 
+_A_GLOBAL = 42
 
 class InstructionTest(unittest.TestCase):
     def test_nop(self):
@@ -21,13 +22,15 @@ class InstructionTest(unittest.TestCase):
         self.assertEqual(load.opargs, (1, 3))
 
     def test_blocks(self):
-        pyvm_code = _add.__code__
+        def add(a, b):
+            return a + b
+        pyvm_code = add.__code__
         isc = InstructionSetConverter(pyvm_code)
         isc.gen_rvm()
         self.assertEqual(len(isc.blocks["PyVM"]), 1)
         self.assertEqual(isc.blocks["PyVM"][0].codelen(), 8)
         self.assertEqual(len(isc.blocks["RVM"]), 1)
-        self.assertEqual(_get_opcodes(isc.blocks["RVM"]),
+        self.assertEqual(get_opcodes(isc.blocks["RVM"]),
                          [
                              [136, 136, 119, 133],
                          ])
@@ -36,13 +39,15 @@ class InstructionTest(unittest.TestCase):
         isc.backward_propagate_fast_stores()
         isc.delete_nops()
         self.assertEqual(isc.blocks["RVM"][0].codelen(), 8)
-        self.assertEqual(_get_opcodes(isc.blocks["RVM"]),
+        self.assertEqual(get_opcodes(isc.blocks["RVM"]),
                          [
                              [119, 133],
                          ])
 
     def test_callfunc(self):
-        (pyvm, rvm) = self.function_helper(_callfunc)
+        def callfunc():
+            return [bin(2796202), list(enumerate("1234", 2))]
+        (pyvm, rvm) = self.function_helper(callfunc)
         self.assertEqual(pyvm(), rvm())
 
     def test_callfunc_kw(self):
@@ -54,26 +59,36 @@ class InstructionTest(unittest.TestCase):
         self.assertEqual(pyvm(13.0), rvm(13.0))
 
     def test_product(self):
-        (pyvm, rvm) = self.function_helper(_product)
+        def product(a, b):
+            return a * b
+        (pyvm, rvm) = self.function_helper(product)
         self.assertEqual(pyvm(1, 5), rvm(1, 5))
         self.assertEqual(pyvm(5, 1), rvm(5, 1))
 
     def test_true_divide(self):
-        (pyvm, rvm) = self.function_helper(_true_divide)
+        def true_divide(a, b):
+            return a / b
+        (pyvm, rvm) = self.function_helper(true_divide)
         self.assertEqual(pyvm(1, 5), rvm(1, 5))
         self.assertEqual(pyvm(5, 1), rvm(5, 1))
 
     def test_floor_divide(self):
-        (pyvm, rvm) = self.function_helper(_floor_divide)
+        def floor_divide(a, b):
+            return a // b
+        (pyvm, rvm) = self.function_helper(floor_divide)
         self.assertEqual(pyvm(1, 5), rvm(1, 5))
         self.assertEqual(pyvm(5, 1), rvm(5, 1))
 
     def test_subtract(self):
-        (pyvm, rvm) = self.function_helper(_subtract)
+        def subtract(a, b):
+            return a - b
+        (pyvm, rvm) = self.function_helper(subtract)
         self.assertEqual(pyvm(5, 9.0), rvm(5, 9.0))
 
     def test_subscript(self):
-        (pyvm, rvm) = self.function_helper(_subscript)
+        def subscript(container, index):
+            return container[index]
+        (pyvm, rvm) = self.function_helper(subscript)
         for (container, index) in (
                 (dict(zip("abcdefghij", range(10))), "h"),
                 (dict(zip(range(10), "abcdefghij")), 4),
@@ -83,141 +98,230 @@ class InstructionTest(unittest.TestCase):
                              rvm(container, index))
 
     def test_while1(self):
-        (pyvm, rvm) = self.function_helper(_while1)
+        def while1():
+            while True:
+                break
+        (pyvm, rvm) = self.function_helper(while1)
         self.assertEqual(pyvm(), rvm())
 
     def test_while2(self):
-        (pyvm, rvm) = self.function_helper(_while2)
+        def while2(a):
+            while a >= 0:
+                a -= 1
+            return a
+        (pyvm, rvm) = self.function_helper(while2)
         self.assertEqual(pyvm(12.1), rvm(12.1))
 
     def test_while3(self):
+        def while3():
+            while True:
+                pass
         # see bpo40315. Just translating successfully is a win here.
-        (pyvm, rvm) = self.function_helper(_while3)
+        (pyvm, rvm) = self.function_helper(while3)
 
     def test_tuple(self):
-        (pyvm, rvm) = self.function_helper(_tuple)
+        def tuple_(a, b, c):
+            return (a, b, c)
+        (pyvm, rvm) = self.function_helper(tuple_)
         self.assertEqual(pyvm(1, 2, 3), rvm(1, 2, 3))
-        (pyvm, rvm) = self.function_helper(_tuple2)
+
+    def test_tuple2(self):
+        def tuple2(a):
+            return (a, a+1, a+2, a+3)
+        (pyvm, rvm) = self.function_helper(tuple2)
         self.assertEqual(pyvm(42), rvm(42))
 
     def test_list(self):
-        (pyvm, rvm) = self.function_helper(_list)
+        def list_(x):
+            return ['a', x, 'c']
+        (pyvm, rvm) = self.function_helper(list_)
         self.assertEqual(pyvm(42), rvm(42))
 
     def test_list_extend(self):
-        (pyvm, rvm) = self.function_helper(_listextend)
+        def listextend():
+            return [1, 2, 3]
+        (pyvm, rvm) = self.function_helper(listextend)
         self.assertEqual(pyvm(), rvm())
 
     def test_power(self):
-        (pyvm, rvm) = self.function_helper(_power)
+        def power(base, exp):
+            return base ** exp
+        (pyvm, rvm) = self.function_helper(power)
         self.assertEqual(pyvm(5.0, 7), rvm(5.0, 7))
 
     def test_inplace_add(self):
-        (pyvm, rvm) = self.function_helper(_inplace_add)
+        def inplace_add(a, b):
+            a += b
+            return a
+        (pyvm, rvm) = self.function_helper(inplace_add)
         self.assertEqual(pyvm(5, 9), rvm(5, 9))
 
     def test_inplace_and(self):
-        (pyvm, rvm) = self.function_helper(_inplace_and)
+        def inplace_and(a, b):
+            a &= b
+            return a
+        (pyvm, rvm) = self.function_helper(inplace_and)
         self.assertEqual(pyvm(5, 99), rvm(5, 99))
 
     def test_inplace_floor_divide(self):
-        (pyvm, rvm) = self.function_helper(_inplace_floor_divide)
+        def inplace_floor_divide(a, b):
+            a //= b
+            return a
+        (pyvm, rvm) = self.function_helper(inplace_floor_divide)
         self.assertEqual(pyvm(5, 9), rvm(5, 9))
         self.assertEqual(pyvm(9, 5), rvm(9, 5))
 
     def test_inplace_lshift(self):
-        (pyvm, rvm) = self.function_helper(_inplace_lshift)
+        def inplace_lshift(a, b):
+            a <<= b
+            return a
+        (pyvm, rvm) = self.function_helper(inplace_lshift)
         self.assertEqual(pyvm(5, 9), rvm(5, 9))
 
     def test_inplace_mod(self):
-        (pyvm, rvm) = self.function_helper(_inplace_mod)
+        def inplace_mod(a, b):
+            a %= b
+            return a
+        (pyvm, rvm) = self.function_helper(inplace_mod)
         self.assertEqual(pyvm(15, 9), rvm(15, 9))
 
     def test_inplace_mul(self):
-        (pyvm, rvm) = self.function_helper(_inplace_mul)
+        def inplace_mul(a, b):
+            a *= b
+            return a
+        (pyvm, rvm) = self.function_helper(inplace_mul)
         self.assertEqual(pyvm(5, 9), rvm(5, 9))
 
     def test_inplace_or(self):
-        (pyvm, rvm) = self.function_helper(_inplace_or)
+        def inplace_or(a, b):
+            a |= b
+            return a
+        (pyvm, rvm) = self.function_helper(inplace_or)
         self.assertEqual(pyvm(5, 9), rvm(5, 9))
 
     def test_inplace_pow(self):
-        (pyvm, rvm) = self.function_helper(_inplace_pow)
+        def inplace_pow(a, b):
+            a **= b
+            return a
+        (pyvm, rvm) = self.function_helper(inplace_pow)
         self.assertEqual(pyvm(5, 9.1), rvm(5, 9.1))
 
     def test_inplace_rshift(self):
-        (pyvm, rvm) = self.function_helper(_inplace_rshift)
+        def inplace_rshift(a, b):
+            a >>= b
+            return a
+        (pyvm, rvm) = self.function_helper(inplace_rshift)
         self.assertEqual(pyvm(5 ** 9, 4), rvm(5 ** 9, 4))
 
     def test_inplace_subtract(self):
-        (pyvm, rvm) = self.function_helper(_inplace_subtract)
+        def inplace_subtract(a, b):
+            a -= b
+            return a
+        (pyvm, rvm) = self.function_helper(inplace_subtract)
         self.assertEqual(pyvm(5, 9), rvm(5, 9))
 
     def test_inplace_true_divide(self):
-        (pyvm, rvm) = self.function_helper(_inplace_true_divide)
+        def inplace_true_divide(a, b):
+            a /= b
+            return a
+        (pyvm, rvm) = self.function_helper(inplace_true_divide)
         self.assertEqual(pyvm(5, 9), rvm(5, 9))
         self.assertEqual(pyvm(9.0, 4), rvm(9.0, 4))
 
     def test_inplace_xor(self):
-        (pyvm, rvm) = self.function_helper(_inplace_xor)
+        def inplace_xor(a, b):
+            a ^= b
+            return a
+        (pyvm, rvm) = self.function_helper(inplace_xor)
         self.assertEqual(pyvm(5, 9), rvm(5, 9))
 
     def test_add(self):
-        (pyvm, rvm) = self.function_helper(_add)
+        def add(a, b):
+            return a + b
+        (pyvm, rvm) = self.function_helper(add)
         self.assertEqual(pyvm(5, 70), rvm(5, 70))
         self.assertEqual(pyvm("xyz", "abc"), rvm("xyz", "abc"))
 
     def test_and(self):
-        (pyvm, rvm) = self.function_helper(_and)
+        def and_(a, b):
+            return a & b
+        (pyvm, rvm) = self.function_helper(and_)
         self.assertEqual(pyvm(5, 70), rvm(5, 70))
 
     def test_xor(self):
-        (pyvm, rvm) = self.function_helper(_xor)
+        def xor(a, b):
+            return a ^ b
+        (pyvm, rvm) = self.function_helper(xor)
         self.assertEqual(pyvm(5, 70), rvm(5, 70))
 
     def test_or(self):
-        (pyvm, rvm) = self.function_helper(_or)
+        def or_(a, b):
+            return a | b
+        (pyvm, rvm) = self.function_helper(or_)
         self.assertEqual(pyvm(5, 70), rvm(5, 70))
 
     def test_lshift(self):
-        (pyvm, rvm) = self.function_helper(_lshift)
+        def lshift(a, b):
+            return a << b
+        (pyvm, rvm) = self.function_helper(lshift)
         self.assertEqual(pyvm(70, 5), rvm(70, 5))
 
     def test_rshift(self):
-        (pyvm, rvm) = self.function_helper(_rshift)
+        def rshift(a, b):
+            return a >> b
+        (pyvm, rvm) = self.function_helper(rshift)
         self.assertEqual(pyvm(79999, 3), rvm(79999, 3))
 
     def test_modulo(self):
-        (pyvm, rvm) = self.function_helper(_modulo)
+        def modulo(a, b):
+            return a % b
+        (pyvm, rvm) = self.function_helper(modulo)
         self.assertEqual(pyvm(5, 2), rvm(5, 2))
         self.assertEqual(pyvm("%s", 47), rvm("%s", 47))
 
     def test_not(self):
-        (pyvm, rvm) = self.function_helper(_not)
+        def not_(val):
+            return not val
+        (pyvm, rvm) = self.function_helper(not_)
         for val in (5, None, ()):
             self.assertEqual(pyvm(val), rvm(val))
 
     def test_invert(self):
-        (pyvm, rvm) = self.function_helper(_invert)
+        def invert(val):
+            return ~val
+        (pyvm, rvm) = self.function_helper(invert)
         for val in (5, -99):
             self.assertEqual(pyvm(val), rvm(val))
 
     def test_positive(self):
-        (pyvm, rvm) = self.function_helper(_positive)
+        def positive(val):
+            return +val
+        (pyvm, rvm) = self.function_helper(positive)
         for val in (5, -99):
             self.assertEqual(pyvm(val), rvm(val))
 
     def test_negative(self):
-        (pyvm, rvm) = self.function_helper(_negative)
+        def negative(val):
+            return -val
+        (pyvm, rvm) = self.function_helper(negative)
         for val in (5, -99):
             self.assertEqual(pyvm(val), rvm(val))
 
     def test_simple_branch_function(self):
-        (pyvm, rvm) = self.function_helper(_branch_func)
+        def branch_func(a):
+            if a > 4:
+                return a
+            b = a + 4
+            return b
+        (pyvm, rvm) = self.function_helper(branch_func)
         self.assertEqual(pyvm(7), rvm(7))
 
     def test_jump_if_false(self):
-        (pyvm, rvm) = self.function_helper(_jump_if_false)
+        def jump_if_false(a):
+            if a:
+                return 42
+            return 41
+        (pyvm, rvm) = self.function_helper(jump_if_false)
         self.assertEqual(pyvm(7), rvm(7))
         self.assertEqual(pyvm(0), rvm(0))
         self.assertEqual(pyvm(()), rvm(()))
@@ -225,7 +329,11 @@ class InstructionTest(unittest.TestCase):
         self.assertEqual(pyvm(True), rvm(True))
 
     def test_jump_if_true(self):
-        (pyvm, rvm) = self.function_helper(_jump_if_true)
+        def jump_if_true(a):
+            if not a:
+                return 42
+            return 43
+        (pyvm, rvm) = self.function_helper(jump_if_true)
         self.assertEqual(pyvm(7), rvm(7))
         self.assertEqual(pyvm(0), rvm(0))
         self.assertEqual(pyvm(()), rvm(()))
@@ -233,8 +341,44 @@ class InstructionTest(unittest.TestCase):
         self.assertEqual(pyvm(True), rvm(True))
 
     def test_long_block_function(self):
+        def long_block(s, b):
+            if s > b:
+                s = b - 21
+                b = s * 44
+                s = b + 4
+                b = s - 21
+                s = b + False
+                b = s + 24
+                s = b - 21
+                b = s * 44
+                s = b + 4
+                b = s - 21
+                s = b + _A_GLOBAL
+                b = s + 24
+                s = b - True
+                b = s * 44
+                b = s - 21
+                s = b + _A_GLOBAL
+                b = s + 24
+                s = b - 21
+                b = s - 21
+                s = b + _A_GLOBAL
+                b = s + 24
+                s = b - 21
+                b = s + 24
+                s = b - 21
+                b = s - 21
+                s = b + _A_GLOBAL
+                b = s + 24
+                s = b - 21
+                b = s - 21
+                s = b + _A_GLOBAL
+                b = s + 24
+                s = b - 21
+                return s
+            return b - 1
         for prop in (True, False):
-            (pyvm, rvm) = self.function_helper(_long_block, propagate=prop)
+            (pyvm, rvm) = self.function_helper(long_block, propagate=prop)
             self.assertEqual(pyvm(7, 3), rvm(7, 3))
             self.assertEqual(pyvm(3, 7), rvm(3, 7))
 
@@ -248,15 +392,15 @@ class InstructionTest(unittest.TestCase):
         self.assertEqual(util.encode_oparg(()), 0)
 
     def test_util_LineNumberDict(self):
-        lno_dict = util.LineNumberDict(_get_opcodes.__code__)
-        first_lineno = _get_opcodes.__code__.co_firstlineno
+        lno_dict = util.LineNumberDict(get_opcodes.__code__)
+        first_lineno = get_opcodes.__code__.co_firstlineno
         self.assertEqual(lno_dict[26], 4 + first_lineno)
         self.assertEqual(lno_dict[0], 1 + first_lineno)
         self.assertEqual(lno_dict[80], 6 + first_lineno)
         with self.assertRaises(KeyError):
             _x = lno_dict[-10]
 
-        lno_dict = util.LineNumberDict(_get_opcodes.__code__, maxkey=75)
+        lno_dict = util.LineNumberDict(get_opcodes.__code__, maxkey=75)
         with self.assertRaises(KeyError):
             _x = lno_dict[80]
 
@@ -290,161 +434,12 @@ class InstructionTest(unittest.TestCase):
             dis.dis(rvm)
         return (pyvm, rvm)
 
-def _branch_func(a):
-    if a > 4:
-        return a
-    b = a + 4
-    return b
-
-def _tuple(a, b, c):
-    return (a, b, c)
-
-def _tuple2(a):
-    return (a, a+1, a+2, a+3)
-
-def _list(x):
-    return ['a', x, 'c']
-
-def _listextend():
-    return [1, 2, 3]
-
-def _not(val):
-    return not val
-
-def _negative(val):
-    return -val
-
-def _positive(val):
-    return +val
-
-def _invert(val):
-    return ~val
-
-def _true_divide(a, b):
-    return a / b
-
-def _floor_divide(a, b):
-    return a // b
-
-def _product(a, b):
-    return a * b
-
-def _power(base, exp):
-    return base ** exp
-
-def _modulo(a, b):
-    return a % b
-
-def _add(a, b):
-    return a + b
-
-def _subtract(a, b):
-    return a - b
-
-def _lshift(a, b):
-    return a << b
-
-def _rshift(a, b):
-    return a >> b
-
-def _and(a, b):
-    return a & b
-
-def _or(a, b):
-    return a | b
-
-def _xor(a, b):
-    return a ^ b
-
-def _inplace_add(a, b):
-    a += b
-    return a
-
-def _inplace_and(a, b):
-    a &= b
-    return a
-
-def _inplace_floor_divide(a, b):
-    a //= b
-    return a
-
-def _inplace_lshift(a, b):
-    a <<= b
-    return a
-
-def _inplace_matmul(a, b):
-    a @= b
-    return a
-
-def _inplace_mod(a, b):
-    a %= b
-    return a
-
-def _inplace_mul(a, b):
-    a *= b
-    return a
-
-def _inplace_or(a, b):
-    a |= b
-    return a
-
-def _inplace_pow(a, b):
-    a **= b
-    return a
-
-def _inplace_rshift(a, b):
-    a >>= b
-    return a
-
-def _inplace_subtract(a, b):
-    a -= b
-    return a
-
-def _inplace_true_divide(a, b):
-    a /= b
-    return a
-
-def _inplace_xor(a, b):
-    a ^= b
-    return a
-
-def _subscript(container, index):
-    return container[index]
-
-def _get_opcodes(blocks):
-    ops = []
-    for block in blocks:
-        ops.append([])
-        for inst in block:
-            ops[-1].append(inst.opcode)
-    return ops
-
-def _get_opnames(blocks):
-    names = []
-    for block in blocks:
-        names.append([])
-        for inst in block:
-            names[-1].append(opcodes.ISET.opname[inst.opcode])
-    return names
-
-def _jump_if_true(a):
-    if not a:
-        return 42
-    return 42
-
-def _jump_if_false(a):
-    if a:
-        return 42
-    return 42
-
+# Still required to be at top level for now...
 def _test_cf(a, b, c):
     return a + b + c
 
 def _callfunc_protected_reg(a):
     return _test_cf(a, a ** 2, a / 7)
-
-def _callfunc():
-    return [bin(2796202), list(enumerate("1234", 2))]
 
 def _kw_func(a, b=None):
     return (a, b)
@@ -452,20 +447,11 @@ def _kw_func(a, b=None):
 def _callfunc_kw():
     return _kw_func(14, b="hello world")
 
-def _while1():
-    while True:
-        break
+# STILL TO DO:
 
-def _while2(a):
-    while a >= 0:
-        a -= 1
+def _inplace_matmul(a, b):
+    a @= b
     return a
-
-def _while3():
-    while True:
-        pass
-
-# TO DO:
 
 def _build_slice(*args):
     keys = args[::2]
@@ -479,43 +465,15 @@ def _build_dict(a, b):
 def _build_empty_dict():
     return {}
 
-_A_GLOBAL = 42
-def _long_block(s, b):
-    if s > b:
-        s = b - 21
-        b = s * 44
-        s = b + 4
-        b = s - 21
-        s = b + False
-        b = s + 24
-        s = b - 21
-        b = s * 44
-        s = b + 4
-        b = s - 21
-        s = b + _A_GLOBAL
-        b = s + 24
-        s = b - True
-        b = s * 44
-        b = s - 21
-        s = b + _A_GLOBAL
-        b = s + 24
-        s = b - 21
-        b = s - 21
-        s = b + _A_GLOBAL
-        b = s + 24
-        s = b - 21
-        b = s + 24
-        s = b - 21
-        b = s - 21
-        s = b + _A_GLOBAL
-        b = s + 24
-        s = b - 21
-        b = s - 21
-        s = b + _A_GLOBAL
-        b = s + 24
-        s = b - 21
-        return s
-    return b - 1
+# HELPERS:
+
+def get_opcodes(blocks):
+    ops = []
+    for block in blocks:
+        ops.append([])
+        for inst in block:
+            ops[-1].append(inst.opcode)
+    return ops
 
 def rvm_replace_code(func, pyvm_code, isc):
     "Modify func using PyVM bits from pyvm_code & RVM bits from."
