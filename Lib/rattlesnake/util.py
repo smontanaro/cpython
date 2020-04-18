@@ -86,6 +86,3 @@ class LineNumberDict:
             if val is not None:
                 return val
             key -= 1
-
-    def __getattr__(self, attr):
-        return getattr(self.src_dict, attr)
