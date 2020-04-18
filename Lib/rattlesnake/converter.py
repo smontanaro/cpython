@@ -542,7 +542,7 @@ class InstructionSetConverter(OptimizeFilter):
             nargs = oparg
             nreg = self.top() - 1
             dest = self.top() - nargs - 2
-            print(nargs, nreg, dest)
+            #print(nargs, nreg, dest)
             for _ in range(nargs + 1):
                 _x = self.pop()
             return CallInstructionKW(opcodes.ISET.opmap['CALL_FUNCTION_KW_REG'],
