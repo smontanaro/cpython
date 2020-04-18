@@ -90,6 +90,10 @@ class InstructionTest(unittest.TestCase):
         (pyvm, rvm) = self.function_helper(_while2)
         self.assertEqual(pyvm(12.1), rvm(12.1))
 
+    def test_while3(self):
+        # see bpo40315. Just translating successfully is a win here.
+        (pyvm, rvm) = self.function_helper(_while3)
+
     def test_tuple(self):
         (pyvm, rvm) = self.function_helper(_tuple)
         self.assertEqual(pyvm(1, 2, 3), rvm(1, 2, 3))
@@ -456,6 +460,10 @@ def _while2(a):
     while a >= 0:
         a -= 1
     return a
+
+def _while3():
+    while True:
+        pass
 
 _A_GLOBAL = 42
 def _long_block(s, b):

@@ -137,10 +137,12 @@ class InstructionSetConverter(OptimizeFilter):
         # the space allocated for the stack form a single register
         # file.
         self.stacklevel = self.nlocals
-        self.max_stacklevel = self.stacklevel + self.stacksize
-        #print(">> nlocals:", self.nlocals)
-        #print(">> stacksize:", self.stacksize)
-        #print(">> starting stacklevel:", self.stacklevel)
+        self.max_stacklevel = self.nlocals + self.stacksize
+
+        # print(">> nlocals:", self.nlocals)
+        # print(">> stacksize:", self.stacksize)
+        # print(">> starting stacklevel:", self.stacklevel)
+        # print(">> max stacklevel:", self.max_stacklevel)
         assert self.max_stacklevel <= 127, "locals+stack are too big!"
 
     def set_block_stacklevel(self, target, level):
@@ -154,28 +156,47 @@ class InstructionSetConverter(OptimizeFilter):
         """increment and return next writable slot on the stack"""
         self.stacklevel += 1
         #print(">> push:", self.stacklevel)
-        assert self.stacklevel <= self.nlocals + self.stacksize, (
-            f"Overran the allocated stack/register space!"
-            f" {self.stacklevel} > {self.nlocals + self.stacksize}"
-        )
+        # This gets a bit tricky.  In response to an issue I opened,
+        # bpo40315, Serhiy Storchaka wrote:
+
+        # > [U]nreachable code is left because some code (in
+        # > particularly the lineno setter of the frame object)
+        # > depends on instructions which may be in the unreachable
+        # > code to determine the boundaries of programming blocks. It
+        # > is safer to keep some unreachable code.
+
+        # > You can just ignore the code which uses the stack past
+        # > co_stacksize.
+
+        # So, I think we can raise a special exception (AssertionError
+        # seems a bit general) here, and in those convert functions
+        # where the stack only grows (mostly LOADs, but eventually
+        # IMPORTs as well), we can catch and ignore it.
+        if self.stacklevel > self.max_stacklevel:
+            raise StackSizeException(
+                f"Overran the allocated stack/register space!"
+                f" {self.stacklevel} > {self.max_stacklevel}"
+            )
         return self.stacklevel - 1
 
     def pop(self):
         """return top readable slot on the stack and decrement"""
         self.stacklevel -= 1
         #print(">> pop:", self.stacklevel)
-        assert self.stacklevel >= self.nlocals, (
-            f"Stack slammed into locals!"
-            f" {self.stacklevel} < {self.nlocals}"
-        )
+        if self.stacklevel < self.nlocals:
+            raise StackSizeException(
+                f"Stack slammed into locals!"
+                f" {self.stacklevel} < {self.nlocals}"
+            )
         return self.stacklevel
 
     def peek(self, n):
         """return n'th readable slot in the stack without decrement."""
-        assert self.stacklevel - n >= self.nlocals, (
-            f"Peek read past bottom of locals!"
-            f" {self.stacklevel - n} < {self.nlocals}"
-        )
+        if self.stacklevel - n < self.nlocals:
+            raise StackSizeException(
+                f"Peek read past bottom of locals!"
+                f" {self.stacklevel - n} < {self.nlocals}"
+            )
         return self.stacklevel - n
 
     def top(self):
@@ -585,7 +606,11 @@ class InstructionSetConverter(OptimizeFilter):
         op = instr.opcode
         oparg = instr.opargs[0] # All PyVM opcodes have a single oparg
         src = oparg         # offset into localsplus
-        dst = self.push()
+        try:
+            dst = self.push()
+        except StackSizeException:
+            # unreachable code - stop translating
+            return None
         opname = f"{opcodes.ISET.opname[op]}_REG"
 
         if op == opcodes.ISET.opmap['LOAD_FAST']:
@@ -761,3 +786,9 @@ class InstructionSetConverter(OptimizeFilter):
                     last_address = address
                 address += len(instr)
         return bytes(lnotab)
+
+class StackSizeException(Exception):
+    """Raised when the stack would grow too small or too large.
+
+    See bpo40315.
+    """

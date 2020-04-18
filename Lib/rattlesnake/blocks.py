@@ -84,6 +84,10 @@ class Block:
                 print(f"No map for {pyvm_inst.opcode} ({pyvm_inst.name})")
                 raise
             rvm_inst = convert(self.parent, pyvm_inst, rvm_block)
+            if rvm_inst is None:
+                # Attempt to translate unreachable code beyond
+                # co_stacksize.  We are done with this block.
+                break
             rvm_inst.line_number = pyvm_inst.line_number
             rvm_block.append(rvm_inst)
 
