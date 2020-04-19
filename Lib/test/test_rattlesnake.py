@@ -209,7 +209,10 @@ class InstructionTest(unittest.TestCase):
 
     def test_long_block_function(self):
         def long_block(s, b):
+            global _A_GLOBAL
+            _A_GLOBAL = 42
             if s > b:
+                _A_GLOBAL += 1
                 s = b - 21
                 b = s * 44
                 s = b + 4
@@ -243,6 +246,7 @@ class InstructionTest(unittest.TestCase):
                 b = s + 24
                 s = b - 21
                 return s
+            _A_GLOBAL -= 1
             return b - 1
         for prop in (True, False):
             (pyvm, rvm) = self.function_helper(long_block, propagate=prop)

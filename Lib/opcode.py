@@ -272,6 +272,8 @@ hasregds.append(op)
 def_op('LOAD_FAST_REG', op) ; op += 1
 hasregds.append(op)
 def_op('STORE_FAST_REG', op) ; op += 1
+hasregdn.append(op)
+def_op('STORE_GLOBAL_REG', op) ; op += 1
 hascompare.append(op)
 def_op('COMPARE_OP_REG', op) ; op += 1
 hasregjc.append(op)

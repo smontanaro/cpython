@@ -209,6 +209,7 @@ def_op('LOAD_CONST_REG', OP, 'rc0') ; OP += 1
 def_op('LOAD_GLOBAL_REG', OP, 'nr0') ; OP += 1
 def_op('LOAD_FAST_REG', OP, 'rr0') ; OP += 1
 def_op('STORE_FAST_REG', OP, 'rr0') ; OP += 1
+def_op('STORE_GLOBAL_REG', OP, 'rr0') ; OP += 1
 def_op('COMPARE_OP_REG', OP, '<rr') ; OP += 1
 def_op('JUMP_IF_FALSE_REG', OP, 'A') ; OP += 1
 def_op('JUMP_IF_TRUE_REG', OP, 'A') ; OP += 1

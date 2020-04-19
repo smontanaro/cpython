@@ -4014,6 +4014,18 @@ main_loop:
             DISPATCH();
         }
 
+        case TARGET(STORE_GLOBAL_REG): {
+            int dst = REGARG2(oparg);
+            int src = REGARG1(oparg);
+            PyObject *name = GETITEM(names, dst);
+            PyObject *v = GETLOCAL(src);
+            int err;
+            err = PyDict_SetItem(f->f_globals, name, v);
+            if (err != 0)
+                goto error;
+            DISPATCH();
+        }
+
         case TARGET(COMPARE_OP_REG): {
             int dst = REGARG4(oparg);
             int src1 = REGARG3(oparg);

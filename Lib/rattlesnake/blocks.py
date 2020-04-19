@@ -50,8 +50,8 @@ class Block:
     def set_stacklevel(self, level):
         if self.stacklevel != -1:
             if self.stacklevel == level:
-                print("Warning: Setting stacklevel to", level, end=' ')
-                print("multiple times.")
+                print("Warning: Setting stacklevel to", level,
+                      "multiple times.")
             else:
                 raise ValueError(f"Already set stacklevel to {self.stacklevel} "
                                  f"for this block ({level})")
