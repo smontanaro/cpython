@@ -308,6 +308,148 @@ As of April 18, 2020:
   - Based on current testing, using -R with the run_test.py script,
     reference counting seems to work.
 
+
+Implementing More Instructions
+''''''''''''''''''''''''''''''
+
+Initially, most instructions could be revealed in isolation with a
+simple function, making it fairly easy to implement and test the
+translations.  Plenty of instructions remain which can be implemented
+in isolation, most of which should have straightforward
+implementations.  For example (not exhaustive)::
+
+BUILD_SET
+BUILD_SLICE
+BUILD_STRING
+CALL_METHOD
+CONTAINS_OP
+DELETE_ATTR
+DELETE_GLOBAL
+DELETE_SUBSCR
+FORMAT_VALUE
+IMPORT_FROM
+IMPORT_NAME
+LOAD_ATTR
+LOAD_DEREF
+LOAD_METHOD
+STORE_SUBSCR
+YIELD_VALUE
+
+Some instructions (DUP_TOP, ROT_*, POP_TOP, etc) may not require
+translation at all, and just require a little bit of extra
+bookkeeping.
+
+Still, as more complex control flow constructs are tackled, larger
+groups of as-yet-translated instructions must be implemented.  It
+would be worthwhile to try and translate as many of the necessary
+instructions in more-or-less isolation to reduce the number of
+translations correct before any testing can proceed.  Here are some
+example functions and the instructions they use which have not yet
+been translated.
+
+This function::
+
+def f(a):
+  try:
+    return 17.1 / a
+  except ZeroDivisionError:
+    print("a is zero!")
+    raise
+
+requires::
+
+DUP_TOP
+JUMP_IF_NOT_EXC_MATCH
+POP_BLOCK
+POP_EXCEPT
+POP_TOP
+RAISE_VARARGS
+RERAISE
+SETUP_FINALLY
+
+This function::
+
+def f(a):
+  for i in range(a):
+    yield i
+
+requires::
+
+FOR_ITER
+GET_ITER
+POP_TOP
+YIELD_VALUE
+
+Async functions are especially complex.  This function::
+
+async def f():
+    print('hello')
+    await asyncio.sleep(1)
+    print('world')
+
+requires::
+
+CALL_METHOD
+GET_AWAITABLE
+LOAD_METHOD
+POP_TOP
+YIELD_FROM
+
+This function::
+
+async def f(a):
+  async for i in range(a):
+    pass
+
+requires::
+
+GET_AITER
+SETUP_FINALLY
+GET_ANEXT
+YIELD_FROM
+POP_BLOCK
+END_ASYNC_FOR
+
+This function::
+
+async def f(fn):
+  async with open(fn) as fp:
+    return fp.read(1)
+
+requires::
+
+BEFORE_ASYNC_WITH
+CALL_METHOD
+DUP_TOP
+GET_AWAITABLE
+LOAD_METHOD
+POP_BLOCK
+POP_EXCEPT
+POP_TOP
+RERAISE
+ROT_TWO
+SETUP_ASYNC_WITH
+WITH_EXCEPT_START
+YIELD_FROM
+
+This function::
+
+def f(fn):
+  with open(fn) as fp:
+    print(fp.read(1))
+
+requires::
+
+CALL_METHOD
+DUP_TOP
+POP_BLOCK
+POP_EXCEPT
+POP_TOP
+RERAISE
+SETUP_WITH
+WITH_EXCEPT_START
+
+
 Rejected Ideas
 ==============
 
