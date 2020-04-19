@@ -1,10 +1,11 @@
 "RVM tests"
 
 import dis
+import opcode
 import unittest
 
 from rattlesnake.converter import InstructionSetConverter
-from rattlesnake import instructions, opcodes, util
+from rattlesnake import instructions, util
 
 _A_GLOBAL = 42
 
@@ -274,7 +275,7 @@ class InstructionTest(unittest.TestCase):
             self.assertEqual(pyvm(val), rvm(val))
 
     def test_nop(self):
-        nop = instructions.NOPInstruction(opcodes.ISET.opmap['NOP'], 0)
+        nop = instructions.NOPInstruction(opcode.opmap['NOP'], 0)
         self.assertEqual(nop.opargs, (0,))
 
     def test_not(self):
@@ -326,7 +327,7 @@ class InstructionTest(unittest.TestCase):
         self.assertEqual(pyvm(7), rvm(7))
 
     def test_src_dst(self):
-        lfr = opcodes.ISET.opmap['LOAD_FAST_REG']
+        lfr = opcode.opmap['LOAD_FAST_REG']
         load = instructions.LoadFastInstruction(lfr, 0, dest=1, source1=2)
         self.assertEqual(load.source1, 2)
         self.assertEqual(load.dest, 1)

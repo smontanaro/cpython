@@ -2,7 +2,6 @@
 
 import opcode
 
-from rattlesnake import opcodes
 from rattlesnake.blocks import Block
 from rattlesnake.instructions import *
 from rattlesnake.util import enumerate_reversed, LineNumberDict
