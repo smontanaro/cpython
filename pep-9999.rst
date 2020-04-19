@@ -284,12 +284,12 @@ writing (March 2020) it remains quite incomplete.
 Current Status
 --------------
 
-As of April 15, 2020:
+As of April 18, 2020:
 
-- Implemented 44 instructions - BINARY_*_REG, INPLACE_*_REG,
+- Implemented 45 instructions - BINARY_*_REG, INPLACE_*_REG,
   UNARY_*_REG, RETURN_VALUE_REG, LOAD_*_REG, STORE_FAST_REG,
   COMPARE_OP_REG, JUMP_IF_(TRUE|FALSE)_REG, CALL_FUNCTION_REG,
-  CALL_FUNCTION_KW_REG, BUILD_(TUPLE|LIST)_REG, LIST_EXTEND_REG.
+  CALL_FUNCTION_KW_REG, BUILD_*_REG, LIST_EXTEND_REG.
 
 - Implemented translator parts
 
