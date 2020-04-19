@@ -10,7 +10,8 @@ will depend on their enclosing block's address.
 
 """
 
-from rattlesnake import opcodes
+import opcode
+
 from rattlesnake.util import decode_oparg
 
 class Instruction:
@@ -21,7 +22,7 @@ class Instruction:
 
     """
 
-    EXT_ARG_OPCODE = opcodes.ISET.opmap["EXTENDED_ARG"]
+    EXT_ARG_OPCODE = opcode.opmap["EXTENDED_ARG"]
 
     def __init__(self, opcode, block, **kwargs):
         self.opcode = opcode
@@ -35,7 +36,7 @@ class Instruction:
     @property
     def name(self):
         "Human-readable name for the opcode."
-        return opcodes.ISET.opname[self.opcode]
+        return opcode.opname[self.opcode]
 
     @property
     def opargs(self):
@@ -58,11 +59,11 @@ class Instruction:
 
     def is_abs_jump(self):
         "True if opcode is an absolute jump."
-        return self.opcode in opcodes.ISET.abs_jumps
+        return self.opcode in opcode.hasjabs
 
     def is_rel_jump(self):
         "True if opcode is a relative jump."
-        return self.opcode in opcodes.ISET.rel_jumps
+        return self.opcode in opcode.hasjrel
 
     def is_jump(self):
         "True for any kind of jump."

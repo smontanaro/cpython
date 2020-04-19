@@ -1,6 +1,6 @@
 "Decorators for debugging"
 
-from rattlesnake import opcodes
+import opcode
 
 def debug_method(meth):
     "display input args and returned result."
@@ -29,13 +29,13 @@ def debug_convert(meth):
         old_stack = str(self.stacklevel)
         result = meth(*args, **kwds)
         new_stack = str(self.stacklevel)
-        oldop = opcodes.ISET.opname[args[1][0]]
+        oldop = opcode.opname[args[1][0]]
         oldarg = args[1][1]
         name = meth.__name__
         klass = args[0].__class__.__name__
         res = []
         for (opcode, oparg) in result:
-            res.append((opcodes.ISET.opname[opcode], oparg))
+            res.append((opcode.opname[opcode], oparg))
         print(f"! {klass}.{name}(({oldop}, {oldarg})) -> {res}"
               f" ({old_stack} -> {new_stack})")
         return result
