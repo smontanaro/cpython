@@ -286,10 +286,12 @@ Current Status
 
 As of April 18, 2020:
 
-- Implemented 46 instructions - BINARY_*_REG, INPLACE_*_REG,
-  UNARY_*_REG, RETURN_VALUE_REG, LOAD_*_REG, STORE_(GLOBAL|FAST)_REG,
-  COMPARE_OP_REG, JUMP_IF_(TRUE|FALSE)_REG, CALL_FUNCTION_REG,
-  CALL_FUNCTION_KW_REG, BUILD_*_REG, LIST_EXTEND_REG.
+- Implemented 46 instructions - all ``BINARY``, ``INPLACE`` and ,
+  ``UNARY`` instructions, ``RETURN_VALUE_REG``, most ``LOAD``
+  instructions, several ``STORE`` instructions, ``COMPARE_OP_REG``,
+  JUMP_IF_(TRUE|FALSE)_REG, ``CALL_FUNCTION_REG``,
+  ``CALL_FUNCTION_KW_REG``, most container-related ``BUILD``
+  instructions, ``LIST_EXTEND_REG``.
 
 - Implemented translator parts
 
@@ -298,10 +300,10 @@ As of April 18, 2020:
   - Mapping between the PyVM and RVM versions of the above
     instructions (much leftover from Rattlesnake, but not yet tested)
 
-  - Elimination of LOAD_FAST_REG and STORE_FAST_REG by forward
+  - Elimination of ``LOAD_FAST_REG`` and ``STORE_FAST_REG`` by forward
     propagation of the former and backward propagation of the latter
     when those registers are used explicitly.  When used implicitly
-    (CALL_FUNCTION, BUILD_LIST, etc) they are retained.
+    (``CALL_FUNCTION``, ``BUILD_LIST``, etc) they are retained.
 
   - Generation of wordcode from the RVM blocks.
 
@@ -318,26 +320,26 @@ translations.  Plenty of instructions remain which can be implemented
 in isolation, most of which should have straightforward
 implementations.  For example (not exhaustive)::
 
-BUILD_SET
-BUILD_SLICE
-BUILD_STRING
-CALL_METHOD
-CONTAINS_OP
-DELETE_ATTR
-DELETE_GLOBAL
-DELETE_SUBSCR
-FORMAT_VALUE
-IMPORT_FROM
-IMPORT_NAME
-LOAD_ATTR
-LOAD_DEREF
-LOAD_METHOD
-STORE_SUBSCR
-YIELD_VALUE
+    BUILD_SET
+    BUILD_SLICE
+    BUILD_STRING
+    CALL_METHOD
+    CONTAINS_OP
+    DELETE_ATTR
+    DELETE_GLOBAL
+    DELETE_SUBSCR
+    FORMAT_VALUE
+    IMPORT_FROM
+    IMPORT_NAME
+    LOAD_ATTR
+    LOAD_DEREF
+    LOAD_METHOD
+    STORE_SUBSCR
+    YIELD_VALUE
 
-Some instructions (DUP_TOP, ROT_*, POP_TOP, etc) may not require
-translation at all, and just require a little bit of extra
-bookkeeping.
+Some instructions (``DUP_TOP``, ``ROT`` instructions, ``POP_TOP``,
+etc) may not require translation at all, and just require a little bit
+of extra bookkeeping.
 
 Still, as more complex control flow constructs are tackled, larger
 groups of as-yet-translated instructions must be implemented.  It
@@ -349,105 +351,109 @@ been translated.
 
 This function::
 
-def f(a):
-  try:
-    return 17.1 / a
-  except ZeroDivisionError:
-    print("a is zero!")
-    raise
+    def f(a):
+      try:
+        return 17.1 / a
+      except ZeroDivisionError:
+        print("a is zero!")
+        raise
 
 requires::
 
-DUP_TOP
-JUMP_IF_NOT_EXC_MATCH
-POP_BLOCK
-POP_EXCEPT
-POP_TOP
-RAISE_VARARGS
-RERAISE
-SETUP_FINALLY
+    DUP_TOP
+    JUMP_IF_NOT_EXC_MATCH
+    POP_BLOCK
+    POP_EXCEPT
+    POP_TOP
+    RAISE_VARARGS
+    RERAISE
+    SETUP_FINALLY
 
 This function::
 
-def f(a):
-  for i in range(a):
-    yield i
+    def f(a):
+      for i in range(a):
+        yield i
 
 requires::
 
-FOR_ITER
-GET_ITER
-POP_TOP
-YIELD_VALUE
+    FOR_ITER
+    GET_ITER
+    POP_TOP
+    YIELD_VALUE
 
 Async functions are especially complex.  This function::
 
-async def f():
-    print('hello')
-    await asyncio.sleep(1)
-    print('world')
+    async def f():
+        print('hello')
+        await asyncio.sleep(1)
+        print('world')
 
 requires::
 
-CALL_METHOD
-GET_AWAITABLE
-LOAD_METHOD
-POP_TOP
-YIELD_FROM
+    CALL_METHOD
+    GET_AWAITABLE
+    LOAD_METHOD
+    POP_TOP
+    YIELD_FROM
 
 This function::
 
-async def f(a):
-  async for i in range(a):
-    pass
+    async def f(a):
+      async for i in range(a):
+        pass
 
 requires::
 
-GET_AITER
-SETUP_FINALLY
-GET_ANEXT
-YIELD_FROM
-POP_BLOCK
-END_ASYNC_FOR
+    GET_AITER
+    SETUP_FINALLY
+    GET_ANEXT
+    YIELD_FROM
+    POP_BLOCK
+    END_ASYNC_FOR
 
 This function::
 
-async def f(fn):
-  async with open(fn) as fp:
-    return fp.read(1)
+    async def f(fn):
+      async with open(fn) as fp:
+        return fp.read(1)
 
 requires::
 
-BEFORE_ASYNC_WITH
-CALL_METHOD
-DUP_TOP
-GET_AWAITABLE
-LOAD_METHOD
-POP_BLOCK
-POP_EXCEPT
-POP_TOP
-RERAISE
-ROT_TWO
-SETUP_ASYNC_WITH
-WITH_EXCEPT_START
-YIELD_FROM
+    BEFORE_ASYNC_WITH
+    CALL_METHOD
+    DUP_TOP
+    GET_AWAITABLE
+    LOAD_METHOD
+    POP_BLOCK
+    POP_EXCEPT
+    POP_TOP
+    RERAISE
+    ROT_TWO
+    SETUP_ASYNC_WITH
+    WITH_EXCEPT_START
+    YIELD_FROM
 
 This function::
 
-def f(fn):
-  with open(fn) as fp:
-    print(fp.read(1))
+    def f(fn):
+      with open(fn) as fp:
+        print(fp.read(1))
 
 requires::
 
-CALL_METHOD
-DUP_TOP
-POP_BLOCK
-POP_EXCEPT
-POP_TOP
-RERAISE
-SETUP_WITH
-WITH_EXCEPT_START
+    CALL_METHOD
+    DUP_TOP
+    POP_BLOCK
+    POP_EXCEPT
+    POP_TOP
+    RERAISE
+    SETUP_WITH
+    WITH_EXCEPT_START
+
+To simplify implementation of these more complex translations, picking
+off as many of the unimplemented simpler translations first would be
+worthwhile.
 
 
 Rejected Ideas
@@ -464,19 +470,11 @@ stone.
 Open Issues
 ===========
 
-A large number of issues remain unresolved.  A crude estimate (easy,
-medium, hard) is given.
+A large number of issues remain unresolved.  See the `issue
+tracker <https://github.com/smontanaro/cpython/issues>`_ for a number
+of open issues not included here.
 
 - This proto-PEP - It is still quite incomplete.
-
-- Proper register allocation - See [#issue1]_ (hard)
-
-- Support code in modules and classes - See [#issue2]_ (easy)
-
-- Proper AST-based implementation - See [#issue3]_ (hard - but perhaps
-  not for someone with experience with the existing compiler)
-
-- Complete instruction implementation - See [#issue4]_ (easy to medium)
 
 - Wordcode - To simplify the work, wordcode was retained.  This works,
   but relies heavily on the ``EXTENDED_ARG`` instruction to provide
@@ -486,11 +484,6 @@ medium, hard) is given.
   them.  It would be worth considering if a 32-bit instruction size
   for RVM makes more sense, both as a performance improvement and to
   reduce the size of the generated code.  (medium)
-
-- LOAD_GLOBAL_REG opcache - Haven't yet figured out how to exercise
-  the opcache code in this instruction.  (easy?)
-
-- Unify Lib/opcode.py and Lib/rattlesnake/opcodes.py.  (easy)
 
 - Implement opcode prediction/fast dispatch.  Without that, you can't
   make apples-to-apples performance comparisons.  (easy)
@@ -504,21 +497,24 @@ medium, hard) is given.
   required, and ISC itself could probably be split into multiple mixin
   classes.  (easy)
 
-- Rework dis module or instruction names - Tacking on "_REG" to a
-  bunch of instructions threw off the dis module's output formatting.
-  Increasing dis._OPNAME_WIDTH from 20 to 23 and reformatting every
-  expected output helped for awhile until even longer instruction
-  names arrived.  All that reformatting was tedious.  Fixing dis to be
-  more resilient might be a better way to go.  OTOH, maybe the RVM
-  opcode names could be more traditionally assembler-like.  (The
-  author is getting on in years and finds something which looks more
-  like assembler attractive, given his initial experience programming
-  computers in the dark ages.)  Instead of BINARY_ADD_REG, you might
-  call it BAR.  Simply constructing opcode names by joining first letters
-  of each word won't work (collisions - BINARY_ADD_REG and
-  BINARY_AND_REG would both map to "BAR"), so you'd have to implement
-  a scheme which overrides in specific instances (BAR and BANDR, for
-  example).  (easy?)
+- Rework dis module or instruction names - Tacking on ``_REG`` to a
+  bunch of instructions threw off the dis module's (fragile) output
+  formatting.  Increasing ``dis._OPNAME_WIDTH`` from 20 to 23 and
+  reformatting **every expected output string** in ``test_dis.py``
+  helped for awhile until even longer instruction names arrived.  All
+  that reformatting was tedious.  Fixing ``dis`` to be more resilient
+  might be a better way to go.
+
+  OTOH, maybe RVM opcode names should look more like traditional
+  assembler instructions.  (The author is getting on in years and
+  finds something which looks more like assembler attractive, given
+  his initial experience programming computers in the dark ages.)
+  Instead of ``BINARY_ADD_REG``, you might call it ``BAR``.  Simply
+  constructing opcode names by joining the first letters of each word
+  won't work though (collisions - ``BINARY_ADD_REG`` and
+  ``BINARY_AND_REG`` would both map to ``BAR``), so you'd have to
+  implement a scheme which overrides in specific instances (``BAR``
+  and ``BANDR``, for example).  (easy?)
 
 - Matrix multiplication is so far untested, mostly because I can't
   handle classes yet.
@@ -538,17 +534,6 @@ References
 
 .. [#instpage] Profiling CPython at Instagram, Page
    (https://instagram-engineering.com/profiling-cpython-at-instagram-89d4cbeeb898)
-.. [#issue1] Proper register allocation
-   (https://github.com/smontanaro/cpython/issues/1)
-
-.. [#issue2] Support code in modules and classes
-   (https://github.com/smontanaro/cpython/issues/2)
-
-.. [#issue3] Modify existing compiler to support RVM
-   (https://github.com/smontanaro/cpython/issues/3)
-
-.. [#issue4] Complete instruction implementation
-   (https://github.com/smontanaro/cpython/issues/4)
 
 .. [#peephett] Improve code generation Hettinger, et al
    (https://github.com/python/cpython/commit/f6f575ae6fc4b58f8735b6aebaa422d48bedcef4)
