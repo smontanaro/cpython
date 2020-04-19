@@ -510,14 +510,6 @@ class InstructionSetConverter(OptimizeFilter):
     dispatch[opcodes.ISET.opmap['BINARY_XOR']] = binary_convert
     dispatch[opcodes.ISET.opmap['BINARY_OR']] = binary_convert
     dispatch[opcodes.ISET.opmap['BINARY_SUBSCR']] = binary_convert
-
-    def inplace_convert(self, instr, block):
-        opname = "%s_REG" % opcodes.ISET.opname[instr.opcode]
-        # dst OP= src1
-        src1 = self.pop()       # value augmenting dst
-        dst = self.top()       # dst
-        return InplaceOpInstruction(opcodes.ISET.opmap[opname], block,
-                                    dest=dst, source1=src1)
     dispatch[opcodes.ISET.opmap['INPLACE_POWER']] = binary_convert
     dispatch[opcodes.ISET.opmap['INPLACE_MULTIPLY']] = binary_convert
     dispatch[opcodes.ISET.opmap['INPLACE_MATRIX_MULTIPLY']] = binary_convert
