@@ -303,6 +303,9 @@ def_op('INPLACE_RSHIFT_REG', op) ; op += 1
 def_op('INPLACE_SUBTRACT_REG', op) ; op += 1
 def_op('INPLACE_TRUE_DIVIDE_REG', op) ; op += 1
 def_op('INPLACE_XOR_REG', op) ; op += 1
+def_op('LOAD_ATTR_REG', op) ; op += 1
+def_op('STORE_ATTR_REG', op) ; op += 1
+def_op('DELETE_ATTR_REG', op) ; op += 1
 
 assert op <= 256, op
 

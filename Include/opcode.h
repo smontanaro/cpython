@@ -174,6 +174,9 @@ extern "C" {
 #define INPLACE_SUBTRACT_REG    162
 #define INPLACE_TRUE_DIVIDE_REG 163
 #define INPLACE_XOR_REG         164
+#define LOAD_ATTR_REG           165
+#define STORE_ATTR_REG          166
+#define DELETE_ATTR_REG         167
 
 /* EXCEPT_HANDLER is a special, implicit block type which is created when
    entering an except handler. It is not an opcode but we define it here

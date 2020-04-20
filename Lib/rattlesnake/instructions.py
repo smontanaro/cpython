@@ -372,3 +372,18 @@ class ReturnInstruction(Instruction):
     @property
     def opargs(self):
         return (self.source1,)
+
+class LoadAttrInstruction(Instruction):
+    "reg <- obj.attr"
+    def __init__(self, opcode, block, **kwargs):
+        self.attr = kwargs["attr"]
+        del kwargs["attr"]
+        self.obj = kwargs["obj"]
+        del kwargs["obj"]
+        self.dest = kwargs["dest"]
+        del kwargs["dest"]
+        super().__init__(opcode, block, **kwargs)
+
+    @property
+    def opargs(self):
+        return (self.dest, self.obj, self.attr)

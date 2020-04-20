@@ -4413,6 +4413,48 @@ main_loop:
             DISPATCH();
         }
 
+        case TARGET(LOAD_ATTR_REG): {
+            int dst = REGARG3(oparg);
+            int obj = REGARG2(oparg);
+            int nameoff = REGARG1(oparg);
+            PyObject *name = GETITEM(names, nameoff);
+            PyObject *owner = GETLOCAL(obj);
+            PyObject *res = PyObject_GetAttr(owner, name);
+            SETLOCAL(dst, res);
+            if (res == NULL)
+                goto error;
+            DISPATCH();
+        }
+
+        case TARGET(STORE_ATTR_REG): {
+            /*
+            PyObject *name = GETITEM(names, oparg);
+            PyObject *owner = TOP();
+            PyObject *v = SECOND();
+            int err;
+            STACK_SHRINK(2);
+            err = PyObject_SetAttr(owner, name, v);
+            Py_DECREF(v);
+            Py_DECREF(owner);
+            if (err != 0)
+                goto error;
+            */
+            DISPATCH();
+        }
+
+        case TARGET(DELETE_ATTR_REG): {
+            /*
+            PyObject *name = GETITEM(names, oparg);
+            PyObject *owner = POP();
+            int err;
+            err = PyObject_SetAttr(owner, name, (PyObject *)NULL);
+            Py_DECREF(owner);
+            if (err != 0)
+                goto error;
+            */
+            DISPATCH();
+        }
+
 #if USE_COMPUTED_GOTOS
         _unknown_opcode:
 #endif
