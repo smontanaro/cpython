@@ -325,13 +325,11 @@ implementations.  For example (not exhaustive)::
     BUILD_STRING
     CALL_METHOD
     CONTAINS_OP
-    DELETE_ATTR
     DELETE_GLOBAL
     DELETE_SUBSCR
     FORMAT_VALUE
     IMPORT_FROM
     IMPORT_NAME
-    LOAD_ATTR
     LOAD_DEREF
     LOAD_METHOD
     STORE_SUBSCR
