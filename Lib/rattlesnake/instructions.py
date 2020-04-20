@@ -24,10 +24,12 @@ class Instruction:
 
     EXT_ARG_OPCODE = opcode.opmap["EXTENDED_ARG"]
 
-    def __init__(self, opcode, block, **kwargs):
-        self.opcode = opcode
+    def __init__(self, op, block, **kwargs):
+        self.opcode = op
         self._opargs = (0,)
         self.block = block
+        # Index into parent block's instructions list.
+        self.index = -1
         # unset (or same as previous instruction?)
         self.line_number = -1
         if kwargs:
@@ -81,10 +83,10 @@ class Instruction:
 
 class PyVMInstruction(Instruction):
     "For basic PyVM instructions."
-    def __init__(self, opcode, block, **kwargs):
+    def __init__(self, op, block, **kwargs):
         opargs = kwargs["opargs"]
         del kwargs["opargs"]
-        super().__init__(opcode, block, **kwargs)
+        super().__init__(op, block, **kwargs)
         self._opargs = opargs
 
 class JumpInstruction(Instruction):
@@ -96,7 +98,7 @@ class JumpInstruction(Instruction):
     deleted.
 
     """
-    def __init__(self, opcode, block, **kwargs):
+    def __init__(self, op, block, **kwargs):
         if "address" in kwargs:
             self.target_address = kwargs["address"]
             del kwargs["address"]
@@ -105,15 +107,31 @@ class JumpInstruction(Instruction):
             # target block, not address
             self.target = kwargs["target"]
             del kwargs["target"]
-        super().__init__(opcode, block, **kwargs)
+        super().__init__(op, block, **kwargs)
+
+    def compute_relative_jump(self, target_block):
+        "Compute relative jump to start of target_block."
+        # Jump target is relative to this instruction's address
+        # target_block.address is an absolute address.  From that,
+        # subtract this instruction's address, the address of the
+        # current block plus the length of all instructions preceding
+        # this one in the block.
+        preceding_insts = self.block.instructions[:self.index]
+        if preceding_insts:
+            my_rel_addr = sum(len(inst) for inst in preceding_insts)
+        else:
+            my_rel_addr = 0
+        jumpby = (target_block.address - (self.block.address + my_rel_addr))
+        # Jump offsets are always two bytes
+        return decode_oparg(jumpby, minimize=False)[-2:]
 
 class JumpIfInstruction(JumpInstruction):
     "Specialized behavior for JUMP_IF_(TRUE|FALSE)_REG."
-    def __init__(self, opcode, block, **kwargs):
+    def __init__(self, op, block, **kwargs):
         # register with comparison output
         self.source1 = kwargs["source1"]
         del kwargs["source1"]
-        super().__init__(opcode, block, **kwargs)
+        super().__init__(op, block, **kwargs)
 
     @property
     def opargs(self):
@@ -152,6 +170,7 @@ class JumpIfInstruction(JumpInstruction):
         code.append(opargs[2])
         return bytes(code)
 
+
 class JumpAbsInstruction(JumpInstruction):
     "Specialized behavior for JUMP_IF_ABSOLUTE_REG."
     @property
@@ -189,14 +208,60 @@ class JumpAbsInstruction(JumpInstruction):
         code.append(opargs[1])
         return bytes(code)
 
+class ForIterInstruction(JumpIfInstruction):
+    "dest <- iter(source1) + jumpby"
+    def __init__(self, op, block, **kwargs):
+        self.dest = kwargs["dest"]
+        del kwargs["dest"]
+        super().__init__(op, block, **kwargs)
+
+    @property
+    def opargs(self):
+        """Return target block as address, plus dest and src registers."""
+        isc = self.block.parent
+        target_block = isc.blocks[self.block.block_type][self.target]
+        jumpby = self.compute_relative_jump(target_block)
+        result = (self.dest, self.source1) + jumpby
+        if result != self._opargs:
+            self._opargs = result
+            self.block.mark_dirty()
+        return result
+
+    def __len__(self):
+        # Short circuit the length calculation to avoid unbounded
+        # recursion.  Suppose this instruction is in block N and has
+        # block N+1 as a target.  To compute the target address of
+        # block N+1 you need the length of block N, which needs the
+        # lengths of all its instructions, which leads you back here
+        # and you start chasing your tail.
+        return 8                # EXT_ARG, EXT_ARG, EXT_ARG, INSTR
+
+    def __bytes__(self):
+        # Since we assume three EXT_ARGS instructions in __len__, we
+        # have to force it here as well, even if any leading EXT_ARG
+        # opargs == 0.
+        code = []
+        opargs = self.opargs
+        while len(opargs) < 4:
+            opargs = (0,) + opargs
+        code.append(self.EXT_ARG_OPCODE)
+        code.append(opargs[0])
+        code.append(self.EXT_ARG_OPCODE)
+        code.append(opargs[1])
+        code.append(self.EXT_ARG_OPCODE)
+        code.append(opargs[2])
+        code.append(self.opcode)
+        code.append(opargs[3])
+        return bytes(code)
+
 class CallInstruction(Instruction):
     "Basic CALL_FUNCTION_REG."
-    def __init__(self, opcode, block, **kwargs):
+    def __init__(self, op, block, **kwargs):
         self.nargs = kwargs["nargs"]
         del kwargs["nargs"]
         self.dest = kwargs["dest"]
         del kwargs["dest"]
-        super().__init__(opcode, block, **kwargs)
+        super().__init__(op, block, **kwargs)
 
     @property
     def opargs(self):
@@ -204,14 +269,14 @@ class CallInstruction(Instruction):
 
 class CallInstructionKW(Instruction):
     "Basic CALL_FUNCTION_KW_REG."
-    def __init__(self, opcode, block, **kwargs):
+    def __init__(self, op, block, **kwargs):
         self.nargs = kwargs["nargs"]
         del kwargs["nargs"]
         self.nreg = kwargs["nreg"]
         del kwargs["nreg"]
         self.dest = kwargs["dest"]
         del kwargs["dest"]
-        super().__init__(opcode, block, **kwargs)
+        super().__init__(op, block, **kwargs)
 
     @property
     def opargs(self):
@@ -219,12 +284,12 @@ class CallInstructionKW(Instruction):
 
 class LoadFastInstruction(Instruction):
     "Specialized behavior for fast loads."
-    def __init__(self, opcode, block, **kwargs):
+    def __init__(self, op, block, **kwargs):
         self.source1 = kwargs["source1"]
         del kwargs["source1"]
         self.dest = kwargs["dest"]
         del kwargs["dest"]
-        super().__init__(opcode, block, **kwargs)
+        super().__init__(op, block, **kwargs)
         # Used during forward propagation
         self.protected = False
 
@@ -237,12 +302,12 @@ class LoadFastInstruction(Instruction):
 # do this, but this code duplication suffices for the moment.
 class StoreFastInstruction(Instruction):
     "Specialized behavior for fast stores."
-    def __init__(self, opcode, block, **kwargs):
+    def __init__(self, op, block, **kwargs):
         self.source1 = kwargs["source1"]
         del kwargs["source1"]
         self.dest = kwargs["dest"]
         del kwargs["dest"]
-        super().__init__(opcode, block, **kwargs)
+        super().__init__(op, block, **kwargs)
         # (Might be) used during backward propagation
         self.protected = False
 
@@ -251,24 +316,26 @@ class StoreFastInstruction(Instruction):
         return (self.dest, self.source1)
 
 class LoadGlobalInstruction(Instruction):
-    def __init__(self, opcode, block, **kwargs):
+    "dst <- global name"
+    def __init__(self, op, block, **kwargs):
         self.name1 = kwargs["name1"]
         del kwargs["name1"]
         self.dest = kwargs["dest"]
         del kwargs["dest"]
-        super().__init__(opcode, block, **kwargs)
+        super().__init__(op, block, **kwargs)
 
     @property
     def opargs(self):
         return (self.dest, self.name1)
 
 class LoadConstInstruction(Instruction):
-    def __init__(self, opcode, block, **kwargs):
+    "dst <- constant"
+    def __init__(self, op, block, **kwargs):
         self.name1 = kwargs["name1"]
         del kwargs["name1"]
         self.dest = kwargs["dest"]
         del kwargs["dest"]
-        super().__init__(opcode, block, **kwargs)
+        super().__init__(op, block, **kwargs)
 
     @property
     def opargs(self):
@@ -276,12 +343,12 @@ class LoadConstInstruction(Instruction):
 
 class StoreGlobalInstruction(Instruction):
     "Specialized behavior for stores."
-    def __init__(self, opcode, block, **kwargs):
+    def __init__(self, op, block, **kwargs):
         self.source1 = kwargs["source1"]
         del kwargs["source1"]
         self.name1 = kwargs["name1"]
         del kwargs["name1"]
-        super().__init__(opcode, block, **kwargs)
+        super().__init__(op, block, **kwargs)
 
     @property
     def opargs(self):
@@ -289,7 +356,7 @@ class StoreGlobalInstruction(Instruction):
 
 class CompareOpInstruction(Instruction):
     "Specialized behavior for COMPARE_OP_REG."
-    def __init__(self, opcode, block, **kwargs):
+    def __init__(self, op, block, **kwargs):
         self.source1 = kwargs["source1"]
         del kwargs["source1"]
         self.source2 = kwargs["source2"]
@@ -298,7 +365,7 @@ class CompareOpInstruction(Instruction):
         del kwargs["dest"]
         self.compare_op = kwargs["compare_op"]
         del kwargs["compare_op"]
-        super().__init__(opcode, block, **kwargs)
+        super().__init__(op, block, **kwargs)
 
     @property
     def opargs(self):
@@ -306,14 +373,14 @@ class CompareOpInstruction(Instruction):
 
 class BinOpInstruction(Instruction):
     "Specialized behavior for binary operations."
-    def __init__(self, opcode, block, **kwargs):
+    def __init__(self, op, block, **kwargs):
         self.source1 = kwargs["source1"]
         del kwargs["source1"]
         self.source2 = kwargs["source2"]
         del kwargs["source2"]
         self.dest = kwargs["dest"]
         del kwargs["dest"]
-        super().__init__(opcode, block, **kwargs)
+        super().__init__(op, block, **kwargs)
 
     @property
     def opargs(self):
@@ -321,12 +388,12 @@ class BinOpInstruction(Instruction):
 
 class UnaryOpInstruction(Instruction):
     "Specialized behavior for unary operations."
-    def __init__(self, opcode, block, **kwargs):
+    def __init__(self, op, block, **kwargs):
         self.source1 = kwargs["source1"]
         del kwargs["source1"]
         self.dest = kwargs["dest"]
         del kwargs["dest"]
-        super().__init__(opcode, block, **kwargs)
+        super().__init__(op, block, **kwargs)
 
     @property
     def opargs(self):
@@ -334,12 +401,12 @@ class UnaryOpInstruction(Instruction):
 
 class BuildSeqInstruction(Instruction):
     "Specialized behavior for sequence construction operations."
-    def __init__(self, opcode, block, **kwargs):
+    def __init__(self, op, block, **kwargs):
         self.length = kwargs["length"]
         del kwargs["length"]
         self.dest = kwargs["dest"]
         del kwargs["dest"]
-        super().__init__(opcode, block, **kwargs)
+        super().__init__(op, block, **kwargs)
 
     @property
     def opargs(self):
@@ -348,26 +415,27 @@ class BuildSeqInstruction(Instruction):
 class ExtendSeqInstruction(Instruction):
     "Specialized behavior for LIST_EXTEND operation."
     # dest is modified in-place.
-    def __init__(self, opcode, block, **kwargs):
+    def __init__(self, op, block, **kwargs):
         self.source1 = kwargs["source1"]
         del kwargs["source1"]
         self.dest = kwargs["dest"]
         del kwargs["dest"]
-        super().__init__(opcode, block, **kwargs)
+        super().__init__(op, block, **kwargs)
 
     @property
     def opargs(self):
         return (self.dest, self.source1)
 
 class NOPInstruction(Instruction):
+    "nop"
     pass
 
 class ReturnInstruction(Instruction):
     "RETURN_VALUE_REG"
-    def __init__(self, opcode, block, **kwargs):
+    def __init__(self, op, block, **kwargs):
         self.source1 = kwargs["source1"]
         del kwargs["source1"]
-        super().__init__(opcode, block, **kwargs)
+        super().__init__(op, block, **kwargs)
 
     @property
     def opargs(self):
@@ -376,14 +444,14 @@ class ReturnInstruction(Instruction):
 class LoadAttrInstruction(Instruction):
     "dest <- source1.attr"
     # dest and source1 are registers, attr is an offset into names
-    def __init__(self, opcode, block, **kwargs):
+    def __init__(self, op, block, **kwargs):
         self.attr = kwargs["attr"]
         del kwargs["attr"]
         self.source1 = kwargs["source1"]
         del kwargs["source1"]
         self.dest = kwargs["dest"]
         del kwargs["dest"]
-        super().__init__(opcode, block, **kwargs)
+        super().__init__(op, block, **kwargs)
 
     @property
     def opargs(self):
@@ -392,14 +460,14 @@ class LoadAttrInstruction(Instruction):
 class StoreAttrInstruction(Instruction):
     "source1.attr <- source2"
     # source1 and source2 are registers, attr is an offset into names
-    def __init__(self, opcode, block, **kwargs):
+    def __init__(self, op, block, **kwargs):
         self.attr = kwargs["attr"]
         del kwargs["attr"]
         self.source1 = kwargs["source1"]
         del kwargs["source1"]
         self.source2 = kwargs["source2"]
         del kwargs["source2"]
-        super().__init__(opcode, block, **kwargs)
+        super().__init__(op, block, **kwargs)
 
     @property
     def opargs(self):
@@ -408,13 +476,26 @@ class StoreAttrInstruction(Instruction):
 class DelAttrInstruction(Instruction):
     "del source1.attr"
     # source1 is a register, attr is an offset into names
-    def __init__(self, opcode, block, **kwargs):
+    def __init__(self, op, block, **kwargs):
         self.attr = kwargs["attr"]
         del kwargs["attr"]
         self.source1 = kwargs["source1"]
         del kwargs["source1"]
-        super().__init__(opcode, block, **kwargs)
+        super().__init__(op, block, **kwargs)
 
     @property
     def opargs(self):
         return (self.source1, self.attr)
+
+class GetIterInstruction(Instruction):
+    "dest <- iter(source1)"
+    def __init__(self, op, block, **kwargs):
+        self.dest = kwargs["dest"]
+        del kwargs["dest"]
+        self.source1 = kwargs["source1"]
+        del kwargs["source1"]
+        super().__init__(op, block, **kwargs)
+
+    @property
+    def opargs(self):
+        return (self.dest, self.source1)

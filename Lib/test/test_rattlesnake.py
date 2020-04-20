@@ -208,6 +208,15 @@ class InstructionTest(unittest.TestCase):
         (pyvm, rvm) = self.function_helper(listextend)
         self.assertEqual(pyvm(), rvm())
 
+    # def test_simple_for(self):
+    #     def for_():
+    #         a = -1
+    #         for i in (1, 2):
+    #             a += i
+    #         return a
+    #     (pyvm, rvm) = self.function_helper(for_)
+    #     self.assertEqual(pyvm(), rvm())
+
     def test_load_set_del_attr(self):
         def set_del_attr(a):
             a.someattr = 4

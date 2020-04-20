@@ -306,6 +306,8 @@ def_op('INPLACE_XOR_REG', op) ; op += 1
 def_op('LOAD_ATTR_REG', op) ; op += 1
 def_op('STORE_ATTR_REG', op) ; op += 1
 def_op('DELETE_ATTR_REG', op) ; op += 1
+def_op('GET_ITER_REG', op) ; op += 1
+jrel_op('FOR_ITER_REG', op) ; op += 1
 
 assert op <= 256, op
 

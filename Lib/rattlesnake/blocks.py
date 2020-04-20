@@ -89,6 +89,7 @@ class Block:
                 # co_stacksize.  We are done with this block.
                 break
             rvm_inst.line_number = pyvm_inst.line_number
+            rvm_inst.index = len(rvm_block)
             rvm_block.append(rvm_inst)
 
     def mark_dirty(self):

@@ -718,6 +718,24 @@ class InstructionSetConverter(OptimizeFilter):
     # dispatch[opcode.opmap['DUP_TOP']] = stack_convert
     # dispatch[opcode.opmap['POP_BLOCK']] = stack_convert
 
+    def for_convert(self, instr, block):
+        op = instr.opcode
+        oparg = instr.opargs[0] # All PyVM opcodes have a single oparg
+        opname = "%s_REG" % opcode.opname[op]
+        if op == opcode.opmap["FOR_ITER"]:
+            src = self.top()
+            dst = self.push()
+            return ForIterInstruction(opcode.opmap[opname], block,
+                                      dest=dst, source1=src,
+                                      target=instr.target)
+        if op == opcode.opmap["GET_ITER"]:
+            src = self.pop()
+            dst = self.push()
+            return GetIterInstruction(opcode.opmap[opname], block,
+                                      dest=dst, source1=src)
+    dispatch[opcode.opmap['FOR_ITER']] = for_convert
+    dispatch[opcode.opmap['GET_ITER']] = for_convert
+
     def misc_convert(self, instr, block):
         op = instr.opcode
         # if op == opcode.opmap['IMPORT_NAME']:

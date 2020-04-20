@@ -4452,6 +4452,41 @@ main_loop:
             DISPATCH();
         }
 
+        case TARGET(GET_ITER_REG): {
+            int dst = REGARG2(oparg);
+            int src = REGARG1(oparg);
+            PyObject *iterable = GETLOCAL(src);
+            PyObject *iter = PyObject_GetIter(iterable);
+            SETLOCAL(dst, iter);
+            if (iter == NULL)
+                goto error;
+            DISPATCH();
+        }
+
+        case TARGET(FOR_ITER_REG): {
+            int dst = REGARG4(oparg);
+            int src = REGARG3(oparg);
+            int jumpby = REGARG2(oparg) << 8 | REGARG1(oparg);
+            PyObject *iter = GETLOCAL(src);
+            PyObject *next = (*Py_TYPE(iter)->tp_iternext)(iter);
+            if (next != NULL) {
+                SETLOCAL(dst, next);
+                DISPATCH();
+            }
+            if (_PyErr_Occurred(tstate)) {
+                if (!_PyErr_ExceptionMatches(tstate, PyExc_StopIteration)) {
+                    goto error;
+                }
+                else if (tstate->c_tracefunc != NULL) {
+                    call_exc_trace(tstate->c_tracefunc, tstate->c_traceobj, tstate, f);
+                }
+                _PyErr_Clear(tstate);
+            }
+            /* iterator ended normally */
+            JUMPBY(jumpby);
+            DISPATCH();
+        }
+
 #if USE_COMPUTED_GOTOS
         _unknown_opcode:
 #endif
