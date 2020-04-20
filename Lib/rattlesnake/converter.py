@@ -621,30 +621,29 @@ class InstructionSetConverter(OptimizeFilter):
     dispatch[opcode.opmap['STORE_FAST']] = store_convert
     dispatch[opcode.opmap['STORE_GLOBAL']] = store_convert
 
-    # def attr_convert(self, instr, block):
-    #     op = instr.opcode
-    #     oparg = instr.opargs[0] # All PyVM opcodes have a single oparg
-    #     if op == opcode.opmap['LOAD_ATTR']:
-    #         obj = self.pop()
-    #         attr = oparg
-    #         dst = self.push()
-    #         return Instruction(opcode.opmap['LOAD_ATTR_REG'], block,
-    #                            (dst, obj, attr))
-    #     if op == opcode.opmap['STORE_ATTR']:
-    #         obj = self.pop()
-    #         attr = oparg
-    #         val = self.pop()
-    #         return Instruction(opcode.opmap['STORE_ATTR_REG'], block,
-    #                            (obj, attr, val))
-    #     if op == opcode.opmap['DELETE_ATTR']:
-    #         obj = self.pop()
-    #         attr = oparg
-    #         return Instruction(opcode.opmap['DELETE_ATTR_REG'], block,
-    #                            (obj, attr))
-    #     raise ValueError(f"Unhandled opcode {opcode.opname[op]}")
-    # dispatch[opcode.opmap['STORE_ATTR']] = attr_convert
-    # dispatch[opcode.opmap['DELETE_ATTR']] = attr_convert
-    # dispatch[opcode.opmap['LOAD_ATTR']] = attr_convert
+    def attr_convert(self, instr, block):
+        op = instr.opcode
+        oparg = instr.opargs[0] # All PyVM opcodes have a single oparg
+        if op == opcode.opmap['LOAD_ATTR']:
+            src = self.pop()
+            attr = oparg
+            dst = self.push()
+            return LoadAttrInstruction(opcode.opmap['LOAD_ATTR_REG'], block,
+                                       dest=dst, source1=src, attr=attr)
+        if op == opcode.opmap['STORE_ATTR']:
+            src1 = self.pop()
+            attr = oparg
+            src2 = self.pop()
+            return StoreAttrInstruction(opcode.opmap['STORE_ATTR_REG'], block,
+                                        source1=src1, attr=attr, source2=src2)
+        if op == opcode.opmap['DELETE_ATTR']:
+            src = self.pop()
+            attr = oparg
+            return DelAttrInstruction(opcode.opmap['DELETE_ATTR_REG'], block,
+                                      source1=src, attr=attr)
+    dispatch[opcode.opmap['STORE_ATTR']] = attr_convert
+    dispatch[opcode.opmap['DELETE_ATTR']] = attr_convert
+    dispatch[opcode.opmap['LOAD_ATTR']] = attr_convert
 
     def seq_convert(self, instr, block):
         op = instr.opcode

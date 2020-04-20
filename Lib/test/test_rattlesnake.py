@@ -208,24 +208,16 @@ class InstructionTest(unittest.TestCase):
         (pyvm, rvm) = self.function_helper(listextend)
         self.assertEqual(pyvm(), rvm())
 
-    # def test_load_attr(self):
-    #     def load_attr(x):
-    #         return x.attr
-    #     (pyvm, rvm) = self.function_helper(load_attr)
-    #     class X:
-    #         attr = 4
-    #     self.assertEqual(pyvm(X), rvm(X))
-
-    # def test_set_del_attr(self):
-    #     def set_del_attr(a):
-    #         a.someattr = 4
-    #         x = a.someattr
-    #         del a.someattr
-    #         return x
-    #     class Klass:
-    #         pass
-    #     (pyvm, rvm) = self.function_helper(set_del_attr)
-    #     self.assertEqual(pyvm(Klass), rvm(Klass))
+    def test_load_set_del_attr(self):
+        def set_del_attr(a):
+            a.someattr = 4
+            x = a.someattr
+            del a.someattr
+            return x
+        class Klass:
+            pass
+        (pyvm, rvm) = self.function_helper(set_del_attr)
+        self.assertEqual(pyvm(Klass), rvm(Klass))
 
     def test_long_block_function(self):
         def long_block(s, b):
