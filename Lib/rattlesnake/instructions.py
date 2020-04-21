@@ -57,7 +57,9 @@ class Instruction:
         return 2 + 2 * len(self.opargs[1:])
 
     def __str__(self):
-        return f"Instruction({self.line_number}: {self.name}, {self.opargs})"
+        me = self.__dict__.copy()
+        del me["block"], me["opcode"]
+        return f"Instruction({self.line_number}: {self.name}, {me})"
 
     def is_abs_jump(self):
         "True if opcode is an absolute jump."
@@ -111,7 +113,7 @@ class JumpInstruction(Instruction):
 
     def compute_relative_jump(self, target_block):
         "Compute relative jump to start of target_block."
-        # Jump target is relative to this instruction's address
+        # Jump target is relative to the next instruction's address
         # target_block.address is an absolute address.  From that,
         # subtract this instruction's address, the address of the
         # current block plus the length of all instructions preceding
@@ -121,7 +123,8 @@ class JumpInstruction(Instruction):
             my_rel_addr = sum(len(inst) for inst in preceding_insts)
         else:
             my_rel_addr = 0
-        jumpby = (target_block.address - (self.block.address + my_rel_addr))
+        jumpby = (target_block.address -
+                  (self.block.address + my_rel_addr + len(self)))
         # Jump offsets are always two bytes
         return decode_oparg(jumpby, minimize=False)[-2:]
 

@@ -208,14 +208,14 @@ class InstructionTest(unittest.TestCase):
         (pyvm, rvm) = self.function_helper(listextend)
         self.assertEqual(pyvm(), rvm())
 
-    # def test_simple_for(self):
-    #     def for_():
-    #         a = -1
-    #         for i in (1, 2):
-    #             a += i
-    #         return a
-    #     (pyvm, rvm) = self.function_helper(for_)
-    #     self.assertEqual(pyvm(), rvm())
+    def test_simple_for(self):
+        def for_():
+            a = -1
+            for i in (1, 2):
+                a += i
+            return a
+        (pyvm, rvm) = self.function_helper(for_)
+        self.assertEqual(pyvm(), rvm())
 
     def test_load_set_del_attr(self):
         def set_del_attr(a):
@@ -456,6 +456,10 @@ class InstructionTest(unittest.TestCase):
             isc.forward_propagate_fast_loads()
             isc.backward_propagate_fast_stores()
             isc.delete_nops()
+
+        if verbose:
+            print()
+            isc.display_blocks(isc.blocks["RVM"])
 
         # Lacking a proper API at this point...
         def rvm(a): return a

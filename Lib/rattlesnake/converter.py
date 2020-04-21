@@ -42,7 +42,7 @@ pipeline, each one responsible for a single optimization."""
             oparg, carry_oparg = carry_oparg, 0
             if op in opcode.hasjrel:
                 # relative jump
-                labels.add(i + oparg)
+                labels.add(i + 2 + oparg)
                 #print(i, "labels:", labels)
             elif op in opcode.hasjabs:
                 # abs jump
@@ -54,7 +54,6 @@ pipeline, each one responsible for a single optimization."""
     def convert_jump_targets_to_blocks(self):
         "Convert jump target addresses to block numbers in PyVM blocks."
         blocks = self.blocks["PyVM"]
-        assert blocks[0].block_type == "PyVM"
         for block in blocks:
             for instr in block:
                 if instr.is_jump():
@@ -99,7 +98,7 @@ pipeline, each one responsible for a single optimization."""
                     address = oparg
                     if instr.is_rel_jump():
                         # Convert to absolute
-                        address += offset
+                        address += offset + 2
                     #print(f">> {block.block_number} found a JUMP"
                     #      f" @ {offset} target_addr={address}")
                     instr = JumpInstruction(op, block, address=address)
@@ -192,7 +191,7 @@ class InstructionSetConverter(OptimizeFilter):
     def top(self):
         """return top readable slot on the stack"""
         #print(">> top:", self.stacklevel)
-        return self.stacklevel
+        return self.stacklevel - 1
 
     def gen_rvm(self):
         self.find_blocks()
@@ -461,6 +460,7 @@ class InstructionSetConverter(OptimizeFilter):
         print("constants:", self.constants)
         print("code len:", sum(block.codelen() for block in blocks))
         print("first lineno:", self.codeobj.co_firstlineno)
+        print("stack size:", self.stacksize)
         for block in blocks:
             print(block)
             block.display()
@@ -536,15 +536,15 @@ class InstructionSetConverter(OptimizeFilter):
         oparg = instr.opargs[0] # All PyVM opcodes have a single oparg
         if op == opcode.opmap['CALL_FUNCTION']:
             nargs = oparg
-            dest = self.top() - nargs - 1
+            dest = self.top() - nargs
             for _ in range(nargs):
                 _x = self.pop()
             return CallInstruction(opcode.opmap['CALL_FUNCTION_REG'],
                                    block, nargs=nargs, dest=dest)
         if op == opcode.opmap['CALL_FUNCTION_KW']:
             nargs = oparg
-            nreg = self.top() - 1
-            dest = self.top() - nargs - 2
+            nreg = self.top()
+            dest = self.top() - nargs - 1
             #print(nargs, nreg, dest)
             for _ in range(nargs + 1):
                 _x = self.pop()
