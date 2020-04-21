@@ -14,7 +14,8 @@ class Block:
 
     def __str__(self):
         "useful summary"
-        return f"Block <{self.block_type}:{self.block_number}:{self.address}:{self.codelen()}>"
+        return (f"Block <{self.block_type}:{self.block_number}:{self.address}"
+                f":{self.codelen()}:{len(self.instructions)}>")
 
     @property
     def address(self):
@@ -90,6 +91,7 @@ class Block:
                 break
             rvm_inst.line_number = pyvm_inst.line_number
             rvm_inst.index = len(rvm_block)
+            #print(">>", rvm_inst)
             rvm_block.append(rvm_inst)
 
     def mark_dirty(self):
