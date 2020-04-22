@@ -13,3 +13,5 @@ import rattlesnake.loadstore
 import rattlesnake.attributes
 import rattlesnake.sequence
 import rattlesnake.compare
+import rattlesnake.misc
+import rattlesnake.stack
