@@ -13,10 +13,10 @@ del _val
 def enumerate_reversed(seq):
     "Enumerate a sequence in reverse. Thank you Chris Angelico."
     # https://code.activestate.com/lists/python-list/706210/
-    n = len(seq)
+    num = len(seq)
     for obj in reversed(seq):
-        n -= 1
-        yield (n, obj)
+        num -= 1
+        yield (num, obj)
 
 def decode_oparg(oparg, minimize=True):
     """Split oparg into (up to) four bytes.

@@ -6,7 +6,6 @@ from rattlesnake import DISPATCH
 from rattlesnake.instructions import Instruction
 
 def load_attr(self, instr, block):
-    op = instr.opcode
     oparg = instr.opargs[0] # All PyVM opcodes have a single oparg
     src = self.pop()
     attr = oparg
@@ -15,7 +14,6 @@ def load_attr(self, instr, block):
                                dest=dst, source1=src, attr=attr)
 
 def store_attr(self, instr, block):
-    op = instr.opcode
     oparg = instr.opargs[0] # All PyVM opcodes have a single oparg
     src1 = self.pop()
     attr = oparg
@@ -24,7 +22,6 @@ def store_attr(self, instr, block):
                                 source1=src1, attr=attr, source2=src2)
 
 def del_attr(self, instr, block):
-    op = instr.opcode
     oparg = instr.opargs[0] # All PyVM opcodes have a single oparg
     src = self.pop()
     attr = oparg

@@ -12,8 +12,6 @@ will depend on their enclosing block's address.
 
 import opcode
 
-from rattlesnake.util import decode_oparg
-
 class Instruction:
     """Represent an instruction in either PyVM or RVM.
 
@@ -93,4 +91,3 @@ class PyVMInstruction(Instruction):
 
 class NOPInstruction(Instruction):
     "nop"
-    pass

@@ -6,7 +6,6 @@ from rattlesnake.instructions import Instruction
 
 def function(self, instr, block):
     "dst <- function(...)"
-    op = instr.opcode
     oparg = instr.opargs[0] # All PyVM opcodes have a single oparg
     nargs = oparg
     dest = self.top() - nargs
@@ -17,7 +16,6 @@ def function(self, instr, block):
 DISPATCH[opcode.opmap['CALL_FUNCTION']] = function
 
 def function_kw(self, instr, block):
-    op = instr.opcode
     oparg = instr.opargs[0] # All PyVM opcodes have a single oparg
     nargs = oparg
     nreg = self.top()

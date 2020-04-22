@@ -8,7 +8,6 @@ from rattlesnake.jump import JumpIfInstruction
 
 def for_iter(self, instr, block):
     op = instr.opcode
-    oparg = instr.opargs[0] # All PyVM opcodes have a single oparg
     opname = "%s_REG" % opcode.opname[op]
     src = self.top()
     dst = self.push()
@@ -19,7 +18,6 @@ DISPATCH[opcode.opmap['FOR_ITER']] = for_iter
 
 def get_iter(self, instr, block):
     op = instr.opcode
-    oparg = instr.opargs[0] # All PyVM opcodes have a single oparg
     opname = "%s_REG" % opcode.opname[op]
     src = self.pop()
     dst = self.push()

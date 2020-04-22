@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 
 # Dispatch table used by InstructionSetConverter and its mixins
+# pylint: disable=wrong-import-position
 DISPATCH = {}
 
 import rattlesnake.jump

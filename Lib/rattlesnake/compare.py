@@ -6,7 +6,6 @@ from rattlesnake import DISPATCH
 from rattlesnake.instructions import Instruction
 
 def compare(self, instr, block):
-    op = instr.opcode
     oparg = instr.opargs[0] # All PyVM opcodes have a single oparg
     cmpop = oparg
     src2 = self.pop()

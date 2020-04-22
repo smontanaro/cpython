@@ -20,7 +20,6 @@ DISPATCH[opcode.opmap['POP_JUMP_IF_TRUE']] = pop_jump
 def jump_abs(self, instr, block):
     "Jumps of various kinds"
     op = instr.opcode
-    oparg = instr.opargs[0] # All PyVM opcodes have a single oparg
     # Reused unchanged from PyVM
     opname = f"{opcode.opname[op]}"
     return JumpAbsInstruction(opcode.opmap[opname], block,
@@ -31,7 +30,6 @@ DISPATCH[opcode.opmap['JUMP_ABSOLUTE']] = jump_abs
 def return_(self, instr, block):
     "Jumps of various kinds"
     op = instr.opcode
-    oparg = instr.opargs[0] # All PyVM opcodes have a single oparg
     opname = f"{opcode.opname[op]}_REG"
     return ReturnInstruction(opcode.opmap[opname], block,
                              source1=self.pop())
