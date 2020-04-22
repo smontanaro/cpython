@@ -108,33 +108,6 @@ class CompareOpInstruction(Instruction):
     def opargs(self):
         return (self.dest, self.source1, self.source2, self.compare_op)
 
-class BuildSeqInstruction(Instruction):
-    "Specialized behavior for sequence construction operations."
-    def __init__(self, op, block, **kwargs):
-        self.length = kwargs["length"]
-        del kwargs["length"]
-        self.dest = kwargs["dest"]
-        del kwargs["dest"]
-        super().__init__(op, block, **kwargs)
-
-    @property
-    def opargs(self):
-        return (self.dest, self.length)
-
-class ExtendSeqInstruction(Instruction):
-    "Specialized behavior for LIST_EXTEND operation."
-    # dest is modified in-place.
-    def __init__(self, op, block, **kwargs):
-        self.source1 = kwargs["source1"]
-        del kwargs["source1"]
-        self.dest = kwargs["dest"]
-        del kwargs["dest"]
-        super().__init__(op, block, **kwargs)
-
-    @property
-    def opargs(self):
-        return (self.dest, self.source1)
-
 class NOPInstruction(Instruction):
     "nop"
     pass

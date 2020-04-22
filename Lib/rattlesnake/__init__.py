@@ -10,3 +10,4 @@ import rattlesnake.unary
 import rattlesnake.forloop
 import rattlesnake.loadstore
 import rattlesnake.attributes
+import rattlesnake.sequence

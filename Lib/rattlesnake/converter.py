@@ -10,6 +10,7 @@ from rattlesnake.util import (enumerate_reversed, LineNumberDict,
 from rattlesnake.jump import JumpInstruction
 from rattlesnake.function import CallInstruction
 from rattlesnake.loadstore import LoadFastInstruction, StoreFastInstruction
+from rattlesnake.sequence import BuildSeqInstruction
 
 class InstructionSetConverter:
     """Convert stack-based VM code into register-oriented VM code.
@@ -462,40 +463,6 @@ class InstructionSetConverter:
             block.display()
         print()
 
-
-    def seq_convert(self, instr, block):
-        op = instr.opcode
-        oparg = instr.opargs[0] # All PyVM opcodes have a single oparg
-        opname = "%s_REG" % opcode.opname[op]
-        build_map = opcode.opmap['BUILD_MAP']
-        if op in (opcode.opmap['BUILD_LIST'],
-                  opcode.opmap['BUILD_TUPLE'],
-                  build_map):
-            eltlen = 2 if op == build_map else 1
-            n = oparg
-            for _ in range(n * eltlen):
-                self.pop()
-            dst = self.push()
-            #print(f">>> dst: {dst}, len: {n}")
-            return BuildSeqInstruction(opcode.opmap[opname], block,
-                                       length=n, dest=dst)
-        if op == opcode.opmap['LIST_EXTEND']:
-            src = self.pop()
-            dst = self.peek(oparg)
-            return ExtendSeqInstruction(opcode.opmap[opname], block,
-                                        source1=src, dest=dst)
-
-        # if op == opcode.opmap['UNPACK_SEQUENCE']:
-        #     n = oparg
-        #     src = self.pop()
-        #     for _ in range(n):
-        #         self.push()
-        #     return Instruction(opcode.opmap[opname], block)
-    DISPATCH[opcode.opmap['BUILD_TUPLE']] = seq_convert
-    DISPATCH[opcode.opmap['BUILD_LIST']] = seq_convert
-    DISPATCH[opcode.opmap['LIST_EXTEND']] = seq_convert
-    DISPATCH[opcode.opmap['BUILD_MAP']] = seq_convert
-    # DISPATCH[opcode.opmap['UNPACK_SEQUENCE']] = seq_convert
 
     def compare_convert(self, instr, block):
         op = instr.opcode
