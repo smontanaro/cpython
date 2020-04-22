@@ -10,7 +10,18 @@ from rattlesnake.loadstore import LoadFastInstruction
 
 _A_GLOBAL = 42
 
+# When referencing issues in the issue tracker, name them rsNNNN,
+# where NNNN is the issue number with leading zeroes.
+
 class InstructionTest(unittest.TestCase):
+    def test_rs0009(self):
+        def load_store():
+            a = 7
+            b = a
+            return a + b
+        (pyvm, rvm) = self.function_helper(add)
+        self.assertEqual(pyvm(), rvm())
+
     def test_add(self):
         def add(a, b):
             return a + b
@@ -216,6 +227,15 @@ class InstructionTest(unittest.TestCase):
                 a += i
             return a
         (pyvm, rvm) = self.function_helper(for_)
+        self.assertEqual(pyvm(), rvm())
+
+    def test_simple_import(self):
+        def import_name():
+            import sys
+            return sys
+        (pyvm, rvm) = self.function_helper(import_name, propagate=False)
+        dis.dis(rvm)
+        print(rvm())
         self.assertEqual(pyvm(), rvm())
 
     def test_load_set_del_attr(self):

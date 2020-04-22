@@ -169,7 +169,7 @@ static void *opcode_targets[256] = {
     &&TARGET_DELETE_ATTR_REG,
     &&TARGET_GET_ITER_REG,
     &&TARGET_FOR_ITER_REG,
-    &&_unknown_opcode,
+    &&TARGET_IMPORT_NAME_REG,
     &&_unknown_opcode,
     &&_unknown_opcode,
     &&_unknown_opcode,

@@ -1142,6 +1142,7 @@ stack_effect(int opcode, int oparg, int jump)
         case DELETE_ATTR_REG:
         case FOR_ITER_REG:
         case GET_ITER_REG:
+        case IMPORT_NAME_REG:
         case INPLACE_ADD_REG:
         case INPLACE_AND_REG:
         case INPLACE_FLOOR_DIVIDE_REG:

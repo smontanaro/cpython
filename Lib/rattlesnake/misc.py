@@ -5,6 +5,17 @@ import opcode
 from . import DISPATCH
 from .instructions import Instruction
 
+def import_name(self, instr, block):
+    op = instr.opcode
+    name = instr.opargs[0]
+    src = self.pop()
+    level = self.top()
+    dst = self.top()
+    return ImportNameInstruction(opcode.opmap['IMPORT_NAME_REG'], block,
+                                 dest=dst, name1=name, source1=src,
+                                 level=level)
+DISPATCH[opcode.opmap['IMPORT_NAME']] = import_name
+
 # def misc_convert(self, instr, block):
 #     op = instr.opcode
 #     # if op == opcode.opmap['IMPORT_NAME']:
@@ -15,5 +26,21 @@ from .instructions import Instruction
 #     # if op == opcode.opmap['PRINT_EXPR']:
 #     #     src = self.pop()
 #     #     return Instruction(opcode.opmap[opname], block, (src,))
-# #DISPATCH[opcode.opmap['IMPORT_NAME']] = misc_convert
 # #DISPATCH[opcode.opmap['PRINT_EXPR']] = misc_convert
+
+class ImportNameInstruction(Instruction):
+    "dst <- global name"
+    def __init__(self, op, block, **kwargs):
+        self.level = kwargs["level"]
+        del kwargs["level"]
+        self.source1 = kwargs["source1"]
+        del kwargs["source1"]
+        self.name1 = kwargs["name1"]
+        del kwargs["name1"]
+        self.dest = kwargs["dest"]
+        del kwargs["dest"]
+        super().__init__(op, block, **kwargs)
+
+    @property
+    def opargs(self):
+        return (self.dest, self.level, self.source1, self.name1)

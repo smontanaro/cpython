@@ -308,6 +308,7 @@ def_op('STORE_ATTR_REG', op) ; op += 1
 def_op('DELETE_ATTR_REG', op) ; op += 1
 def_op('GET_ITER_REG', op) ; op += 1
 jrel_op('FOR_ITER_REG', op) ; op += 1
+name_op('IMPORT_NAME_REG', op) ; op += 1     # Index in name list
 
 assert op <= 256, op
 

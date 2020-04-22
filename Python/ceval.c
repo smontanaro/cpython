@@ -4487,6 +4487,22 @@ main_loop:
             DISPATCH();
         }
 
+        case TARGET(IMPORT_NAME_REG): {
+            int dst = REGARG4(oparg);
+            int n = REGARG3(oparg);
+            int src = REGARG2(oparg);
+            int nm = REGARG1(oparg);
+            PyObject *name = GETITEM(names, nm);
+            PyObject *fromlist = GETLOCAL(src);
+            PyObject *level = GETLOCAL(n);
+            PyObject *res;
+            res = import_name(tstate, f, name, fromlist, level);
+            SETLOCAL(dst, res);
+            if (res == NULL)
+                goto error;
+            DISPATCH();
+        }
+
 #if USE_COMPUTED_GOTOS
         _unknown_opcode:
 #endif
