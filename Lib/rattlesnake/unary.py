@@ -2,8 +2,8 @@
 
 import opcode
 
-from rattlesnake import DISPATCH
-from rattlesnake.instructions import Instruction
+from . import DISPATCH
+from .instructions import Instruction
 
 def unary_op(self, instr, block):
     "dst < OP src"

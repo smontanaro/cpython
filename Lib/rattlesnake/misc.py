@@ -2,8 +2,8 @@
 
 import opcode
 
-from rattlesnake import DISPATCH
-from rattlesnake.instructions import Instruction
+from . import DISPATCH
+from .instructions import Instruction
 
 # def misc_convert(self, instr, block):
 #     op = instr.opcode

@@ -1,7 +1,7 @@
 "Representation of a basic block."
 
-from rattlesnake import DISPATCH
-from rattlesnake.instructions import Instruction
+from . import DISPATCH
+from .instructions import Instruction
 
 class Block:
     """represent a block of code with a single entry point (first instr)"""

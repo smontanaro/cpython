@@ -2,9 +2,9 @@
 
 import opcode
 
-from rattlesnake import DISPATCH
-from rattlesnake.instructions import Instruction
-from rattlesnake.util import StackSizeException
+from . import DISPATCH
+from .instructions import Instruction
+from .util import StackSizeException
 
 def load_fast(self, instr, block):
     "loads of various kinds"

@@ -2,8 +2,8 @@
 
 import opcode
 
-from rattlesnake import DISPATCH
-from rattlesnake.instructions import Instruction
+from . import DISPATCH
+from .instructions import Instruction
 
 def load_attr(self, instr, block):
     oparg = instr.opargs[0] # All PyVM opcodes have a single oparg

@@ -2,9 +2,9 @@
 
 import opcode
 
-from rattlesnake import DISPATCH
-from rattlesnake.instructions import Instruction
-from rattlesnake.util import decode_oparg
+from . import DISPATCH
+from .instructions import Instruction
+from .util import decode_oparg
 
 def pop_jump(self, instr, block):
     "Jumps of various kinds"

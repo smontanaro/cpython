@@ -2,14 +2,14 @@
 
 import opcode
 
-from rattlesnake.blocks import Block
-from rattlesnake.instructions import PyVMInstruction, NOPInstruction
-from rattlesnake.util import (enumerate_reversed, LineNumberDict,
+from .blocks import Block
+from .instructions import PyVMInstruction, NOPInstruction
+from .util import (enumerate_reversed, LineNumberDict,
                               StackSizeException)
-from rattlesnake.jump import JumpInstruction
-from rattlesnake.function import CallInstruction
-from rattlesnake.loadstore import LoadFastInstruction, StoreFastInstruction
-from rattlesnake.sequence import BuildSeqInstruction
+from .jump import JumpInstruction
+from .function import CallInstruction
+from .loadstore import LoadFastInstruction, StoreFastInstruction
+from .sequence import BuildSeqInstruction
 
 class InstructionSetConverter:
     """Convert stack-based VM code into register-oriented VM code.

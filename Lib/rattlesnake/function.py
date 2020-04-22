@@ -1,8 +1,8 @@
 
 import opcode
 
-from rattlesnake import DISPATCH
-from rattlesnake.instructions import Instruction
+from . import DISPATCH
+from .instructions import Instruction
 
 def function(self, instr, block):
     "dst <- function(...)"

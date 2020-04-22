@@ -2,8 +2,8 @@
 
 import opcode
 
-from rattlesnake import DISPATCH
-from rattlesnake.instructions import Instruction
+from . import DISPATCH
+from .instructions import Instruction
 
 def bin_op(self, instr, block):
     "dst <- src1 OP src2"

@@ -2,9 +2,9 @@
 
 import opcode
 
-from rattlesnake import DISPATCH
-from rattlesnake.instructions import Instruction
-from rattlesnake.jump import JumpIfInstruction
+from . import DISPATCH
+from .instructions import Instruction
+from .jump import JumpIfInstruction
 
 def for_iter(self, instr, block):
     op = instr.opcode
