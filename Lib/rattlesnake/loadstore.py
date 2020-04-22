@@ -19,6 +19,7 @@ def load_fast(self, instr, block):
     opname = f"{opcode.opname[op]}_REG"
     return LoadFastInstruction(opcode.opmap[opname], block,
                                dest=dst, source1=src)
+DISPATCH[opcode.opmap['LOAD_FAST']] = load_fast
 
 def load_const(self, instr, block):
     op = instr.opcode
@@ -32,6 +33,7 @@ def load_const(self, instr, block):
     opname = f"{opcode.opname[op]}_REG"
     return LoadConstInstruction(opcode.opmap[opname], block,
                                 dest=dst, name1=src)
+DISPATCH[opcode.opmap['LOAD_CONST']] = load_const
 
 def load_global(self, instr, block):
     op = instr.opcode
@@ -45,9 +47,7 @@ def load_global(self, instr, block):
     opname = f"{opcode.opname[op]}_REG"
     return LoadGlobalInstruction(opcode.opmap[opname], block,
                                  dest=dst, name1=src)
-DISPATCH[opcode.opmap['LOAD_CONST']] = load_const
 DISPATCH[opcode.opmap['LOAD_GLOBAL']] = load_global
-DISPATCH[opcode.opmap['LOAD_FAST']] = load_fast
 
 def store_fast(self, instr, block):
     "stores of various kinds"
@@ -58,6 +58,7 @@ def store_fast(self, instr, block):
     src = self.pop()
     return StoreFastInstruction(opcode.opmap[opname], block,
                                 dest=dst, source1=src)
+DISPATCH[opcode.opmap['STORE_FAST']] = store_fast
 
 def store_global(self, instr, block):
     op = instr.opcode
@@ -67,7 +68,6 @@ def store_global(self, instr, block):
     src = self.pop()
     return StoreGlobalInstruction(opcode.opmap[opname], block,
                                   name1=name1, source1=src)
-DISPATCH[opcode.opmap['STORE_FAST']] = store_fast
 DISPATCH[opcode.opmap['STORE_GLOBAL']] = store_global
 
 class LoadFastInstruction(Instruction):
