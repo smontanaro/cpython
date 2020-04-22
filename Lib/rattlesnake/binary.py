@@ -3,42 +3,56 @@
 import opcode
 
 from rattlesnake import DISPATCH
-from rattlesnake.instructions import BinOpInstruction
+from rattlesnake.instructions import Instruction
 
-class BinOpMixin:
-    def binary_convert(self, instr, block):
-        "dst <- src1 OP src2"
-        opname = "%s_REG" % opcode.opname[instr.opcode]
-        ## TBD... Still not certain I have argument order/byte packing correct.
-        src2 = self.pop()       # right-hand register src
-        src1 = self.pop()       # left-hand register src
-        dst = self.push()       # dst
-        return BinOpInstruction(opcode.opmap[opname], block,
-                                dest=dst, source1=src1, source2=src2)
-    DISPATCH[opcode.opmap['BINARY_POWER']] = binary_convert
-    DISPATCH[opcode.opmap['BINARY_MULTIPLY']] = binary_convert
-    DISPATCH[opcode.opmap['BINARY_MATRIX_MULTIPLY']] = binary_convert
-    DISPATCH[opcode.opmap['BINARY_TRUE_DIVIDE']] = binary_convert
-    DISPATCH[opcode.opmap['BINARY_FLOOR_DIVIDE']] = binary_convert
-    DISPATCH[opcode.opmap['BINARY_MODULO']] = binary_convert
-    DISPATCH[opcode.opmap['BINARY_ADD']] = binary_convert
-    DISPATCH[opcode.opmap['BINARY_SUBTRACT']] = binary_convert
-    DISPATCH[opcode.opmap['BINARY_LSHIFT']] = binary_convert
-    DISPATCH[opcode.opmap['BINARY_RSHIFT']] = binary_convert
-    DISPATCH[opcode.opmap['BINARY_AND']] = binary_convert
-    DISPATCH[opcode.opmap['BINARY_XOR']] = binary_convert
-    DISPATCH[opcode.opmap['BINARY_OR']] = binary_convert
-    DISPATCH[opcode.opmap['BINARY_SUBSCR']] = binary_convert
-    DISPATCH[opcode.opmap['INPLACE_POWER']] = binary_convert
-    DISPATCH[opcode.opmap['INPLACE_MULTIPLY']] = binary_convert
-    DISPATCH[opcode.opmap['INPLACE_MATRIX_MULTIPLY']] = binary_convert
-    DISPATCH[opcode.opmap['INPLACE_TRUE_DIVIDE']] = binary_convert
-    DISPATCH[opcode.opmap['INPLACE_FLOOR_DIVIDE']] = binary_convert
-    DISPATCH[opcode.opmap['INPLACE_MODULO']] = binary_convert
-    DISPATCH[opcode.opmap['INPLACE_ADD']] = binary_convert
-    DISPATCH[opcode.opmap['INPLACE_SUBTRACT']] = binary_convert
-    DISPATCH[opcode.opmap['INPLACE_LSHIFT']] = binary_convert
-    DISPATCH[opcode.opmap['INPLACE_RSHIFT']] = binary_convert
-    DISPATCH[opcode.opmap['INPLACE_AND']] = binary_convert
-    DISPATCH[opcode.opmap['INPLACE_XOR']] = binary_convert
-    DISPATCH[opcode.opmap['INPLACE_OR']] = binary_convert
+def bin_op(self, instr, block):
+    "dst <- src1 OP src2"
+    opname = "%s_REG" % opcode.opname[instr.opcode]
+    ## TBD... Still not certain I have argument order/byte packing correct.
+    src2 = self.pop()       # right-hand register src
+    src1 = self.pop()       # left-hand register src
+    dst = self.push()       # dst
+    return BinOpInstruction(opcode.opmap[opname], block,
+                            dest=dst, source1=src1, source2=src2)
+DISPATCH[opcode.opmap['BINARY_POWER']] = bin_op
+DISPATCH[opcode.opmap['BINARY_MULTIPLY']] = bin_op
+DISPATCH[opcode.opmap['BINARY_MATRIX_MULTIPLY']] = bin_op
+DISPATCH[opcode.opmap['BINARY_TRUE_DIVIDE']] = bin_op
+DISPATCH[opcode.opmap['BINARY_FLOOR_DIVIDE']] = bin_op
+DISPATCH[opcode.opmap['BINARY_MODULO']] = bin_op
+DISPATCH[opcode.opmap['BINARY_ADD']] = bin_op
+DISPATCH[opcode.opmap['BINARY_SUBTRACT']] = bin_op
+DISPATCH[opcode.opmap['BINARY_LSHIFT']] = bin_op
+DISPATCH[opcode.opmap['BINARY_RSHIFT']] = bin_op
+DISPATCH[opcode.opmap['BINARY_AND']] = bin_op
+DISPATCH[opcode.opmap['BINARY_XOR']] = bin_op
+DISPATCH[opcode.opmap['BINARY_OR']] = bin_op
+DISPATCH[opcode.opmap['BINARY_SUBSCR']] = bin_op
+DISPATCH[opcode.opmap['INPLACE_POWER']] = bin_op
+DISPATCH[opcode.opmap['INPLACE_MULTIPLY']] = bin_op
+DISPATCH[opcode.opmap['INPLACE_MATRIX_MULTIPLY']] = bin_op
+DISPATCH[opcode.opmap['INPLACE_TRUE_DIVIDE']] = bin_op
+DISPATCH[opcode.opmap['INPLACE_FLOOR_DIVIDE']] = bin_op
+DISPATCH[opcode.opmap['INPLACE_MODULO']] = bin_op
+DISPATCH[opcode.opmap['INPLACE_ADD']] = bin_op
+DISPATCH[opcode.opmap['INPLACE_SUBTRACT']] = bin_op
+DISPATCH[opcode.opmap['INPLACE_LSHIFT']] = bin_op
+DISPATCH[opcode.opmap['INPLACE_RSHIFT']] = bin_op
+DISPATCH[opcode.opmap['INPLACE_AND']] = bin_op
+DISPATCH[opcode.opmap['INPLACE_XOR']] = bin_op
+DISPATCH[opcode.opmap['INPLACE_OR']] = bin_op
+
+class BinOpInstruction(Instruction):
+    "Specialized behavior for binary operations."
+    def __init__(self, op, block, **kwargs):
+        self.source1 = kwargs["source1"]
+        del kwargs["source1"]
+        self.source2 = kwargs["source2"]
+        del kwargs["source2"]
+        self.dest = kwargs["dest"]
+        del kwargs["dest"]
+        super().__init__(op, block, **kwargs)
+
+    @property
+    def opargs(self):
+        return (self.dest, self.source1, self.source2)

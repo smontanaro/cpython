@@ -3,11 +3,12 @@
 import dis as _dis
 
 CO_REGISTER = None
-for val in _dis.COMPILER_FLAG_NAMES:
-    if _dis.COMPILER_FLAG_NAMES[val] == "REGISTER":
-        CO_REGISTER = val
+for _val in _dis.COMPILER_FLAG_NAMES:
+    if _dis.COMPILER_FLAG_NAMES[_val] == "REGISTER":
+        CO_REGISTER = _val
         break
 assert CO_REGISTER is not None
+del _val
 
 def enumerate_reversed(seq):
     "Enumerate a sequence in reverse. Thank you Chris Angelico."
@@ -44,6 +45,7 @@ def encode_oparg(tup):
         oparg = oparg << 8 | elt
     return oparg
 
+# pylint: disable=too-few-public-methods
 class LineNumberDict:
     """Return line number associated with max key <= user's key.
 
@@ -86,3 +88,10 @@ class LineNumberDict:
             if val is not None:
                 return val
             key -= 1
+
+
+class StackSizeException(Exception):
+    """Raised when the stack would grow too small or too large.
+
+    See bpo40315.
+    """

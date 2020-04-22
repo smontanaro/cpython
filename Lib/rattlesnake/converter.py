@@ -5,12 +5,13 @@ import opcode
 from rattlesnake import DISPATCH
 from rattlesnake.blocks import Block
 from rattlesnake.instructions import *
-from rattlesnake.util import enumerate_reversed, LineNumberDict
-from rattlesnake.unary import UnaryMixin
-from rattlesnake.binary import BinOpMixin
+from rattlesnake.util import (enumerate_reversed, LineNumberDict,
+                              StackSizeException)
+from rattlesnake.jump import JumpInstruction
+from rattlesnake.function import CallInstruction
+from rattlesnake.loadstore import LoadFastInstruction, StoreFastInstruction
 
-
-class InstructionSetConverter(UnaryMixin, BinOpMixin):
+class InstructionSetConverter:
     """Convert stack-based VM code into register-oriented VM code.
 
     This class consists of a series of small methods, each of which
@@ -27,8 +28,8 @@ class InstructionSetConverter(UnaryMixin, BinOpMixin):
         """input must be a code object."""
         self.codeobj = codeobj
         self.codestr = codeobj.co_code
-        self.varnames = codeobj.co_varnames
-        self.names = codeobj.co_names
+        self.locals = codeobj.co_varnames
+        self.globals = codeobj.co_names
         self.constants = codeobj.co_consts
         self.nlocals = codeobj.co_nlocals
         self.stacksize = codeobj.co_stacksize
@@ -450,8 +451,8 @@ class InstructionSetConverter(UnaryMixin, BinOpMixin):
 
     def display_blocks(self, blocks):
         "debug"
-        print("globals:", self.names)
-        print("locals:", self.varnames)
+        print("globals:", self.globals)
+        print("locals:", self.locals)
         print("constants:", self.constants)
         print("code len:", sum(block.codelen() for block in blocks))
         print("first lineno:", self.codeobj.co_firstlineno)
@@ -461,116 +462,6 @@ class InstructionSetConverter(UnaryMixin, BinOpMixin):
             block.display()
         print()
 
-    # def subscript_convert(self, instr, block):
-    #     op = instr.opcode
-    #     if op == opcode.opmap['STORE_SUBSCR']:
-    #         index = self.pop()
-    #         obj = self.pop()
-    #         val = self.pop()
-    #         return Instruction(opcode.opmap['STORE_SUBSCR_REG'],
-    #                            (obj, index, val))
-    #     if op == opcode.opmap['DELETE_SUBSCR']:
-    #         index = self.pop()
-    #         obj = self.pop()
-    #         return Instruction(opcode.opmap['DELETE_SUBSCR_REG'],
-    #                            (obj, index))
-    #     raise ValueError(f"Unhandled opcode {opcode.opname[op]}")
-    # DISPATCH[opcode.opmap['STORE_SUBSCR']] = subscript_convert
-    # DISPATCH[opcode.opmap['DELETE_SUBSCR']] = subscript_convert
-
-    def function_convert(self, instr, block):
-        "dst <- function(...)"
-        op = instr.opcode
-        oparg = instr.opargs[0] # All PyVM opcodes have a single oparg
-        if op == opcode.opmap['CALL_FUNCTION']:
-            nargs = oparg
-            dest = self.top() - nargs
-            for _ in range(nargs):
-                _x = self.pop()
-            return CallInstruction(opcode.opmap['CALL_FUNCTION_REG'],
-                                   block, nargs=nargs, dest=dest)
-        if op == opcode.opmap['CALL_FUNCTION_KW']:
-            nargs = oparg
-            nreg = self.top()
-            dest = self.top() - nargs - 1
-            #print(nargs, nreg, dest)
-            for _ in range(nargs + 1):
-                _x = self.pop()
-            return CallInstructionKW(opcode.opmap['CALL_FUNCTION_KW_REG'],
-                                     block, nargs=nargs, nreg=nreg, dest=dest)
-    DISPATCH[opcode.opmap['CALL_FUNCTION']] = function_convert
-    DISPATCH[opcode.opmap['CALL_FUNCTION_KW']] = function_convert
-
-    def jump_convert(self, instr, block):
-        "Jumps of various kinds"
-        op = instr.opcode
-        oparg = instr.opargs[0] # All PyVM opcodes have a single oparg
-        if op == opcode.opmap['RETURN_VALUE']:
-            opname = f"{opcode.opname[op]}_REG"
-            return ReturnInstruction(opcode.opmap[opname], block,
-                                     source1=self.pop())
-        if op in (opcode.opmap['POP_JUMP_IF_FALSE'],
-                    opcode.opmap['POP_JUMP_IF_TRUE']):
-            opname = f"{opcode.opname[op]}_REG"[4:]
-            self.set_block_stacklevel(oparg, self.top())
-            return JumpIfInstruction(opcode.opmap[opname], block,
-                                     target=instr.target, source1=self.pop())
-        if op in (opcode.opmap['JUMP_FORWARD'],
-                    opcode.opmap['JUMP_ABSOLUTE']):
-            # Reused unchanged from PyVM
-            opname = f"{opcode.opname[op]}"
-            return JumpAbsInstruction(opcode.opmap[opname], block,
-                                      target=instr.target)
-    DISPATCH[opcode.opmap['JUMP_FORWARD']] = jump_convert
-    DISPATCH[opcode.opmap['JUMP_ABSOLUTE']] = jump_convert
-    DISPATCH[opcode.opmap['POP_JUMP_IF_FALSE']] = jump_convert
-    DISPATCH[opcode.opmap['POP_JUMP_IF_TRUE']] = jump_convert
-    DISPATCH[opcode.opmap['JUMP_ABSOLUTE']] = jump_convert
-    DISPATCH[opcode.opmap['RETURN_VALUE']] = jump_convert
-
-    def load_convert(self, instr, block):
-        "loads of various kinds"
-        op = instr.opcode
-        oparg = instr.opargs[0] # All PyVM opcodes have a single oparg
-        src = oparg         # offset into localsplus
-        try:
-            dst = self.push()
-        except StackSizeException:
-            # unreachable code - stop translating
-            return None
-        opname = f"{opcode.opname[op]}_REG"
-
-        if op == opcode.opmap['LOAD_FAST']:
-            instr = LoadFastInstruction(opcode.opmap[opname], block,
-                                        dest=dst, source1=src)
-        elif op == opcode.opmap['LOAD_CONST']:
-            instr = LoadConstInstruction(opcode.opmap[opname], block,
-                                         dest=dst, name1=src)
-        elif op == opcode.opmap['LOAD_GLOBAL']:
-            instr = LoadGlobalInstruction(opcode.opmap[opname], block,
-                                          dest=dst, name1=src)
-        return instr
-    DISPATCH[opcode.opmap['LOAD_CONST']] = load_convert
-    DISPATCH[opcode.opmap['LOAD_GLOBAL']] = load_convert
-    DISPATCH[opcode.opmap['LOAD_FAST']] = load_convert
-
-    def store_convert(self, instr, block):
-        "stores of various kinds"
-        op = instr.opcode
-        oparg = instr.opargs[0] # All PyVM opcodes have a single oparg
-        opname = f"{opcode.opname[op]}_REG"
-        if op == opcode.opmap['STORE_FAST']:
-            dst = oparg
-            src = self.pop()
-            return StoreFastInstruction(opcode.opmap[opname], block,
-                                        dest=dst, source1=src)
-        if op == opcode.opmap['STORE_GLOBAL']:
-            name1 = oparg
-            src = self.pop()
-            return StoreGlobalInstruction(opcode.opmap[opname], block,
-                                          name1=name1, source1=src)
-    DISPATCH[opcode.opmap['STORE_FAST']] = store_convert
-    DISPATCH[opcode.opmap['STORE_GLOBAL']] = store_convert
 
     def attr_convert(self, instr, block):
         op = instr.opcode
@@ -669,24 +560,6 @@ class InstructionSetConverter(UnaryMixin, BinOpMixin):
     # DISPATCH[opcode.opmap['DUP_TOP']] = stack_convert
     # DISPATCH[opcode.opmap['POP_BLOCK']] = stack_convert
 
-    def for_convert(self, instr, block):
-        op = instr.opcode
-        oparg = instr.opargs[0] # All PyVM opcodes have a single oparg
-        opname = "%s_REG" % opcode.opname[op]
-        if op == opcode.opmap["FOR_ITER"]:
-            src = self.top()
-            dst = self.push()
-            return ForIterInstruction(opcode.opmap[opname], block,
-                                      dest=dst, source1=src,
-                                      target=instr.target)
-        if op == opcode.opmap["GET_ITER"]:
-            src = self.pop()
-            dst = self.push()
-            return GetIterInstruction(opcode.opmap[opname], block,
-                                      dest=dst, source1=src)
-    DISPATCH[opcode.opmap['FOR_ITER']] = for_convert
-    DISPATCH[opcode.opmap['GET_ITER']] = for_convert
-
     def misc_convert(self, instr, block):
         op = instr.opcode
         # if op == opcode.opmap['IMPORT_NAME']:
@@ -727,9 +600,3 @@ class InstructionSetConverter(UnaryMixin, BinOpMixin):
 
     def dispatch(self, op):
         return DISPATCH[op]
-
-class StackSizeException(Exception):
-    """Raised when the stack would grow too small or too large.
-
-    See bpo40315.
-    """

@@ -6,6 +6,7 @@ import unittest
 
 from rattlesnake.converter import InstructionSetConverter
 from rattlesnake import instructions, util
+from rattlesnake.loadstore import LoadFastInstruction
 
 _A_GLOBAL = 42
 
@@ -348,7 +349,7 @@ class InstructionTest(unittest.TestCase):
 
     def test_src_dst(self):
         lfr = opcode.opmap['LOAD_FAST_REG']
-        load = instructions.LoadFastInstruction(lfr, 0, dest=1, source1=2)
+        load = LoadFastInstruction(lfr, 0, dest=1, source1=2)
         self.assertEqual(load.source1, 2)
         self.assertEqual(load.dest, 1)
         load.source1 = 3

@@ -34,8 +34,8 @@ def debug_convert(meth):
         name = meth.__name__
         klass = args[0].__class__.__name__
         res = []
-        for (opcode, oparg) in result:
-            res.append((opcode.opname[opcode], oparg))
+        for (op, oparg) in result:
+            res.append((opcode.opname[op], oparg))
         print(f"! {klass}.{name}(({oldop}, {oldarg})) -> {res}"
               f" ({old_stack} -> {new_stack})")
         return result
