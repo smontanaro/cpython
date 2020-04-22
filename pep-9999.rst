@@ -375,8 +375,6 @@ This function::
 
 requires::
 
-    FOR_ITER
-    GET_ITER
     POP_TOP
     YIELD_VALUE
 
