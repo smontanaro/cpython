@@ -11,3 +11,4 @@ import rattlesnake.forloop
 import rattlesnake.loadstore
 import rattlesnake.attributes
 import rattlesnake.sequence
+import rattlesnake.compare

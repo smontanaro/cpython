@@ -464,20 +464,6 @@ class InstructionSetConverter:
         print()
 
 
-    def compare_convert(self, instr, block):
-        op = instr.opcode
-        oparg = instr.opargs[0] # All PyVM opcodes have a single oparg
-        if op == opcode.opmap['COMPARE_OP']:
-            cmpop = oparg
-            src2 = self.pop()
-            src1 = self.pop()
-            dst = self.push()
-            return CompareOpInstruction(opcode.opmap['COMPARE_OP_REG'],
-                                        block,
-                                        dest=dst, source1=src1,
-                                        source2=src2, compare_op=cmpop)
-    DISPATCH[opcode.opmap['COMPARE_OP']] = compare_convert
-
     # def stack_convert(self, instr, block):
     #     op = instr.opcode
     #     if op == opcode.opmap['POP_TOP']:
