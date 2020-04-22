@@ -9,3 +9,4 @@ import rattlesnake.function
 import rattlesnake.unary
 import rattlesnake.forloop
 import rattlesnake.loadstore
+import rattlesnake.attributes

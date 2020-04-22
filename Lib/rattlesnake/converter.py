@@ -463,30 +463,6 @@ class InstructionSetConverter:
         print()
 
 
-    def attr_convert(self, instr, block):
-        op = instr.opcode
-        oparg = instr.opargs[0] # All PyVM opcodes have a single oparg
-        if op == opcode.opmap['LOAD_ATTR']:
-            src = self.pop()
-            attr = oparg
-            dst = self.push()
-            return LoadAttrInstruction(opcode.opmap['LOAD_ATTR_REG'], block,
-                                       dest=dst, source1=src, attr=attr)
-        if op == opcode.opmap['STORE_ATTR']:
-            src1 = self.pop()
-            attr = oparg
-            src2 = self.pop()
-            return StoreAttrInstruction(opcode.opmap['STORE_ATTR_REG'], block,
-                                        source1=src1, attr=attr, source2=src2)
-        if op == opcode.opmap['DELETE_ATTR']:
-            src = self.pop()
-            attr = oparg
-            return DelAttrInstruction(opcode.opmap['DELETE_ATTR_REG'], block,
-                                      source1=src, attr=attr)
-    DISPATCH[opcode.opmap['STORE_ATTR']] = attr_convert
-    DISPATCH[opcode.opmap['DELETE_ATTR']] = attr_convert
-    DISPATCH[opcode.opmap['LOAD_ATTR']] = attr_convert
-
     def seq_convert(self, instr, block):
         op = instr.opcode
         oparg = instr.opargs[0] # All PyVM opcodes have a single oparg
