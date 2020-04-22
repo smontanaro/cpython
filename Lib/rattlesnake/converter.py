@@ -2,15 +2,23 @@
 
 import opcode
 
+from rattlesnake import DISPATCH
 from rattlesnake.blocks import Block
 from rattlesnake.instructions import *
 from rattlesnake.util import enumerate_reversed, LineNumberDict
+from rattlesnake.unary import UnaryMixin
+from rattlesnake.binary import BinOpMixin
 
-class OptimizeFilter:
-    """Base peephole optimizer class for Python byte code.
 
-Instances of OptimizeFilter subclasses are chained together in a
-pipeline, each one responsible for a single optimization."""
+class InstructionSetConverter(UnaryMixin, BinOpMixin):
+    """Convert stack-based VM code into register-oriented VM code.
+
+    This class consists of a series of small methods, each of which
+    knows how to convert a small number of stack-based instructions to
+    their register-based equivalents.  A dispatch table keyed by the
+    stack-based opcodes selects the appropriate routine.
+
+    """
 
     NOP_OPCODE = opcode.opmap['NOP']
     EXT_ARG_OPCODE = opcode.opmap["EXTENDED_ARG"]
@@ -28,6 +36,18 @@ pipeline, each one responsible for a single optimization."""
             "PyVM": [],
             "RVM": [],
         }
+
+        # Stack starts right after locals. Together, the locals and
+        # the space allocated for the stack form a single register
+        # file.
+        self.stacklevel = self.nlocals
+        self.max_stacklevel = self.nlocals + self.stacksize
+
+        # print(">> nlocals:", self.nlocals)
+        # print(">> stacksize:", self.stacksize)
+        # print(">> starting stacklevel:", self.stacklevel)
+        # print(">> max stacklevel:", self.max_stacklevel)
+        assert self.max_stacklevel <= 127, "locals+stack are too big!"
 
     def findlabels(self, code):
         "Find target addresses in the code."
@@ -108,32 +128,6 @@ pipeline, each one responsible for a single optimization."""
                 ext_oparg = 0
         self.convert_jump_targets_to_blocks()
 
-class InstructionSetConverter(OptimizeFilter):
-    """convert stack-based VM code into register-oriented VM code.
-
-    this class consists of a series of small methods, each of which knows
-    how to convert a small number of stack-based instructions to their
-    register-based equivalents.  A dispatch table in optimize_block keyed
-    by the stack-based instructions selects the appropriate routine.
-    """
-
-    dispatch = {}
-
-    def __init__(self, code):
-        # input to this guy is a code object
-        super().__init__(code)
-        # Stack starts right after locals. Together, the locals and
-        # the space allocated for the stack form a single register
-        # file.
-        self.stacklevel = self.nlocals
-        self.max_stacklevel = self.nlocals + self.stacksize
-
-        # print(">> nlocals:", self.nlocals)
-        # print(">> stacksize:", self.stacksize)
-        # print(">> starting stacklevel:", self.stacklevel)
-        # print(">> max stacklevel:", self.max_stacklevel)
-        assert self.max_stacklevel <= 127, "locals+stack are too big!"
-
     def set_block_stacklevel(self, target, level):
         """set the input stack level for particular block"""
         #print(">> set_block_stacklevel:", (target, level))
@@ -194,6 +188,7 @@ class InstructionSetConverter(OptimizeFilter):
         return self.stacklevel - 1
 
     def gen_rvm(self):
+        "Generate a series of blocks containing RVM instructions."
         self.find_blocks()
         self.blocks["RVM"] = []
         for pyvm_block in self.blocks["PyVM"]:
@@ -466,54 +461,6 @@ class InstructionSetConverter(OptimizeFilter):
             block.display()
         print()
 
-    def unary_convert(self, instr, block):
-        opname = "%s_REG" % opcode.opname[instr.opcode]
-        src = self.pop()
-        dst = self.push()
-        return UnaryOpInstruction(opcode.opmap[opname], block,
-                                  dest=dst, source1=src)
-    dispatch[opcode.opmap['UNARY_INVERT']] = unary_convert
-    dispatch[opcode.opmap['UNARY_POSITIVE']] = unary_convert
-    dispatch[opcode.opmap['UNARY_NEGATIVE']] = unary_convert
-    dispatch[opcode.opmap['UNARY_NOT']] = unary_convert
-
-    def binary_convert(self, instr, block):
-        opname = "%s_REG" % opcode.opname[instr.opcode]
-        ## TBD... Still not certain I have argument order/byte packing correct.
-        # dst <- src1 OP src2
-        src2 = self.pop()       # right-hand register src
-        src1 = self.pop()       # left-hand register src
-        dst = self.push()       # dst
-        return BinOpInstruction(opcode.opmap[opname], block,
-                                dest=dst, source1=src1, source2=src2)
-    dispatch[opcode.opmap['BINARY_POWER']] = binary_convert
-    dispatch[opcode.opmap['BINARY_MULTIPLY']] = binary_convert
-    dispatch[opcode.opmap['BINARY_MATRIX_MULTIPLY']] = binary_convert
-    dispatch[opcode.opmap['BINARY_TRUE_DIVIDE']] = binary_convert
-    dispatch[opcode.opmap['BINARY_FLOOR_DIVIDE']] = binary_convert
-    dispatch[opcode.opmap['BINARY_MODULO']] = binary_convert
-    dispatch[opcode.opmap['BINARY_ADD']] = binary_convert
-    dispatch[opcode.opmap['BINARY_SUBTRACT']] = binary_convert
-    dispatch[opcode.opmap['BINARY_LSHIFT']] = binary_convert
-    dispatch[opcode.opmap['BINARY_RSHIFT']] = binary_convert
-    dispatch[opcode.opmap['BINARY_AND']] = binary_convert
-    dispatch[opcode.opmap['BINARY_XOR']] = binary_convert
-    dispatch[opcode.opmap['BINARY_OR']] = binary_convert
-    dispatch[opcode.opmap['BINARY_SUBSCR']] = binary_convert
-    dispatch[opcode.opmap['INPLACE_POWER']] = binary_convert
-    dispatch[opcode.opmap['INPLACE_MULTIPLY']] = binary_convert
-    dispatch[opcode.opmap['INPLACE_MATRIX_MULTIPLY']] = binary_convert
-    dispatch[opcode.opmap['INPLACE_TRUE_DIVIDE']] = binary_convert
-    dispatch[opcode.opmap['INPLACE_FLOOR_DIVIDE']] = binary_convert
-    dispatch[opcode.opmap['INPLACE_MODULO']] = binary_convert
-    dispatch[opcode.opmap['INPLACE_ADD']] = binary_convert
-    dispatch[opcode.opmap['INPLACE_SUBTRACT']] = binary_convert
-    dispatch[opcode.opmap['INPLACE_LSHIFT']] = binary_convert
-    dispatch[opcode.opmap['INPLACE_RSHIFT']] = binary_convert
-    dispatch[opcode.opmap['INPLACE_AND']] = binary_convert
-    dispatch[opcode.opmap['INPLACE_XOR']] = binary_convert
-    dispatch[opcode.opmap['INPLACE_OR']] = binary_convert
-
     # def subscript_convert(self, instr, block):
     #     op = instr.opcode
     #     if op == opcode.opmap['STORE_SUBSCR']:
@@ -528,10 +475,11 @@ class InstructionSetConverter(OptimizeFilter):
     #         return Instruction(opcode.opmap['DELETE_SUBSCR_REG'],
     #                            (obj, index))
     #     raise ValueError(f"Unhandled opcode {opcode.opname[op]}")
-    # dispatch[opcode.opmap['STORE_SUBSCR']] = subscript_convert
-    # dispatch[opcode.opmap['DELETE_SUBSCR']] = subscript_convert
+    # DISPATCH[opcode.opmap['STORE_SUBSCR']] = subscript_convert
+    # DISPATCH[opcode.opmap['DELETE_SUBSCR']] = subscript_convert
 
     def function_convert(self, instr, block):
+        "dst <- function(...)"
         op = instr.opcode
         oparg = instr.opargs[0] # All PyVM opcodes have a single oparg
         if op == opcode.opmap['CALL_FUNCTION']:
@@ -550,10 +498,11 @@ class InstructionSetConverter(OptimizeFilter):
                 _x = self.pop()
             return CallInstructionKW(opcode.opmap['CALL_FUNCTION_KW_REG'],
                                      block, nargs=nargs, nreg=nreg, dest=dest)
-    dispatch[opcode.opmap['CALL_FUNCTION']] = function_convert
-    dispatch[opcode.opmap['CALL_FUNCTION_KW']] = function_convert
+    DISPATCH[opcode.opmap['CALL_FUNCTION']] = function_convert
+    DISPATCH[opcode.opmap['CALL_FUNCTION_KW']] = function_convert
 
     def jump_convert(self, instr, block):
+        "Jumps of various kinds"
         op = instr.opcode
         oparg = instr.opargs[0] # All PyVM opcodes have a single oparg
         if op == opcode.opmap['RETURN_VALUE']:
@@ -572,14 +521,15 @@ class InstructionSetConverter(OptimizeFilter):
             opname = f"{opcode.opname[op]}"
             return JumpAbsInstruction(opcode.opmap[opname], block,
                                       target=instr.target)
-    dispatch[opcode.opmap['JUMP_FORWARD']] = jump_convert
-    dispatch[opcode.opmap['JUMP_ABSOLUTE']] = jump_convert
-    dispatch[opcode.opmap['POP_JUMP_IF_FALSE']] = jump_convert
-    dispatch[opcode.opmap['POP_JUMP_IF_TRUE']] = jump_convert
-    dispatch[opcode.opmap['JUMP_ABSOLUTE']] = jump_convert
-    dispatch[opcode.opmap['RETURN_VALUE']] = jump_convert
+    DISPATCH[opcode.opmap['JUMP_FORWARD']] = jump_convert
+    DISPATCH[opcode.opmap['JUMP_ABSOLUTE']] = jump_convert
+    DISPATCH[opcode.opmap['POP_JUMP_IF_FALSE']] = jump_convert
+    DISPATCH[opcode.opmap['POP_JUMP_IF_TRUE']] = jump_convert
+    DISPATCH[opcode.opmap['JUMP_ABSOLUTE']] = jump_convert
+    DISPATCH[opcode.opmap['RETURN_VALUE']] = jump_convert
 
     def load_convert(self, instr, block):
+        "loads of various kinds"
         op = instr.opcode
         oparg = instr.opargs[0] # All PyVM opcodes have a single oparg
         src = oparg         # offset into localsplus
@@ -600,11 +550,12 @@ class InstructionSetConverter(OptimizeFilter):
             instr = LoadGlobalInstruction(opcode.opmap[opname], block,
                                           dest=dst, name1=src)
         return instr
-    dispatch[opcode.opmap['LOAD_CONST']] = load_convert
-    dispatch[opcode.opmap['LOAD_GLOBAL']] = load_convert
-    dispatch[opcode.opmap['LOAD_FAST']] = load_convert
+    DISPATCH[opcode.opmap['LOAD_CONST']] = load_convert
+    DISPATCH[opcode.opmap['LOAD_GLOBAL']] = load_convert
+    DISPATCH[opcode.opmap['LOAD_FAST']] = load_convert
 
     def store_convert(self, instr, block):
+        "stores of various kinds"
         op = instr.opcode
         oparg = instr.opargs[0] # All PyVM opcodes have a single oparg
         opname = f"{opcode.opname[op]}_REG"
@@ -613,13 +564,13 @@ class InstructionSetConverter(OptimizeFilter):
             src = self.pop()
             return StoreFastInstruction(opcode.opmap[opname], block,
                                         dest=dst, source1=src)
-        elif op == opcode.opmap['STORE_GLOBAL']:
+        if op == opcode.opmap['STORE_GLOBAL']:
             name1 = oparg
             src = self.pop()
             return StoreGlobalInstruction(opcode.opmap[opname], block,
                                           name1=name1, source1=src)
-    dispatch[opcode.opmap['STORE_FAST']] = store_convert
-    dispatch[opcode.opmap['STORE_GLOBAL']] = store_convert
+    DISPATCH[opcode.opmap['STORE_FAST']] = store_convert
+    DISPATCH[opcode.opmap['STORE_GLOBAL']] = store_convert
 
     def attr_convert(self, instr, block):
         op = instr.opcode
@@ -641,9 +592,9 @@ class InstructionSetConverter(OptimizeFilter):
             attr = oparg
             return DelAttrInstruction(opcode.opmap['DELETE_ATTR_REG'], block,
                                       source1=src, attr=attr)
-    dispatch[opcode.opmap['STORE_ATTR']] = attr_convert
-    dispatch[opcode.opmap['DELETE_ATTR']] = attr_convert
-    dispatch[opcode.opmap['LOAD_ATTR']] = attr_convert
+    DISPATCH[opcode.opmap['STORE_ATTR']] = attr_convert
+    DISPATCH[opcode.opmap['DELETE_ATTR']] = attr_convert
+    DISPATCH[opcode.opmap['LOAD_ATTR']] = attr_convert
 
     def seq_convert(self, instr, block):
         op = instr.opcode
@@ -673,11 +624,11 @@ class InstructionSetConverter(OptimizeFilter):
         #     for _ in range(n):
         #         self.push()
         #     return Instruction(opcode.opmap[opname], block)
-    dispatch[opcode.opmap['BUILD_TUPLE']] = seq_convert
-    dispatch[opcode.opmap['BUILD_LIST']] = seq_convert
-    dispatch[opcode.opmap['LIST_EXTEND']] = seq_convert
-    dispatch[opcode.opmap['BUILD_MAP']] = seq_convert
-    # dispatch[opcode.opmap['UNPACK_SEQUENCE']] = seq_convert
+    DISPATCH[opcode.opmap['BUILD_TUPLE']] = seq_convert
+    DISPATCH[opcode.opmap['BUILD_LIST']] = seq_convert
+    DISPATCH[opcode.opmap['LIST_EXTEND']] = seq_convert
+    DISPATCH[opcode.opmap['BUILD_MAP']] = seq_convert
+    # DISPATCH[opcode.opmap['UNPACK_SEQUENCE']] = seq_convert
 
     def compare_convert(self, instr, block):
         op = instr.opcode
@@ -691,7 +642,7 @@ class InstructionSetConverter(OptimizeFilter):
                                         block,
                                         dest=dst, source1=src1,
                                         source2=src2, compare_op=cmpop)
-    dispatch[opcode.opmap['COMPARE_OP']] = compare_convert
+    DISPATCH[opcode.opmap['COMPARE_OP']] = compare_convert
 
     # def stack_convert(self, instr, block):
     #     op = instr.opcode
@@ -712,11 +663,11 @@ class InstructionSetConverter(OptimizeFilter):
     #     if op == opcode.opmap['POP_BLOCK']:
     #         return Instruction(opcode.opmap['POP_BLOCK_REG'], block)
     #     raise ValueError(f"Unhandled opcode {opcode.opname[op]}")
-    # dispatch[opcode.opmap['POP_TOP']] = stack_convert
-    # dispatch[opcode.opmap['ROT_TWO']] = stack_convert
-    # dispatch[opcode.opmap['ROT_THREE']] = stack_convert
-    # dispatch[opcode.opmap['DUP_TOP']] = stack_convert
-    # dispatch[opcode.opmap['POP_BLOCK']] = stack_convert
+    # DISPATCH[opcode.opmap['POP_TOP']] = stack_convert
+    # DISPATCH[opcode.opmap['ROT_TWO']] = stack_convert
+    # DISPATCH[opcode.opmap['ROT_THREE']] = stack_convert
+    # DISPATCH[opcode.opmap['DUP_TOP']] = stack_convert
+    # DISPATCH[opcode.opmap['POP_BLOCK']] = stack_convert
 
     def for_convert(self, instr, block):
         op = instr.opcode
@@ -733,8 +684,8 @@ class InstructionSetConverter(OptimizeFilter):
             dst = self.push()
             return GetIterInstruction(opcode.opmap[opname], block,
                                       dest=dst, source1=src)
-    dispatch[opcode.opmap['FOR_ITER']] = for_convert
-    dispatch[opcode.opmap['GET_ITER']] = for_convert
+    DISPATCH[opcode.opmap['FOR_ITER']] = for_convert
+    DISPATCH[opcode.opmap['GET_ITER']] = for_convert
 
     def misc_convert(self, instr, block):
         op = instr.opcode
@@ -746,8 +697,8 @@ class InstructionSetConverter(OptimizeFilter):
         # if op == opcode.opmap['PRINT_EXPR']:
         #     src = self.pop()
         #     return Instruction(opcode.opmap[opname], block, (src,))
-    #dispatch[opcode.opmap['IMPORT_NAME']] = misc_convert
-    #dispatch[opcode.opmap['PRINT_EXPR']] = misc_convert
+    #DISPATCH[opcode.opmap['IMPORT_NAME']] = misc_convert
+    #DISPATCH[opcode.opmap['PRINT_EXPR']] = misc_convert
 
     def __bytes__(self):
         "Return generated byte string."
@@ -773,6 +724,9 @@ class InstructionSetConverter(OptimizeFilter):
                     last_address = address
                 address += len(instr)
         return bytes(lnotab)
+
+    def dispatch(self, op):
+        return DISPATCH[op]
 
 class StackSizeException(Exception):
     """Raised when the stack would grow too small or too large.

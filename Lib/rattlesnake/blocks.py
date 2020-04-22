@@ -80,7 +80,7 @@ class Block:
         rvm_block.instructions = []
         for pyvm_inst in self.instructions:
             try:
-                convert = self.parent.dispatch[pyvm_inst.opcode]
+                convert = self.parent.dispatch(pyvm_inst.opcode)
             except KeyError:
                 print(f"No map for {pyvm_inst.opcode} ({pyvm_inst.name})")
                 raise
