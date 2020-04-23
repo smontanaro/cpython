@@ -45,12 +45,12 @@ DISPATCH[opcode.opmap['INPLACE_OR']] = bin_op
 class BinOpInstruction(Instruction):
     "Specialized behavior for binary operations."
     def __init__(self, op, block, **kwargs):
+        self.dest = kwargs["dest"]
+        del kwargs["dest"]
         self.source1 = kwargs["source1"]
         del kwargs["source1"]
         self.source2 = kwargs["source2"]
         del kwargs["source2"]
-        self.dest = kwargs["dest"]
-        del kwargs["dest"]
         super().__init__(op, block, **kwargs)
 
     @property

@@ -73,10 +73,10 @@ DISPATCH[opcode.opmap['STORE_GLOBAL']] = store_global
 class LoadFastInstruction(Instruction):
     "Specialized behavior for fast loads."
     def __init__(self, op, block, **kwargs):
-        self.source1 = kwargs["source1"]
-        del kwargs["source1"]
         self.dest = kwargs["dest"]
         del kwargs["dest"]
+        self.source1 = kwargs["source1"]
+        del kwargs["source1"]
         super().__init__(op, block, **kwargs)
         # Used during forward propagation
         self.protected = False
@@ -91,10 +91,10 @@ class LoadFastInstruction(Instruction):
 class StoreFastInstruction(Instruction):
     "Specialized behavior for fast stores."
     def __init__(self, op, block, **kwargs):
-        self.source1 = kwargs["source1"]
-        del kwargs["source1"]
         self.dest = kwargs["dest"]
         del kwargs["dest"]
+        self.source1 = kwargs["source1"]
+        del kwargs["source1"]
         super().__init__(op, block, **kwargs)
         # (Might be) used during backward propagation
         self.protected = False
@@ -106,10 +106,10 @@ class StoreFastInstruction(Instruction):
 class LoadGlobalInstruction(Instruction):
     "dst <- global name"
     def __init__(self, op, block, **kwargs):
-        self.name1 = kwargs["name1"]
-        del kwargs["name1"]
         self.dest = kwargs["dest"]
         del kwargs["dest"]
+        self.name1 = kwargs["name1"]
+        del kwargs["name1"]
         super().__init__(op, block, **kwargs)
 
     @property
@@ -119,10 +119,10 @@ class LoadGlobalInstruction(Instruction):
 class LoadConstInstruction(Instruction):
     "dst <- constant"
     def __init__(self, op, block, **kwargs):
-        self.name1 = kwargs["name1"]
-        del kwargs["name1"]
         self.dest = kwargs["dest"]
         del kwargs["dest"]
+        self.name1 = kwargs["name1"]
+        del kwargs["name1"]
         super().__init__(op, block, **kwargs)
 
     @property
@@ -132,10 +132,10 @@ class LoadConstInstruction(Instruction):
 class StoreGlobalInstruction(Instruction):
     "Specialized behavior for stores."
     def __init__(self, op, block, **kwargs):
-        self.source1 = kwargs["source1"]
-        del kwargs["source1"]
         self.name1 = kwargs["name1"]
         del kwargs["name1"]
+        self.source1 = kwargs["source1"]
+        del kwargs["source1"]
         super().__init__(op, block, **kwargs)
 
     @property

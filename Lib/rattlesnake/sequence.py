@@ -35,10 +35,10 @@ DISPATCH[opcode.opmap['LIST_EXTEND']] = extend_sequence
 class BuildSeqInstruction(Instruction):
     "Specialized behavior for sequence construction operations."
     def __init__(self, op, block, **kwargs):
-        self.length = kwargs["length"]
-        del kwargs["length"]
         self.dest = kwargs["dest"]
         del kwargs["dest"]
+        self.length = kwargs["length"]
+        del kwargs["length"]
         super().__init__(op, block, **kwargs)
 
     @property
@@ -49,10 +49,10 @@ class ExtendSeqInstruction(Instruction):
     "Specialized behavior for LIST_EXTEND operation."
     # dest is modified in-place.
     def __init__(self, op, block, **kwargs):
-        self.source1 = kwargs["source1"]
-        del kwargs["source1"]
         self.dest = kwargs["dest"]
         del kwargs["dest"]
+        self.source1 = kwargs["source1"]
+        del kwargs["source1"]
         super().__init__(op, block, **kwargs)
 
     @property

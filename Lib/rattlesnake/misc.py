@@ -31,14 +31,14 @@ DISPATCH[opcode.opmap['IMPORT_NAME']] = import_name
 class ImportNameInstruction(Instruction):
     "dst <- global name"
     def __init__(self, op, block, **kwargs):
+        self.dest = kwargs["dest"]
+        del kwargs["dest"]
         self.level = kwargs["level"]
         del kwargs["level"]
         self.source1 = kwargs["source1"]
         del kwargs["source1"]
         self.name1 = kwargs["name1"]
         del kwargs["name1"]
-        self.dest = kwargs["dest"]
-        del kwargs["dest"]
         super().__init__(op, block, **kwargs)
 
     @property
