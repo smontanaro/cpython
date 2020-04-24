@@ -19,7 +19,7 @@ class InstructionTest(unittest.TestCase):
             a = 7
             b = a
             return a + b
-        (pyvm, rvm) = self.function_helper(add)
+        (pyvm, rvm) = self.function_helper(load_store)
         self.assertEqual(pyvm(), rvm())
 
     def test_add(self):
