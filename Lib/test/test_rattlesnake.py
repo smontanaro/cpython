@@ -233,9 +233,7 @@ class InstructionTest(unittest.TestCase):
         def import_name():
             import sys
             return sys
-        (pyvm, rvm) = self.function_helper(import_name, propagate=False)
-        dis.dis(rvm)
-        print(rvm())
+        (pyvm, rvm) = self.function_helper(import_name)
         self.assertEqual(pyvm(), rvm())
 
     def test_load_set_del_attr(self):
