@@ -311,9 +311,16 @@ def _get_regdc_info(arg, constants):
     return arg, f"%r{arg >> 8 & 0xff} <- {repr(constants[arg & 0xff])}"
 
 def _get_regdn_info(arg, names):
-    """Register instruction helper - dest register and constant."""
+    """Register instruction helper - dest register, global name src."""
     if names is not None:
         return arg, f"%r{arg >> 8 & 0xff} <- {names[arg & 0xff]}"
+    else:
+        return _get_reg_info(arg)
+
+def _get_regns_info(arg, names):
+    """Register instruction helper - global name dest, src register."""
+    if names is not None:
+        return arg, f"{names[arg >> 8 & 0xff]} <- %r{arg & 0xff}"
     else:
         return _get_reg_info(arg)
 
@@ -398,6 +405,8 @@ def _get_instructions_bytes(code, varnames=None, names=None, constants=None,
                     argval, argrepr = _get_regdc_info(arg, constants)
                 elif op in hasregdn:
                     argval, argrepr = _get_regdn_info(arg, names)
+                elif op in hasregns:
+                    argval, argrepr = _get_regns_info(arg, names)
                 elif op in hasregdss:
                     binop = BINOPS.get(op, "OP")
                     argval, argrepr = _get_regdss_info(arg, binop)

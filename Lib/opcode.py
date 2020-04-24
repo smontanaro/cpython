@@ -8,7 +8,7 @@ __all__ = ["cmp_op", "hasconst", "hasname", "hasjrel", "hasjabs",
            "haslocal", "hascompare", "hasfree", "opname", "opmap",
            "HAVE_ARGUMENT", "EXTENDED_ARG", "hasnargs", "HAVE_REGISTERS",
            "hasregs", "hasregds", "hasregdss", "hasregdn", "hasregdc",
-           "hasregjc"]
+           "hasregjc", "hasregns",]
 
 # It's a chicken-and-egg I'm afraid:
 # We're imported before _opcode's made.
@@ -67,6 +67,7 @@ hasregs = []
 hasregds = []
 hasregdss = []
 hasregdn = []
+hasregns = []
 hasregdc = []
 hasregjc = []
 
@@ -272,7 +273,7 @@ hasregds.append(op)
 def_op('LOAD_FAST_REG', op) ; op += 1
 hasregds.append(op)
 def_op('STORE_FAST_REG', op) ; op += 1
-hasregdn.append(op)
+hasregns.append(op)
 def_op('STORE_GLOBAL_REG', op) ; op += 1
 hascompare.append(op)
 def_op('COMPARE_OP_REG', op) ; op += 1
