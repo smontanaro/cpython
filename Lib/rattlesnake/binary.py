@@ -28,29 +28,11 @@ DISPATCH[opcode.opmap['BINARY_AND']] = bin_op
 DISPATCH[opcode.opmap['BINARY_XOR']] = bin_op
 DISPATCH[opcode.opmap['BINARY_OR']] = bin_op
 DISPATCH[opcode.opmap['BINARY_SUBSCR']] = bin_op
-DISPATCH[opcode.opmap['INPLACE_POWER']] = bin_op
-DISPATCH[opcode.opmap['INPLACE_MULTIPLY']] = bin_op
-DISPATCH[opcode.opmap['INPLACE_MATRIX_MULTIPLY']] = bin_op
-DISPATCH[opcode.opmap['INPLACE_TRUE_DIVIDE']] = bin_op
-DISPATCH[opcode.opmap['INPLACE_FLOOR_DIVIDE']] = bin_op
-DISPATCH[opcode.opmap['INPLACE_MODULO']] = bin_op
-DISPATCH[opcode.opmap['INPLACE_ADD']] = bin_op
-DISPATCH[opcode.opmap['INPLACE_SUBTRACT']] = bin_op
-DISPATCH[opcode.opmap['INPLACE_LSHIFT']] = bin_op
-DISPATCH[opcode.opmap['INPLACE_RSHIFT']] = bin_op
-DISPATCH[opcode.opmap['INPLACE_AND']] = bin_op
-DISPATCH[opcode.opmap['INPLACE_XOR']] = bin_op
-DISPATCH[opcode.opmap['INPLACE_OR']] = bin_op
 
 class BinOpInstruction(Instruction):
     "Specialized behavior for binary operations."
     def __init__(self, op, block, **kwargs):
-        self.dest = kwargs["dest"]
-        del kwargs["dest"]
-        self.source1 = kwargs["source1"]
-        del kwargs["source1"]
-        self.source2 = kwargs["source2"]
-        del kwargs["source2"]
+        self.populate(("dest", "source1", "source2"), kwargs)
         super().__init__(op, block, **kwargs)
 
     @property

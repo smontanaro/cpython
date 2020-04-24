@@ -28,8 +28,7 @@ DISPATCH[opcode.opmap['GET_ITER']] = get_iter
 class ForIterInstruction(JumpIfInstruction):
     "dest <- iter(source1) + jumpby"
     def __init__(self, op, block, **kwargs):
-        self.dest = kwargs["dest"]
-        del kwargs["dest"]
+        self.populate(("dest",), kwargs)
         super().__init__(op, block, **kwargs)
 
     @property
@@ -74,10 +73,7 @@ class ForIterInstruction(JumpIfInstruction):
 class GetIterInstruction(Instruction):
     "dest <- iter(source1)"
     def __init__(self, op, block, **kwargs):
-        self.dest = kwargs["dest"]
-        del kwargs["dest"]
-        self.source1 = kwargs["source1"]
-        del kwargs["source1"]
+        self.populate(("dest", "source1"), kwargs)
         super().__init__(op, block, **kwargs)
 
     @property

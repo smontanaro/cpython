@@ -36,12 +36,7 @@ class LoadAttrInstruction(Instruction):
     "dest <- source1.attr"
     # dest and source1 are registers, attr is an offset into names
     def __init__(self, op, block, **kwargs):
-        self.dest = kwargs["dest"]
-        del kwargs["dest"]
-        self.source1 = kwargs["source1"]
-        del kwargs["source1"]
-        self.attr = kwargs["attr"]
-        del kwargs["attr"]
+        self.populate(("dest", "source1", "attr"), kwargs)
         super().__init__(op, block, **kwargs)
 
     @property
@@ -52,12 +47,7 @@ class StoreAttrInstruction(Instruction):
     "source1.attr <- source2"
     # source1 and source2 are registers, attr is an offset into names
     def __init__(self, op, block, **kwargs):
-        self.source1 = kwargs["source1"]
-        del kwargs["source1"]
-        self.attr = kwargs["attr"]
-        del kwargs["attr"]
-        self.source2 = kwargs["source2"]
-        del kwargs["source2"]
+        self.populate(("source1", "attr", "source2"), kwargs)
         super().__init__(op, block, **kwargs)
 
     @property
@@ -68,10 +58,7 @@ class DelAttrInstruction(Instruction):
     "del source1.attr"
     # source1 is a register, attr is an offset into names
     def __init__(self, op, block, **kwargs):
-        self.source1 = kwargs["source1"]
-        del kwargs["source1"]
-        self.attr = kwargs["attr"]
-        del kwargs["attr"]
+        self.populate(("source1", "attr"), kwargs)
         super().__init__(op, block, **kwargs)
 
     @property

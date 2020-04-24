@@ -20,10 +20,7 @@ DISPATCH[opcode.opmap['UNARY_NOT']] = unary_op
 class UnaryOpInstruction(Instruction):
     "Specialized behavior for unary operations."
     def __init__(self, op, block, **kwargs):
-        self.dest = kwargs["dest"]
-        del kwargs["dest"]
-        self.source1 = kwargs["source1"]
-        del kwargs["source1"]
+        self.populate(("dest", "source1"), kwargs)
         super().__init__(op, block, **kwargs)
 
     @property

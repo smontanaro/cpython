@@ -20,14 +20,7 @@ DISPATCH[opcode.opmap['COMPARE_OP']] = compare
 class CompareOpInstruction(Instruction):
     "Specialized behavior for COMPARE_OP_REG."
     def __init__(self, op, block, **kwargs):
-        self.dest = kwargs["dest"]
-        del kwargs["dest"]
-        self.source1 = kwargs["source1"]
-        del kwargs["source1"]
-        self.compare_op = kwargs["compare_op"]
-        del kwargs["compare_op"]
-        self.source2 = kwargs["source2"]
-        del kwargs["source2"]
+        self.populate(("dest", "source1", "compare_op", "source2"), kwargs)
         super().__init__(op, block, **kwargs)
 
     @property

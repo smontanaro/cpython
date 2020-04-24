@@ -122,7 +122,7 @@ class InstructionSetConverter:
                         address += offset + 2
                     #print(f">> {block.block_number} found a JUMP"
                     #      f" @ {offset} target_addr={address}")
-                    instr = JumpInstruction(op, block, address=address)
+                    instr = JumpInstruction(op, block, target_address=address)
                 instr.line_number = line_numbers[offset]
                 #print(">>>", instr)
                 block.append(instr)
@@ -268,41 +268,55 @@ class InstructionSetConverter:
     # this stage will be useful.
 
     def forward_propagate_fast_loads(self):
-        "LOAD_FAST_REG should be a NOP..."
+        """Remove most LOAD_FAST_REG & STORE_FAST_REG instructions.
+
+        Propagate forward source register where destination register
+        is used.
+
+        """
         self.mark_protected_loads()
         prop_dict = {}
         dirty = None
         for block in self.blocks["RVM"]:
+            nop = NOPInstruction(self.NOP_OPCODE, block)
             for (i, instr) in enumerate(block):
-                if (isinstance(instr, LoadFastInstruction) and
-                    instr.name == "LOAD_FAST_REG" and
+                # Check for possible mappings in this instruction,
+                # even if it is a load/store which might be replaced
+                # below.
+                for srckey in ("source1", "source2"):
+                    src = getattr(instr, srckey, None)
+                    if src is not None:
+                        newval = prop_dict.get(src, src)
+                        if newval != src:
+                            #print("Set up mapping from", src, "to", newval)
+                            pass
+                        setattr(instr, srckey, newval)
+                dst = getattr(instr, "dest", None)
+                if dst is not None:
+                    # If the destination register is overwritten,
+                    # remove it from the dictionary as it's no
+                    # longer valid.
+                    try:
+                        del prop_dict[dst]
+                    except KeyError:
+                        pass
+                if (isinstance(instr, (LoadFastInstruction,
+                                       StoreFastInstruction)) and
                     not instr.protected):
                     # Will map future references to the load's
                     # destination register to its source.
+                    #print("will map", instr.dest, "to", instr.source1)
                     prop_dict[instr.dest] = instr.source1
                     # The load is no longer needed, so replace it with
                     # a NOP.
-                    block[i] = NOPInstruction(self.NOP_OPCODE, block)
+                    #print("replace", block[i], "with", nop)
+                    block[i] = nop
                     if dirty is None:
                         dirty = block.block_number
-                else:
-                    for srckey in ("source1", "source2"):
-                        src = getattr(instr, srckey, None)
-                        if src is not None:
-                            setattr(instr, srckey, prop_dict.get(src, src))
-                    dst = getattr(instr, "dest", None)
-                    if dst is not None:
-                        # If the destination register is overwritten,
-                        # remove it from the dictionary as it's no
-                        # longer valid.
-                        try:
-                            del prop_dict[dst]
-                        except KeyError:
-                            pass
         self.mark_dirty(dirty)
 
     def backward_propagate_fast_stores(self):
-        "STORE_FAST_REG should be a NOP..."
+        "Similar, but looking back..."
         # This is similar to forward_propagate_fast_loads, but we work
         # from back to front through the block list, map src to dst in
         # STORE instructions and update source registers until we see
@@ -311,7 +325,9 @@ class InstructionSetConverter:
         dirty = None
         for block in self.blocks["RVM"]:
             for (i, instr) in enumerate_reversed(block):
-                if isinstance(instr, StoreFastInstruction):
+                if (isinstance(instr, (LoadFastInstruction,
+                                       StoreFastInstruction)) and
+                    not instr.protected):
                     # Will map earlier references to the store's
                     # source registers to its destination.
                     prop_dict[instr.source1] = instr.dest
@@ -336,7 +352,7 @@ class InstructionSetConverter:
         self.mark_dirty(dirty)
 
     def mark_protected_loads(self):
-        "Identify LoadFastInstructions which must not be removed."
+        "Identify fast loads and stores which must not be removed."
         # Sometimes registers are used implicitly, so LOADs into them
         # can't be removed so easily.  Consider the code necessary to
         # construct this list:
@@ -345,12 +361,12 @@ class InstructionSetConverter:
         #
         # Basic RVM code looks like this (ignoring EXT_ARG instructions):
         #
-        # LOAD_CONST_REG            769 (%r3 <- 1)
-        # LOAD_FAST_REG            1024 (%r4 <- %r0)
-        # LOAD_FAST_REG            1281 (%r5 <- %r1)
-        # BUILD_LIST_REG         131843 (0, 2, 3, 3)
+        # LOAD_CONST_REG       769 (%r3 <- 1)
+        # LOAD_FAST_REG       1024 (%r4 <- %r0)
+        # LOAD_FAST_REG       1281 (%r5 <- %r1)
+        # BUILD_LIST_REG    131843 (0, 2, 3, 3)
         #
-        # The BUILD_LIST_REG instruction requires its inputs be in
+        # The BUILD_LIST_REG instruction requires that its inputs be in
         # registers %r3 through %r5.  Accordingly, the two LOAD_FAST_REG
         # instructions used to (partially) construct its inputs must be
         # preserved.  BUILD_TUPLE_REG and CALL_FUNCTION_REG will have

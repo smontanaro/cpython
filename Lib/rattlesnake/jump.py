@@ -38,8 +38,7 @@ DISPATCH[opcode.opmap['RETURN_VALUE']] = return_
 class ReturnInstruction(Instruction):
     "RETURN_VALUE_REG"
     def __init__(self, op, block, **kwargs):
-        self.source1 = kwargs["source1"]
-        del kwargs["source1"]
+        self.populate(("source1",), kwargs)
         super().__init__(op, block, **kwargs)
 
     @property
@@ -56,14 +55,12 @@ class JumpInstruction(Instruction):
 
     """
     def __init__(self, op, block, **kwargs):
-        if "address" in kwargs:
-            self.target_address = kwargs["address"]
-            del kwargs["address"]
+        if "target_address" in kwargs:
+            self.populate(("target_address",), kwargs)
             self.target = -1    # unset so far
         else:
             # target block, not address
-            self.target = kwargs["target"]
-            del kwargs["target"]
+            self.populate(("target",), kwargs)
         super().__init__(op, block, **kwargs)
 
     def compute_relative_jump(self, target_block):
@@ -87,8 +84,7 @@ class JumpIfInstruction(JumpInstruction):
     "Specialized behavior for JUMP_IF_(TRUE|FALSE)_REG."
     def __init__(self, op, block, **kwargs):
         # register with comparison output
-        self.source1 = kwargs["source1"]
-        del kwargs["source1"]
+        self.populate(("source1",), kwargs)
         super().__init__(op, block, **kwargs)
 
     @property

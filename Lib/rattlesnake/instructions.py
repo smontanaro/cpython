@@ -81,6 +81,12 @@ class Instruction:
         code.append(self.opargs[-1])
         return bytes(code)
 
+    def populate(self, attrs, kwargs):
+        "Set attr names from kwargs dict and delete those keys."
+        for attr in attrs:
+            setattr(self, attr, kwargs[attr])
+            del kwargs[attr]
+
 class PyVMInstruction(Instruction):
     "For basic PyVM instructions."
     def __init__(self, op, block, **kwargs):

@@ -30,10 +30,7 @@ DISPATCH[opcode.opmap['CALL_FUNCTION_KW']] = function_kw
 class CallInstruction(Instruction):
     "Basic CALL_FUNCTION_REG."
     def __init__(self, op, block, **kwargs):
-        self.dest = kwargs["dest"]
-        del kwargs["dest"]
-        self.nargs = kwargs["nargs"]
-        del kwargs["nargs"]
+        self.populate(("dest", "nargs"), kwargs)
         super().__init__(op, block, **kwargs)
 
     @property
@@ -43,12 +40,7 @@ class CallInstruction(Instruction):
 class CallInstructionKW(Instruction):
     "Basic CALL_FUNCTION_KW_REG."
     def __init__(self, op, block, **kwargs):
-        self.dest = kwargs["dest"]
-        del kwargs["dest"]
-        self.nargs = kwargs["nargs"]
-        del kwargs["nargs"]
-        self.nreg = kwargs["nreg"]
-        del kwargs["nreg"]
+        self.populate(("dest", "nargs", "nreg"), kwargs)
         super().__init__(op, block, **kwargs)
 
     @property
