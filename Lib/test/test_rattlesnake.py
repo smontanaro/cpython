@@ -14,14 +14,6 @@ _A_GLOBAL = 42
 # where NNNN is the issue number with leading zeroes.
 
 class InstructionTest(unittest.TestCase):
-    def test_rs0009(self):
-        def load_store():
-            a = 7
-            b = a
-            return a + b
-        (pyvm, rvm) = self.function_helper(load_store)
-        self.assertEqual(pyvm(), rvm())
-
     def test_add(self):
         def add(a, b):
             return a + b
@@ -49,14 +41,26 @@ class InstructionTest(unittest.TestCase):
                              [136, 136, 119, 133],
                          ])
         self.assertEqual(isc.blocks["RVM"][0].codelen(), 16)
-        isc.forward_propagate_fast_loads()
-        #isc.backward_propagate_fast_stores()
-        isc.delete_nops()
-        self.assertEqual(isc.blocks["RVM"][0].codelen(), 8)
-        self.assertEqual(get_opcodes(isc.blocks["RVM"]),
-                         [
-                             [119, 133],
-                         ])
+        # isc.forward_propagate_fast_loads()
+        # #isc.backward_propagate_fast_stores()
+        # isc.delete_nops()
+        # self.assertEqual(isc.blocks["RVM"][0].codelen(), 8)
+        # self.assertEqual(get_opcodes(isc.blocks["RVM"]),
+        #                  [
+        #                      [119, 133],
+        #                  ])
+
+    def test_build_dict(self):
+        def build_dict(a, b):
+            return {a: b}
+        (pyvm, rvm) = self.function_helper(build_dict)
+        self.assertEqual(pyvm("a", 1), rvm("a", 1))
+
+    def test_build_empty_dict(self):
+        def build_empty_dict():
+            return {}
+        (pyvm, rvm) = self.function_helper(build_empty_dict)
+        self.assertEqual(pyvm(), rvm())
 
     def test_callfunc(self):
         def callfunc():
@@ -71,18 +75,6 @@ class InstructionTest(unittest.TestCase):
     def test_callfunc_protected_reg(self):
         (pyvm, rvm) = self.function_helper(_callfunc_protected_reg)
         self.assertEqual(pyvm(13.0), rvm(13.0))
-
-    def test_build_dict(self):
-        def build_dict(a, b):
-            return {a: b}
-        (pyvm, rvm) = self.function_helper(build_dict)
-        self.assertEqual(pyvm("a", 1), rvm("a", 1))
-
-    def test_build_empty_dict(self):
-        def build_empty_dict():
-            return {}
-        (pyvm, rvm) = self.function_helper(build_empty_dict)
-        self.assertEqual(pyvm(), rvm())
 
     def test_floor_divide(self):
         def floor_divide(a, b):
@@ -220,22 +212,6 @@ class InstructionTest(unittest.TestCase):
         (pyvm, rvm) = self.function_helper(listextend)
         self.assertEqual(pyvm(), rvm())
 
-    def test_simple_for(self):
-        def for_():
-            a = -1
-            for i in (1, 2):
-                a += i
-            return a
-        (pyvm, rvm) = self.function_helper(for_)
-        self.assertEqual(pyvm(), rvm())
-
-    def test_simple_import(self):
-        def import_name():
-            import sys
-            return sys
-        (pyvm, rvm) = self.function_helper(import_name)
-        self.assertEqual(pyvm(), rvm())
-
     def test_load_set_del_attr(self):
         def set_del_attr(a):
             a.someattr = 4
@@ -350,11 +326,27 @@ class InstructionTest(unittest.TestCase):
         self.assertEqual(pyvm(1, 5), rvm(1, 5))
         self.assertEqual(pyvm(5, 1), rvm(5, 1))
 
+    def test_rs0009(self):
+        def load_store():
+            a = 7
+            b = a
+            return a + b
+        (pyvm, rvm) = self.function_helper(load_store)
+        self.assertEqual(pyvm(), rvm())
+
     def test_rshift(self):
         def rshift(a, b):
             return a >> b
         (pyvm, rvm) = self.function_helper(rshift)
         self.assertEqual(pyvm(79999, 3), rvm(79999, 3))
+
+    def test_set_global(self):
+        def set_global():
+            global _A_GLOBAL
+            _A_GLOBAL = 42
+            return _A_GLOBAL
+        (pyvm, rvm) = self.function_helper(set_global)
+        self.assertEqual(pyvm(), rvm())
 
     def test_simple_branch_function(self):
         def branch_func(a):
@@ -364,6 +356,22 @@ class InstructionTest(unittest.TestCase):
             return b
         (pyvm, rvm) = self.function_helper(branch_func)
         self.assertEqual(pyvm(7), rvm(7))
+
+    def test_simple_for(self):
+        def for_():
+            a = -1
+            for i in (1, 2):
+                a += i
+            return a
+        (pyvm, rvm) = self.function_helper(for_)
+        self.assertEqual(pyvm(), rvm())
+
+    def test_simple_import(self):
+        def import_name():
+            import sys
+            return sys
+        (pyvm, rvm) = self.function_helper(import_name)
+        self.assertEqual(pyvm(), rvm())
 
     def test_src_dst(self):
         lfr = opcode.opmap['LOAD_FAST_REG']
@@ -471,10 +479,10 @@ class InstructionTest(unittest.TestCase):
 
         isc = InstructionSetConverter(pyvm_code)
         isc.gen_rvm()
-        if propagate:
-            isc.forward_propagate_fast_loads()
-            #isc.backward_propagate_fast_stores()
-            isc.delete_nops()
+        # if propagate:
+        #     isc.forward_propagate_fast_loads()
+        #     #isc.backward_propagate_fast_stores()
+        #     isc.delete_nops()
 
         if verbose:
             print()
