@@ -316,6 +316,8 @@ class InstructionSetConverter:
         # from back to front through the block list, map src to dst in
         # STORE instructions and update source registers until we see
         # a register appear as a source in an earlier instruction.
+        ### TBD - currently not working
+        return
         prop_dict = {}
         dirty = None
         for block in self.blocks["RVM"]:
