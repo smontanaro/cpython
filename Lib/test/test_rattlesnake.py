@@ -41,14 +41,14 @@ class InstructionTest(unittest.TestCase):
                              [136, 136, 119, 133],
                          ])
         self.assertEqual(isc.blocks["RVM"][0].codelen(), 16)
-        # isc.forward_propagate_fast_loads()
-        # #isc.backward_propagate_fast_stores()
-        # isc.delete_nops()
-        # self.assertEqual(isc.blocks["RVM"][0].codelen(), 8)
-        # self.assertEqual(get_opcodes(isc.blocks["RVM"]),
-        #                  [
-        #                      [119, 133],
-        #                  ])
+        isc.forward_propagate_fast_loads()
+        isc.backward_propagate_fast_stores()
+        isc.delete_nops()
+        self.assertEqual(isc.blocks["RVM"][0].codelen(), 8)
+        self.assertEqual(get_opcodes(isc.blocks["RVM"]),
+                         [
+                             [119, 133],
+                         ])
 
     def test_build_dict(self):
         def build_dict(a, b):

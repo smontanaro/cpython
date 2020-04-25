@@ -300,8 +300,7 @@ class InstructionSetConverter:
                         del prop_dict[dst]
                     except KeyError:
                         pass
-                if (isinstance(instr, (LoadFastInstruction,
-                                       StoreFastInstruction)) and
+                if (isinstance(instr, LoadFastInstruction) and
                     not instr.protected):
                     # Will map future references to the load's
                     # destination register to its source.
@@ -325,8 +324,7 @@ class InstructionSetConverter:
         dirty = None
         for block in self.blocks["RVM"]:
             for (i, instr) in enumerate_reversed(block):
-                if (isinstance(instr, (LoadFastInstruction,
-                                       StoreFastInstruction)) and
+                if (isinstance(instr, StoreFastInstruction) and
                     not instr.protected):
                     # Will map earlier references to the store's
                     # source registers to its destination.
