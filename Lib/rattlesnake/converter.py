@@ -316,7 +316,47 @@ class InstructionSetConverter:
         # from back to front through the block list, map src to dst in
         # STORE instructions and update source registers until we see
         # a register appear as a source in an earlier instruction.
-        ### TBD - currently not working
+        ### TBD - currently not working.
+        #
+
+        # To understand what the problem is with the current code,
+        # consider this simple function (ignore the *_args, just to
+        # make the calls work in my tests):
+
+        # def load_store(*_args):
+        #     a = 7
+        #     b = a
+        #     return a + b
+
+        # After the forward propagation step, the block looks like this:
+
+        # Block <RVM:0:0:26:8>
+        #    0 Instruction(139: LOAD_CONST_REG, {'dest': 3, 'name1': 1, '_opargs': (0,), 'index': 0, 'line_number': 139})
+        #    4 Instruction(139: STORE_FAST_REG, {'dest': 1, 'source1': 3, '_opargs': (0,), 'index': 1, 'line_number': 139, 'protected': False})
+        #    8 Instruction(-1: NOP, {'_opargs': (0,), 'index': -1, 'line_number': -1})
+        #   10 Instruction(140: STORE_FAST_REG, {'dest': 2, 'source1': 1, '_opargs': (0,), 'index': 3, 'line_number': 140, 'protected': False})
+        #   14 Instruction(-1: NOP, {'_opargs': (0,), 'index': -1, 'line_number': -1})
+        #   16 Instruction(-1: NOP, {'_opargs': (0,), 'index': -1, 'line_number': -1})
+        #   18 Instruction(141: BINARY_ADD_REG, {'dest': 3, 'source1': 1, 'source2': 2, '_opargs': (0,), 'index': 6, 'line_number': 141})
+        #   24 Instruction(141: RETURN_VALUE_REG, {'source1': 3, '_opargs': (0,), 'index': 7, 'line_number': 141})
+
+        # If the backward propagation step is run, we wind up with this:
+
+        # Block <RVM:0:0:22:8>
+        #    0 Instruction(139: LOAD_CONST_REG, {'dest': 1, 'name1': 1, '_opargs': (0,), 'index': 0, 'line_number': 139})
+        #    4 Instruction(-1: NOP, {'_opargs': (0,), 'index': -1, 'line_number': -1})
+        #    6 Instruction(-1: NOP, {'_opargs': (0,), 'index': -1, 'line_number': -1})
+        #    8 Instruction(-1: NOP, {'_opargs': (0,), 'index': -1, 'line_number': -1})
+        #   10 Instruction(-1: NOP, {'_opargs': (0,), 'index': -1, 'line_number': -1})
+        #   12 Instruction(-1: NOP, {'_opargs': (0,), 'index': -1, 'line_number': -1})
+        #   14 Instruction(141: BINARY_ADD_REG, {'dest': 3, 'source1': 1, 'source2': 2, '_opargs': (0,), 'index': 6, 'line_number': 141})
+        #   20 Instruction(141: RETURN_VALUE_REG, {'source1': 3, '_opargs': (0,), 'index': 7, 'line_number': 141})
+
+        # Note that the STORE_FAST_REG instructions have been removed,
+        # but that the reference to register 2 remains in the
+        # BINARY_ADD_REG instruction. Its source2 register should be
+        # 1, not (the empty) 2.
+
         return
         prop_dict = {}
         dirty = None
