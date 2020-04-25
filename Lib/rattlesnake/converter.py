@@ -196,11 +196,7 @@ class InstructionSetConverter:
             rvm_block = Block("RVM", self, block_number=pyvm_block.block_number)
             self.blocks["RVM"].append(rvm_block)
         for (rvm, pyvm) in zip(self.blocks["RVM"], self.blocks["PyVM"]):
-            try:
-                pyvm.gen_rvm(rvm)
-            except KeyError:
-                self.display_blocks(self.blocks["PyVM"])
-                raise
+            pyvm.gen_rvm(rvm)
 
     # A small, detailed example forward propagating the result of a
     # fast load and backward propagating the result of a fast
