@@ -184,6 +184,8 @@ def _create_parser():
                        help='display test output on failure')
     group.add_argument('-q', '--quiet', action='store_true',
                        help='no output unless one or more tests fail')
+    group.add_argument('--silent', action='store_true',
+                       help='no output at all')
     group.add_argument('-o', '--slowest', action='store_true', dest='print_slow',
                        help='print the slowest 10 tests')
     group.add_argument('--header', action='store_true',
@@ -325,7 +327,7 @@ def _parse_args(args, **kwargs):
          runleaks=False, huntrleaks=False, verbose2=False, print_slow=False,
          random_seed=None, use_mp=None, verbose3=False, forever=False,
          header=False, failfast=False, match_tests=None, ignore_tests=None,
-         pgo=False)
+         pgo=False, silent=False)
     for k, v in kwargs.items():
         if not hasattr(ns, k):
             raise TypeError('%r is an invalid keyword argument '
@@ -361,6 +363,8 @@ def _parse_args(args, **kwargs):
         print("Warning: the --nowindows (-n) option is deprecated. "
               "Use -vv to display assertions in stderr.", file=sys.stderr)
 
+    if ns.silent:
+        ns.quiet = True
     if ns.quiet:
         ns.verbose = 0
     if ns.timeout is not None:

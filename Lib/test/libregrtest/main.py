@@ -333,8 +333,9 @@ class Regrtest:
         if self.ns.pgo:
             return
 
-        print()
-        print("== Tests result: %s ==" % self.get_tests_result())
+        if not self.ns.silent:
+            print()
+            print("== Tests result: %s ==" % self.get_tests_result())
 
         if self.interrupted:
             print("Test suite interrupted by signal SIGINT.")
@@ -394,10 +395,11 @@ class Regrtest:
 
         save_modules = sys.modules.keys()
 
-        msg = "Run tests sequentially"
-        if self.ns.timeout:
-            msg += " (timeout: %s)" % format_duration(self.ns.timeout)
-        self.log(msg)
+        if not self.ns.silent:
+            msg = "Run tests sequentially"
+            if self.ns.timeout:
+                msg += " (timeout: %s)" % format_duration(self.ns.timeout)
+            self.log(msg)
 
         previous_test = None
         for test_index, test_name in enumerate(self.tests, 1):
@@ -530,10 +532,11 @@ class Regrtest:
             r.write_results(show_missing=True, summary=True,
                             coverdir=self.ns.coverdir)
 
-        print()
         duration = time.monotonic() - self.start_time
-        print("Total duration: %s" % format_duration(duration))
-        print("Tests result: %s" % self.get_tests_result())
+        if not self.ns.silent:
+            print()
+            print("Total duration: %s" % format_duration(duration))
+            print("Tests result: %s" % self.get_tests_result())
 
         if self.ns.runleaks:
             os.system("leaks %d" % os.getpid())
