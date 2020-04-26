@@ -42,7 +42,6 @@ class InstructionTest(unittest.TestCase):
                          ])
         self.assertEqual(isc.blocks["RVM"][0].codelen(), 16)
         isc.forward_propagate_fast_loads()
-        isc.backward_propagate_fast_stores()
         isc.delete_nops()
         self.assertEqual(isc.blocks["RVM"][0].codelen(), 8)
         self.assertEqual(get_opcodes(isc.blocks["RVM"]),
@@ -481,7 +480,6 @@ class InstructionTest(unittest.TestCase):
         isc.gen_rvm()
         if propagate:
             isc.forward_propagate_fast_loads()
-            isc.backward_propagate_fast_stores()
             isc.delete_nops()
 
         if verbose:
