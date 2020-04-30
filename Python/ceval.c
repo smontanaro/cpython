@@ -2021,6 +2021,10 @@ main_loop:
             retval = POP();
             assert(f->f_iblock == 0);
             assert(EMPTY());
+
+            if (f->f_gen != NULL)
+                ((PyGenObject *)f->f_gen)->gi_returning = 1;
+
             goto exiting;
         }
 
@@ -2188,6 +2192,10 @@ main_loop:
             }
             /* receiver remains on stack, retval is value to be yielded */
             f->f_stacktop = stack_pointer;
+
+            assert(f->f_gen != NULL);
+            ((PyGenObject *)f->f_gen)->gi_returning = 0;
+
             /* and repeat... */
             assert(f->f_lasti >= (int)sizeof(_Py_CODEUNIT));
             f->f_lasti -= sizeof(_Py_CODEUNIT);
@@ -2208,6 +2216,10 @@ main_loop:
             }
 
             f->f_stacktop = stack_pointer;
+
+            assert(f->f_gen != NULL);
+            ((PyGenObject *)f->f_gen)->gi_returning = 0;
+
             goto exiting;
         }
 
@@ -6001,6 +6013,47 @@ _PyEval_SliceIndexNotNone(PyObject *v, Py_ssize_t *pi)
     }
     *pi = x;
     return 1;
+}
+
+void
+_PyEval_SaveValue(PyFrameObject *f, PyObject *value)
+{
+    Py_INCREF(value);
+    if (f->f_code->co_flags & CO_REGISTER) {
+        Py_FatalError("not implemented for RVM yet!");
+    }
+    else {
+        *(f->f_stacktop++) = value;
+    }
+}
+
+PyObject *
+_PyEval_GetSubIterator(PyFrameObject *f)
+{
+    PyObject *ret;
+    if (f->f_code->co_flags & CO_REGISTER) {
+        Py_FatalError("not implemented for RVM yet!");
+        return NULL;
+    }
+    else {
+        ret = *(--f->f_stacktop);
+    }
+    return ret;
+}
+
+PyObject *
+_PyEval_GetYieldValue(PyFrameObject *f)
+{
+    PyObject *yf;
+    if (f->f_code->co_flags & CO_REGISTER) {
+        Py_FatalError("not implemented for RVM yet!");
+        return NULL;
+    }
+    else {
+        yf = f->f_stacktop[-1];
+        Py_INCREF(yf);
+    }
+    return yf;
 }
 
 static PyObject *

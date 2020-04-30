@@ -20,6 +20,8 @@ struct _frame; /* Avoid including frameobject.h */
     struct _frame *prefix##_frame;                                          \
     /* True if generator is being executed. */                              \
     char prefix##_running;                                                  \
+    /* True if generator is returning, False otherwise. */                  \
+    char prefix##_returning;                                                \
     /* The code object backing the generator */                             \
     PyObject *prefix##_code;                                                \
     /* List of weak reference. */                                           \

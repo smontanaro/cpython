@@ -46,7 +46,7 @@ _PyGen_Finalize(PyObject *self)
     PyObject *res = NULL;
     PyObject *error_type, *error_value, *error_traceback;
 
-    if (gen->gi_frame == NULL || gen->gi_frame->f_stacktop == NULL) {
+    if (gen->gi_frame == NULL || gen->gi_returning == 1) {
         /* Generator isn't paused, so no need to close */
         return;
     }
@@ -168,7 +168,7 @@ gen_send_ex(PyGenObject *gen, PyObject *arg, int exc, int closing)
         PyErr_SetString(PyExc_ValueError, msg);
         return NULL;
     }
-    if (f == NULL || f->f_stacktop == NULL) {
+    if (f == NULL || gen->gi_returning == 1) {
         if (PyCoro_CheckExact(gen) && !closing) {
             /* `gen` is an exhausted coroutine: raise an error,
                except when called from gen_close(), which should
@@ -207,8 +207,7 @@ gen_send_ex(PyGenObject *gen, PyObject *arg, int exc, int closing)
     } else {
         /* Push arg onto the frame's value stack */
         result = arg ? arg : Py_None;
-        Py_INCREF(result);
-        *(f->f_stacktop++) = result;
+        _PyEval_SaveValue(f, result);
     }
 
     /* Generators always return to their most recent caller, not
@@ -233,7 +232,7 @@ gen_send_ex(PyGenObject *gen, PyObject *arg, int exc, int closing)
 
     /* If the generator just returned (as opposed to yielding), signal
      * that the generator is exhausted. */
-    if (result && f->f_stacktop == NULL) {
+    if (result && gen->gi_returning == 1) {
         if (result == Py_None) {
             /* Delay exception instantiation if we can */
             if (PyAsyncGen_CheckExact(gen)) {
@@ -271,7 +270,7 @@ gen_send_ex(PyGenObject *gen, PyObject *arg, int exc, int closing)
         _PyErr_FormatFromCause(PyExc_RuntimeError, "%s", msg);
     }
 
-    if (!result || f->f_stacktop == NULL) {
+    if (!result || gen->gi_returning == 1) {
         /* generator can't be rerun, so release the frame */
         /* first clean reference cycle through stored exception traceback */
         exc_state_clear(&gen->gi_exc_state);
@@ -334,7 +333,7 @@ _PyGen_yf(PyGenObject *gen)
     PyObject *yf = NULL;
     PyFrameObject *f = gen->gi_frame;
 
-    if (f && f->f_stacktop) {
+    if (f && gen->gi_returning == 0) {
         PyObject *bytecode = f->f_code->co_code;
         unsigned char *code = (unsigned char *)PyBytes_AS_STRING(bytecode);
 
@@ -348,8 +347,7 @@ _PyGen_yf(PyGenObject *gen)
 
         if (code[f->f_lasti + sizeof(_Py_CODEUNIT)] != YIELD_FROM)
             return NULL;
-        yf = f->f_stacktop[-1];
-        Py_INCREF(yf);
+        yf = _PyEval_GetYieldValue(f);
     }
 
     return yf;
@@ -448,7 +446,7 @@ _gen_throw(PyGenObject *gen, int close_on_genexit,
         if (!ret) {
             PyObject *val;
             /* Pop subiterator from stack */
-            ret = *(--gen->gi_frame->f_stacktop);
+            ret = _PyEval_GetSubIterator(gen->gi_frame);
             assert(ret == yf);
             Py_DECREF(ret);
             /* Termination repetition of YIELD_FROM */
@@ -789,6 +787,7 @@ gen_new_with_qualname(PyTypeObject *type, PyFrameObject *f,
     Py_INCREF(f->f_code);
     gen->gi_code = (PyObject *)(f->f_code);
     gen->gi_running = 0;
+    gen->gi_returning = 0;
     gen->gi_weakreflist = NULL;
     gen->gi_exc_state.exc_type = NULL;
     gen->gi_exc_state.exc_value = NULL;
@@ -1806,7 +1805,7 @@ async_gen_athrow_send(PyAsyncGenAThrow *o, PyObject *arg)
         return NULL;
     }
 
-    if (f == NULL || f->f_stacktop == NULL) {
+    if (f == NULL || gen->gi_returning == 1) {
         o->agt_state = AWAITABLE_STATE_CLOSED;
         PyErr_SetNone(PyExc_StopIteration);
         return NULL;
