@@ -365,6 +365,12 @@ class InstructionTest(unittest.TestCase):
         (pyvm, rvm) = self.function_helper(for_)
         self.assertEqual(pyvm(), rvm())
 
+    # def test_simple_yield(self):
+    #     def yield_value(a):
+    #         yield a
+    #     (pyvm, rvm) = self.function_helper(yield_value)
+    #     self.assertEqual(list(pyvm(42)), list(rvm(42)))
+
     # def test_simple_import(self):
     #     def import_name():
     #         import sys
