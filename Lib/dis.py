@@ -26,6 +26,22 @@ FORMAT_VALUE_CONVERTERS = (
 MAKE_FUNCTION = opmap['MAKE_FUNCTION']
 MAKE_FUNCTION_FLAGS = ('defaults', 'kwdefaults', 'annotations', 'closure')
 
+BINOPS = {
+    119: '+',
+    120: '&',
+    121: '//',
+    122: '<<',
+    123: '@',
+    124: '%',
+    125: '*',
+    126: '|',
+    127: '**',
+    128: '>>',
+    129: '[]',
+    130: '-',
+    131: '/',
+    132: '^',
+}
 
 def _try_compile(source, name):
     """Attempts to compile the given source, first as an expression and
@@ -109,6 +125,7 @@ COMPILER_FLAG_NAMES = {
    128: "COROUTINE",
    256: "ITERABLE_COROUTINE",
    512: "ASYNC_GENERATOR",
+  1024: "REGISTER"
 }
 
 def pretty_flags(flags):
@@ -203,7 +220,7 @@ _Instruction.offset.__doc__ = "Start index of operation within bytecode sequence
 _Instruction.starts_line.__doc__ = "Line started by this opcode (if any), otherwise None"
 _Instruction.is_jump_target.__doc__ = "True if other code jumps to here, otherwise False"
 
-_OPNAME_WIDTH = 20
+_OPNAME_WIDTH = 27
 _OPARG_WIDTH = 5
 
 class Instruction(_Instruction):
@@ -231,8 +248,7 @@ class Instruction(_Instruction):
         # Column: Source code line number
         if lineno_width:
             if self.starts_line is not None:
-                lineno_fmt = "%%%dd" % lineno_width
-                fields.append(lineno_fmt % self.starts_line)
+                fields.append("%*d" % (lineno_width, self.starts_line))
             else:
                 fields.append(' ' * lineno_width)
         # Column: Current instruction indicator
@@ -279,6 +295,54 @@ def get_instructions(x, *, first_line=None):
     return _get_instructions_bytes(co.co_code, co.co_varnames, co.co_names,
                                    co.co_consts, cell_names, linestarts,
                                    line_offset)
+
+def _get_reg_info(arg):
+    """Register instruction helper - dissect arg into four-element tuple."""
+    tup = [arg >> 24, arg >> 16 & 0xff, arg >> 8 & 0xff, arg & 0xff]
+    argrepr = ", ".join(str(elt) for elt in tup)
+    return arg, argrepr
+
+def _get_regs_info(arg):
+    """Register instruction helper - single source register."""
+    return arg, f"%r{arg & 0xff}"
+
+def _get_regdc_info(arg, constants):
+    """Register instruction helper - dest register and constant."""
+    return arg, f"%r{arg >> 8 & 0xff} <- {repr(constants[arg & 0xff])}"
+
+def _get_regdn_info(arg, names):
+    """Register instruction helper - dest register, global name src."""
+    if names is not None:
+        return arg, f"%r{arg >> 8 & 0xff} <- {names[arg & 0xff]}"
+    else:
+        return _get_reg_info(arg)
+
+def _get_regns_info(arg, names):
+    """Register instruction helper - global name dest, src register."""
+    if names is not None:
+        return arg, f"{names[arg >> 8 & 0xff]} <- %r{arg & 0xff}"
+    else:
+        return _get_reg_info(arg)
+
+def _get_regds_info(arg):
+    """Register instruction helper - dest & source registers."""
+    return arg, f"%r{arg >> 8 & 0xff} <- %r{arg & 0xff}"
+
+def _get_regdss_info(arg, binop):
+    """Register instruction helper - dest & two source registers."""
+    return arg, (f"%r{arg >> 16 & 0xff} <- %r{arg >> 8 & 0xff} {binop} "
+                 f"%r{arg & 0xff}")
+
+def _get_regcmp_info(arg):
+    """Register compare instruction helper"""
+    tup = [f"%r{arg >> 24}", "<-", f"%r{arg >> 16 & 0xff}",
+           cmp_op[arg & 0xff], f"%r{arg >> 8 & 0xff}"]
+    return arg, " ".join(tup)
+
+def _get_regjc_info(arg):
+    """Register conditional jump instruction helper"""
+    argrepr = f"to {arg >> 8}, %r{arg & 0xff}"
+    return arg, argrepr
 
 def _get_const_info(const_index, const_list):
     """Helper to get optional details about const references
@@ -334,7 +398,27 @@ def _get_instructions_bytes(code, varnames=None, names=None, constants=None,
             #    _disassemble_bytes needs the string repr of the
             #    raw name index for LOAD_GLOBAL, LOAD_CONST, etc.
             argval = arg
-            if op in hasconst:
+            if op >= HAVE_REGISTERS:
+                if op in hascompare:
+                    argval, argrepr = _get_regcmp_info(arg)
+                elif op in hasregdc:
+                    argval, argrepr = _get_regdc_info(arg, constants)
+                elif op in hasregdn:
+                    argval, argrepr = _get_regdn_info(arg, names)
+                elif op in hasregns:
+                    argval, argrepr = _get_regns_info(arg, names)
+                elif op in hasregdss:
+                    binop = BINOPS.get(op, "OP")
+                    argval, argrepr = _get_regdss_info(arg, binop)
+                elif op in hasregds:
+                    argval, argrepr = _get_regds_info(arg)
+                elif op in hasregs:
+                    argval, argrepr = _get_regs_info(arg)
+                elif op in hasregjc:
+                    argval, argrepr = _get_regjc_info(arg)
+                else:
+                    argval, argrepr = _get_reg_info(arg)
+            elif op in hasconst:
                 argval, argrepr = _get_const_info(arg, constants)
             elif op in hasname:
                 argval, argrepr = _get_name_info(arg, names)

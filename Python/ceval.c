@@ -53,6 +53,7 @@ static PyObject * do_call_core(
     PyObject *callargs, PyObject *kwdict);
 
 #ifdef LLTRACE
+#include "opcode_map.h"
 static int lltrace;
 static int prtrace(PyThreadState *, PyObject *, const char *);
 #endif
@@ -971,7 +972,7 @@ _PyEval_EvalFrameDefault(PyThreadState *tstate, PyFrameObject *f, int throwflag)
     _PyOpcache *co_opcache;
 
 #ifdef LLTRACE
-    _Py_IDENTIFIER(__ltrace__);
+    _Py_IDENTIFIER(__lltrace__);
 #endif
 
 /* Computed GOTOs, or
@@ -1096,6 +1097,12 @@ _PyEval_EvalFrameDefault(PyThreadState *tstate, PyFrameObject *f, int throwflag)
     } while (0)
 #define JUMPTO(x)       (next_instr = first_instr + (x) / sizeof(_Py_CODEUNIT))
 #define JUMPBY(x)       (next_instr += (x) / sizeof(_Py_CODEUNIT))
+
+/* extract arg elements out of oparg. */
+#define REGARG4(oparg) (oparg >> 24)
+#define REGARG3(oparg) ((oparg >> 16) & 0xff)
+#define REGARG2(oparg) ((oparg >> 8) & 0xff)
+#define REGARG1(oparg) (oparg & 0xff)
 
 /* OpCode prediction macros
     Some opcodes tend to come in pairs thus making it possible to
@@ -1322,7 +1329,7 @@ _PyEval_EvalFrameDefault(PyThreadState *tstate, PyFrameObject *f, int throwflag)
     names = co->co_names;
     consts = co->co_consts;
     fastlocals = f->f_localsplus;
-    freevars = f->f_localsplus + co->co_nlocals;
+    freevars = f->f_cellvars;
     assert(PyBytes_Check(co->co_code));
     assert(PyBytes_GET_SIZE(co->co_code) <= INT_MAX);
     assert(PyBytes_GET_SIZE(co->co_code) % sizeof(_Py_CODEUNIT) == 0);
@@ -1370,7 +1377,7 @@ _PyEval_EvalFrameDefault(PyThreadState *tstate, PyFrameObject *f, int throwflag)
     }
 
 #ifdef LLTRACE
-    lltrace = _PyDict_GetItemId(f->f_globals, &PyId___ltrace__) != NULL;
+    lltrace = _PyDict_GetItemId(f->f_globals, &PyId___lltrace__) != NULL;
 #endif
 
     if (throwflag) /* support for generator.throw() */
@@ -1474,12 +1481,12 @@ main_loop:
 
         if (lltrace) {
             if (HAS_ARG(opcode)) {
-                printf("%d: %d, %d\n",
-                       f->f_lasti, opcode, oparg);
+                printf("%d: %s, %d\n",
+                       f->f_lasti, opcode_map[opcode], oparg);
             }
             else {
-                printf("%d: %d\n",
-                       f->f_lasti, opcode);
+                printf("%d: %s\n",
+                       f->f_lasti, opcode_map[opcode]);
             }
         }
 #endif
@@ -2076,6 +2083,10 @@ main_loop:
             retval = POP();
             assert(f->f_iblock == 0);
             assert(EMPTY());
+
+            if (f->f_gen != NULL)
+                ((PyGenObject *)f->f_gen)->gi_returning = 1;
+
             goto exiting;
         }
 
@@ -2243,6 +2254,10 @@ main_loop:
             }
             /* receiver remains on stack, retval is value to be yielded */
             f->f_stacktop = stack_pointer;
+
+            assert(f->f_gen != NULL);
+            ((PyGenObject *)f->f_gen)->gi_returning = 0;
+
             /* and repeat... */
             assert(f->f_lasti >= (int)sizeof(_Py_CODEUNIT));
             f->f_lasti -= sizeof(_Py_CODEUNIT);
@@ -2263,6 +2278,10 @@ main_loop:
             }
 
             f->f_stacktop = stack_pointer;
+
+            assert(f->f_gen != NULL);
+            ((PyGenObject *)f->f_gen)->gi_returning = 0;
+
             goto exiting;
         }
 
@@ -3626,7 +3645,7 @@ main_loop:
 
             if (oparg & 0x08) {
                 assert(PyTuple_CheckExact(TOP()));
-                func ->func_closure = POP();
+                func->func_closure = POP();
             }
             if (oparg & 0x04) {
                 assert(PyDict_CheckExact(TOP()));
@@ -3730,6 +3749,7 @@ main_loop:
             goto dispatch_opcode;
         }
 
+#include "ceval_reg.h"
 
 #if USE_COMPUTED_GOTOS
         _unknown_opcode:
@@ -4310,6 +4330,7 @@ _PyEval_EvalCode(PyThreadState *tstate,
 
     /* Allocate and initialize storage for cell vars, and copy free
        vars into frame. */
+    j = f->f_cellvars - f->f_localsplus;
     for (i = 0; i < PyTuple_GET_SIZE(co->co_cellvars); ++i) {
         PyObject *c;
         Py_ssize_t arg;
@@ -4325,7 +4346,7 @@ _PyEval_EvalCode(PyThreadState *tstate,
         }
         if (c == NULL)
             goto fail;
-        SETLOCAL(co->co_nlocals + i, c);
+        SETLOCAL(j + i, c);
     }
 
     /* Copy closure variables to free variables */
@@ -5112,10 +5133,14 @@ call_function(PyThreadState *tstate, PyObject ***pp_stack, Py_ssize_t oparg, PyO
 
     assert((x != NULL) ^ (_PyErr_Occurred(tstate) != NULL));
 
-    /* Clear the stack of the function object. */
-    while ((*pp_stack) > pfunc) {
-        w = EXT_POP(*pp_stack);
-        Py_DECREF(w);
+    if (tstate->frame->f_code->co_flags & CO_REGISTER)
+        ;
+    else {
+        /* Clear the stack of the function object. */
+        while ((*pp_stack) > pfunc) {
+            w = EXT_POP(*pp_stack);
+            Py_DECREF(w);
+        }
     }
 
     return x;
@@ -5204,6 +5229,47 @@ _PyEval_SliceIndexNotNone(PyObject *v, Py_ssize_t *pi)
     }
     *pi = x;
     return 1;
+}
+
+void
+_PyEval_SaveValue(PyFrameObject *f, PyObject *value)
+{
+    Py_INCREF(value);
+    if (f->f_code->co_flags & CO_REGISTER) {
+        Py_FatalError("not implemented for RVM yet!");
+    }
+    else {
+        *(f->f_stacktop++) = value;
+    }
+}
+
+PyObject *
+_PyEval_GetSubIterator(PyFrameObject *f)
+{
+    PyObject *ret;
+    if (f->f_code->co_flags & CO_REGISTER) {
+        Py_FatalError("not implemented for RVM yet!");
+        return NULL;
+    }
+    else {
+        ret = *(--f->f_stacktop);
+    }
+    return ret;
+}
+
+PyObject *
+_PyEval_GetYieldValue(PyFrameObject *f)
+{
+    PyObject *yf;
+    if (f->f_code->co_flags & CO_REGISTER) {
+        Py_FatalError("not implemented for RVM yet!");
+        return NULL;
+    }
+    else {
+        yf = f->f_stacktop[-1];
+        Py_INCREF(yf);
+    }
+    return yf;
 }
 
 static PyObject *
@@ -5559,8 +5625,7 @@ unicode_concatenate(PyThreadState *tstate, PyObject *v, PyObject *w,
         }
         case STORE_DEREF:
         {
-            PyObject **freevars = (f->f_localsplus +
-                                   f->f_code->co_nlocals);
+            PyObject **freevars = f->f_cellvars;
             PyObject *c = freevars[oparg];
             if (PyCell_GET(c) ==  v) {
                 PyCell_SET(c, NULL);

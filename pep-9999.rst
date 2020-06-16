@@ -1,0 +1,787 @@
+PEP: 9999
+Title: Register Virtual Machine for Python
+Author: Skip Montanaro <skip@python.org>
+Status: Active
+Type: Standards Track
+Content-Type: text/x-rst
+Created: 28-Mar-2020
+Python-Version: 4.0
+Post-History: dd-mmm-yyyy
+
+.. Process with rstpep2html to get table of contents and preserve
+   above header.
+
+Abstract
+========
+
+This PEP proposes the addition of register-based instructions to the
+existing Python virtual machine, with the intent that they eventually
+replace the existing stack-based opcodes.  Though both sets of
+instructions are active in this effort, they are almost completely
+distinct.  Within a single function only one set of opcodes or the
+other will be used at any one time.  (A few instructions are used by
+both.)  Considering that, the current stack-based opcodes are referred
+to below as the Python Virtual Machine ("PyVM") and the new
+register-based opcodes are referred to as the Register Virtual Machine
+("RVM").
+
+Though submitted as a standards track PEP, the approach taken in the
+initial implementation requires PyVM to be active as RVM is developed.
+For that reason, as of its initial writing this document serves as
+much as a guide for the architecture changes and for work which must
+be done as for a rationale for the new virtual machine.
+
+
+Motivation
+==========
+
+Over the past two decades, Python's virtual machine has been improved
+in many ways.  Among the most visible to the core Python developer
+are:
+
+- Peephole optimizations [#peephett]_
+
+- Function call performance improvements [#pep-590]_
+
+- Use of computed gotos and opcode prediction [#predpitr]_
+
+- Introduction of new instructions (reference?)
+
+- Wordcode [#wordcode]_
+
+Despite all that effort, stack manipulation opcodes (``LOAD_FAST``,
+``POP_TOP``, etc) still account for a substantial fraction of all
+opcodes executed.  This has been consistently true over a long period
+of time [#dynlemb]_, [#instpage]_ and remains true today.  Running
+Pyperformance using a development version of Python 3.9 showed that
+the top four opcodes executed (``LOAD_FAST``, ``LOAD_CONST``,
+``STORE_FAST`` and ``LOAD_GLOBAL``) accounted for nearly half of all
+executed instructions.  They are low-cost instructions (compared with
+``CALL_FUNCTION`` for example), but still eat up time and space in the
+virtual machine, making it less efficient than it might be.  (The
+complete table of opcode frequencies is in `Appendix - Opcode
+Frequencies`_.)
+
+While swapping out the virtual machine in toto doesn't qualify as low
+hanging fruit, even after all this time it seems like it might be a
+profitable change.
+
+
+Previous Work
+=============
+
+Between 1998 and 2001, the author began work on a system named
+Rattlesnake based on Python 1.5.2.  It was never more than a barebones
+proof-of-concept, but did implement over 50 register-oriented
+instructions, a substantial fraction of the machine at that time.  Its
+structure was based on an earlier peephole optimizer written by the
+author [#peepmont]_ and implemented as a peephole optimization class
+which could be chained together with other optimizations.  As such, it
+worked from the existing PyVM instructions, not any higher-level
+representation.  While it never saw the light of day, the code
+followed the author of this document around as a subtle reminder of
+the possibility it represented.  It lives on, providing much of the
+initial starting framework for the current translator.
+
+In 2012, Victor Stinner implemented a nearly complete system
+[#regstin].  It failed for a number of reasons, but it demonstrated a
+significant performance improvement and was very close to a complete
+system.
+
+Both systems worked from PyVM bytecode as the starting point, and both
+were based on the old bytecode instruction format which used variable
+length instructions.  In 2005, Jeremy Hylton merged a new AST-based
+compiler to the master development branch [#asthylt]_.
+
+
+Rationale
+=========
+
+The "correct" approach is to modify, replace or duplicate the existing
+AST-based compiler to produce RVM instructions.  Alas, the author had
+no experience with it and decided to fall back to translation of PyVM
+to RVM.  That provides fewer optimization opportunities, but allows
+all the translation to be done using an external Python program.  It
+should provide enough data to decide if the general idea is workable.
+Aside from allowing quicker experimentation, it also makes the
+development more accessible to Python developers without much
+experience with the CPython implementation.  If the approach proves
+worthwhile, developers with more experience with the compiler can push
+that part of the system forward.  Consider the current approach an
+attempt at producing a "minimum viable product," to use a business
+buzz phrase.
+
+Obviously, some work in the C code base is required.  This is mostly
+confined to two files:
+
+- ``Python/ceval.c`` - Each new instruction must be implemented, but
+  Python/ceval.c provides an excellent set of templates in the form of
+  the current PyVM instructions.  For the most part, the semantics of
+  an RVM instruction are the same as the corresponding PyVM
+  instruction.  The main difference between pairs of related
+  instructions is how they get their data.
+
+- ``Objects/frameobject.c`` - Most of this work has been done already,
+  but more could be done.  The primary work necessary was
+  reorganization of the ``f_localsplus`` array so local variables and
+  the stack space were adjacent.  As Stinner noted though [#regstin]_,
+  adding a copy of the code object's constants to the frame object is
+  also a performance win.  This is suggested by the opcode frequencies
+  table.  ``LOAD_CONST`` is the second most frequently executed
+  instruction.
+
+
+Reference Counts
+----------------
+
+While the same memory is used for the stack (PyVM) and registers
+(RVM), their semantics are different.  When used as a stack, that
+memory is completely transparent to reference counts.  As objects are
+pushed on and popped from the stack, the responsibility of maintaining
+reference counts lies with the individual instructions.  At the end of
+normal function execution, the stack will have dwindled away to
+nothing, meaning no reference counts need to be decremented.
+
+Such is not the case when that memory is used for registers.  At the
+end of function execution, any number of them might still be active
+and require decrement of their reference counts.  In the current
+implementation, this happens at the end of
+``_PyEval_EvalFrameDefault``.  Since the pattern of use of the
+register space can differ from one call of a function to the next and
+frame objects are reused where possible, the registers are cleared,
+not just decref'd.
+
+
+A Conundrum
+'''''''''''
+
+Consider these two simple functions::
+
+    def f(a):
+        if a:
+            return 42
+        return 42
+
+    def g(a):
+        if a != 0:
+            return 42
+        return 42
+
+In PyVM, their conditional statements disassemble as follows::
+
+    >>> dis.dis(f)
+      3           0 LOAD_FAST                   0 (a)
+                  2 POP_JUMP_IF_FALSE           8
+                  ...
+
+    >>> dis.dis(g)
+      3           0 LOAD_FAST                   0 (a)
+                  2 LOAD_CONST                  1 (0)
+                  4 COMPARE_OP                  3 (!=)
+                  6 POP_JUMP_IF_FALSE          12
+                  ...
+
+In RVM, the start of disassembly looks like this (simplified by
+eliding the ``EXTENDED_ARG`` instructions which have no bearing on this
+discussion)::
+
+    >>> dis.dis(rvm)    # f
+      3           4 JUMP_IF_FALSE_REG        3072 (to 12, %r0)
+                  ...
+
+    >>> dis.dis(rvm)    # g
+      3           2 LOAD_CONST_REG            513 (%r2 <- 0)
+                 10 COMPARE_OP_REG       16777731 (%r1 <- %r0 != %r2)
+                 16 JUMP_IF_FALSE_REG        6145 (to 24, %r1)
+                 ...
+
+Function f first considers the "truthiness" of its local variable
+``a`` (though a bit more rigorously than Stephen Colbert might).  If
+we execute ``f(5)``, what happens to the reference count on the small
+integer object with value ``5``?  In the PyVM case, its reference
+count is incremented by the ``LOAD_FAST`` when it's pushed onto the
+stack, then decremented again by the ``POP_JUMP_IF_FALSE``
+instruction, so the net change to ``5``'s reference count is zero.
+
+Now look at the RVM formulation.  It needs no ``LOAD_FAST_REG``
+instruction to make ``a`` available for the test.  If
+``JUMP_IF_FALSE_REG`` decrements the reference count of its source
+register (``%r0`` == ``a`` == ``5``), the reference count of ``5``
+would drop.  That would be bad.  Okay, so don't decrement.  Problem
+solved.
+
+Well, perhaps not.  Look at the beginning of function ``g``.  It makes
+a slightly more complicated comparison involving a constant load of
+``0``, comparison with ``%r0``, then a jump decision based on the
+output of the comparison in ``%r1``.  The ``COMPARE_OP_REG``
+instruction calls ``PyObject_RichCompare()`` to do its work, which
+returns a new reference to the result (``Py_True`` or ``Py_False``).
+If ``JUMP_IF_FALSE_REG`` doesn't decrement the reference count of the
+value in ``%r1``, we leak that new reference.
+
+Now we could perhaps get away with decrementing the reference count of
+the object returned by ``COMPARE_OP_REG`` because we know it will be
+``Py_True`` or ``Py_False``, both of which will have large non-zero
+reference counts in steady state operation::
+
+    >>> sys.getrefcount(True)
+    193
+    >>> sys.getrefcount(False)
+    206
+
+Maybe that's the way to go, but it seems a bit sketchy to me.  Still,
+that seems to work, so I'm going with it for the time being.
+
+
+Object Lifetime
+'''''''''''''''
+
+Closely related to reference counts is the notion of object lifetime.
+When an object's reference count drops to zero, CPython's semantics
+mean it will be reclaimed immediately.  What happens if an object is
+created and completely used early during the execution of a
+long-running function but its reference count doesn't drop to zero
+until the end of the function?  Consider this (silly) function::
+
+    def long_running():
+        x = [1] * int(10e7)
+        y = [2] * int(10e7)
+        z = (x + y) * 3
+        # Could reclaim x and y here
+        char = z[99]
+        # Could reclaim z here
+        result = do_something_long_running(char)
+        return result
+
+Currently, RVM clears registers at the end of frame execution.
+Instead, registers should be cleared upon last reference.  All three
+large lists currently stick around until function return, but are
+unused after extracting the single character which is used.  For that
+length of time, a large amount of memory is consumed unnecessarily.
+The comments above indicate where registers holding x, y and z should
+be cleared.  Victor Stinner's implementation [#regstin] does this
+correctly.
+
+
+Backwards Compatibility
+=======================
+
+Since the instruction set is an internal implementation detail
+(although a significant one), there should be no backward
+compatibility issues.  Tools which manipulate bytecode will obviously
+have to be modified.  The ``dis`` module will be modified as
+necessary.
+
+
+Reference Implementation
+========================
+
+An in-progress (not yet complete) implementation [#regmont]_ is
+available as a fork of the current CPython GitHub repo.  As of this
+writing (March 2020) it remains quite incomplete.
+
+
+Current Status
+--------------
+
+As of April 18, 2020:
+
+- Implemented 46 instructions - all ``BINARY``, ``INPLACE`` and ,
+  ``UNARY`` instructions, ``RETURN_VALUE_REG``, most ``LOAD``
+  instructions, several ``STORE`` instructions, ``COMPARE_OP_REG``,
+  JUMP_IF_(TRUE|FALSE)_REG, ``CALL_FUNCTION_REG``,
+  ``CALL_FUNCTION_KW_REG``, most container-related ``BUILD``
+  instructions, ``LIST_EXTEND_REG``.
+
+- Implemented translator parts
+
+  - Identification of basic blocks
+
+  - Mapping between the PyVM and RVM versions of the above
+    instructions (much leftover from Rattlesnake, but not yet tested)
+
+  - Elimination of ``LOAD_FAST_REG`` and ``STORE_FAST_REG`` by forward
+    propagation of the former and backward propagation of the latter
+    when those registers are used explicitly.  When used implicitly
+    (``CALL_FUNCTION``, ``BUILD_LIST``, etc) they are retained.
+
+  - Generation of wordcode from the RVM blocks.
+
+  - Based on current testing, using -R with the run_test.py script,
+    reference counting seems to work.
+
+
+Implementing More Instructions
+''''''''''''''''''''''''''''''
+
+Initially, most instructions could be revealed in isolation with a
+simple function, making it fairly easy to implement and test the
+translations.  Plenty of instructions remain which can be implemented
+in isolation, most of which should have straightforward
+implementations.  For example (not exhaustive)::
+
+    BUILD_SET
+    BUILD_SLICE
+    BUILD_STRING
+    CALL_METHOD
+    CONTAINS_OP
+    DELETE_GLOBAL
+    DELETE_SUBSCR
+    FORMAT_VALUE
+    IMPORT_FROM
+    IMPORT_NAME
+    LOAD_DEREF
+    LOAD_METHOD
+    STORE_SUBSCR
+    YIELD_VALUE
+
+Some instructions (``DUP_TOP``, ``ROT`` instructions, ``POP_TOP``,
+etc) may not require translation at all, and just require a little bit
+of extra bookkeeping.
+
+Still, as more complex control flow constructs are tackled, larger
+groups of as-yet-translated instructions must be implemented.  It
+would be worthwhile to try and translate as many of the necessary
+instructions in more-or-less isolation to reduce the number of
+translations correct before any testing can proceed.  Here are some
+example functions and the instructions they use which have not yet
+been translated.
+
+This function::
+
+    def f(a):
+      try:
+        return 17.1 / a
+      except ZeroDivisionError:
+        print("a is zero!")
+        raise
+
+requires::
+
+    DUP_TOP
+    JUMP_IF_NOT_EXC_MATCH
+    POP_BLOCK
+    POP_EXCEPT
+    POP_TOP
+    RAISE_VARARGS
+    RERAISE
+    SETUP_FINALLY
+
+This function::
+
+    def f(a):
+      for i in range(a):
+        yield i
+
+requires::
+
+    POP_TOP
+    YIELD_VALUE
+
+Async functions are especially complex.  This function::
+
+    async def f():
+        print('hello')
+        await asyncio.sleep(1)
+        print('world')
+
+requires::
+
+    CALL_METHOD
+    GET_AWAITABLE
+    LOAD_METHOD
+    POP_TOP
+    YIELD_FROM
+
+This function::
+
+    async def f(a):
+      async for i in range(a):
+        pass
+
+requires::
+
+    GET_AITER
+    SETUP_FINALLY
+    GET_ANEXT
+    YIELD_FROM
+    POP_BLOCK
+    END_ASYNC_FOR
+
+This function::
+
+    async def f(fn):
+      async with open(fn) as fp:
+        return fp.read(1)
+
+requires::
+
+    BEFORE_ASYNC_WITH
+    CALL_METHOD
+    DUP_TOP
+    GET_AWAITABLE
+    LOAD_METHOD
+    POP_BLOCK
+    POP_EXCEPT
+    POP_TOP
+    RERAISE
+    ROT_TWO
+    SETUP_ASYNC_WITH
+    WITH_EXCEPT_START
+    YIELD_FROM
+
+This function::
+
+    def f(fn):
+      with open(fn) as fp:
+        print(fp.read(1))
+
+requires::
+
+    CALL_METHOD
+    DUP_TOP
+    POP_BLOCK
+    POP_EXCEPT
+    POP_TOP
+    RERAISE
+    SETUP_WITH
+    WITH_EXCEPT_START
+
+To simplify implementation of these more complex translations, picking
+off as many of the unimplemented simpler translations first would be
+worthwhile.
+
+
+Rejected Ideas
+==============
+
+No ideas have truly been rejected at this point.  The author has
+simply been following the path of least resistance.  That means
+implementing bits in Python where possible and disturbing the rest of
+the CPython implementation as little as possible.  Those are just
+trade-offs necessary to move things forward.  They aren't cast in
+stone.
+
+
+Open Issues
+===========
+
+A large number of issues remain unresolved.  See the `issue
+tracker <https://github.com/smontanaro/cpython/issues>`_ for a number
+of open issues not included here.
+
+- This proto-PEP - It is still quite incomplete.
+
+- Wordcode - To simplify the work, wordcode was retained.  This works,
+  but relies heavily on the ``EXTENDED_ARG`` instruction to provide
+  arguments to instructions which need more than one.  While
+  ``EXTENDED_ARG`` is really only half an instruction, most RVM
+  instructions implemented so far must be prefixed by at least one of
+  them.  It would be worth considering if a 32-bit instruction size
+  for RVM makes more sense, both as a performance improvement and to
+  reduce the size of the generated code.  (medium)
+
+- Implement opcode prediction/fast dispatch.  Without that, you can't
+  make apples-to-apples performance comparisons.  (easy)
+
+- Translation of larger compilation units than functions (classes,
+  modules and packages) with output to a bytecode file (perhaps with
+  ".pyr" extension).  (medium?)
+
+- Refactor InstructionSetConverter - This still contains remnants of
+  the original peephole optimizer.  The base class is likely no longer
+  required, and ISC itself could probably be split into multiple mixin
+  classes.  (easy)
+
+- Rework dis module or instruction names - Tacking on ``_REG`` to a
+  bunch of instructions threw off the dis module's (fragile) output
+  formatting.  Increasing ``dis._OPNAME_WIDTH`` from 20 to 23 and
+  reformatting **every expected output string** in ``test_dis.py``
+  helped for awhile until even longer instruction names arrived.  All
+  that reformatting was tedious.  Fixing ``dis`` to be more resilient
+  might be a better way to go.
+
+  OTOH, maybe RVM opcode names should look more like traditional
+  assembler instructions.  (The author is getting on in years and
+  finds something which looks more like assembler attractive, given
+  his initial experience programming computers in the dark ages.)
+  Instead of ``BINARY_ADD_REG``, you might call it ``BAR``.  Simply
+  constructing opcode names by joining the first letters of each word
+  won't work though (collisions - ``BINARY_ADD_REG`` and
+  ``BINARY_AND_REG`` would both map to ``BAR``), so you'd have to
+  implement a scheme which overrides in specific instances (``BAR``
+  and ``BANDR``, for example).  (easy?)
+
+- Matrix multiplication is so far untested, mostly because I can't
+  handle classes yet.
+
+
+References
+==========
+
+.. [#asthylt] Merge ast-branch to head, Hylton
+   (https://github.com/python/cpython/commit/3e0055f8c65c407e74ce476b8e2b1fb889723514)
+
+.. [#dynlemb] Reordering opcodes (PEP 203 Augmented Assignment), Lemburg
+   (https://mail.python.org/pipermail/python-dev/2000-July/007609.html)
+
+.. [#dynmont] Getting Rid of Data Movement Instructions, Montanaro
+   (https://mail.python.org/pipermail/python-list/2001-August/070944.html)
+
+.. [#instpage] Profiling CPython at Instagram, Page
+   (https://instagram-engineering.com/profiling-cpython-at-instagram-89d4cbeeb898)
+
+.. [#peephett] Improve code generation Hettinger, et al
+   (https://github.com/python/cpython/commit/f6f575ae6fc4b58f8735b6aebaa422d48bedcef4)
+
+.. [#peepmont] A Peephole Optimizer for Python, Montanaro
+   (https://web.archive.org/web/20010414044328/https://www.foretec.com/python/workshops/1998-11/proceedings/papers/montanaro/montanaro.html)
+
+.. [#regmont] Register fork of CPython, Montanaro
+   (https://github.com/smontanaro/cpython/tree/register)
+
+.. [#regstin] My registervm fork (2012), Stinner
+   (https://mail.python.org/archives/list/registervm@python.org/thread/X72OYMPH2HLTY4SIGVPKSTIRWL2XFY7G/)
+
+.. [#pep-590] Vectorcall: a fast calling protocol for CPython
+   (https://www.python.org/dev/peps/pep-0590/)
+
+.. [#predpitr] Faster opcode dispatch on gcc, Pitrou
+   (https://bugs.python.org/issue4753)
+
+.. [#wordcode] ceval: use Wordcode, 16-bit bytecode, Remud
+   (https://bugs.python.org/issue26647)
+
+
+Appendix - Opcode Frequencies
+=============================
+
+Pyperformance 1.0.0 was run using Python 3.9.0a5+ compiled with
+``-DDYNAMIC_EXECUTION_PROFILE=true``, capturing instruction counts for
+each benchmark.  The results are displayed below:
+
+.. table:: Opcode Frequencies
+   :widths: 50 25 25
+   :align: center
+
+   +---------------------+--------------+--------------+
+   |Instruction          |     Percent  |  Cumulative  |
+   +---------------------+--------------+--------------+
+   |LOAD_FAST            |      25.8%   |    25.75%    |
+   +---------------------+--------------+--------------+
+   |LOAD_CONST           |       9.9%   |    35.64%    |
+   +---------------------+--------------+--------------+
+   |STORE_FAST           |       7.7%   |    43.31%    |
+   +---------------------+--------------+--------------+
+   |LOAD_GLOBAL          |       5.5%   |    48.79%    |
+   +---------------------+--------------+--------------+
+   |CALL_FUNCTION        |       4.4%   |    53.16%    |
+   +---------------------+--------------+--------------+
+   |POP_JUMP_IF_FALSE    |       4.3%   |    57.47%    |
+   +---------------------+--------------+--------------+
+   |LOAD_ATTR            |       3.4%   |    60.91%    |
+   +---------------------+--------------+--------------+
+   |FOR_ITER             |       3.4%   |     64.34%   |
+   +---------------------+--------------+--------------+
+   |JUMP_ABSOLUTE        |        2.6%  |     66.97%   |
+   +---------------------+--------------+--------------+
+   |RETURN_VALUE         |        2.4%  |     69.37%   |
+   +---------------------+--------------+--------------+
+   |LOAD_METHOD          |        2.4%  |     71.76%   |
+   +---------------------+--------------+--------------+
+   |CALL_METHOD          |        2.4%  |     74.14%   |
+   +---------------------+--------------+--------------+
+   |EXTENDED_ARG         |        2.0%  |     76.16%   |
+   +---------------------+--------------+--------------+
+   |BINARY_SUBSCR        |        1.9%  |     78.02%   |
+   +---------------------+--------------+--------------+
+   |STORE_SUBSCR         |        1.8%  |     79.87%   |
+   +---------------------+--------------+--------------+
+   |POP_TOP              |        1.8%  |     81.64%   |
+   +---------------------+--------------+--------------+
+   |BINARY_ADD           |        1.5%  |     83.15%   |
+   +---------------------+--------------+--------------+
+   |IS_OP                |        1.3%  |     84.40%   |
+   +---------------------+--------------+--------------+
+   |LOAD_DEREF           |        1.1%  |     85.55%   |
+   +---------------------+--------------+--------------+
+   |COMPARE_OP           |        1.1%  |     86.68%   |
+   +---------------------+--------------+--------------+
+   |BINARY_MULTIPLY      |        1.0%  |     87.66%   |
+   +---------------------+--------------+--------------+
+   |STORE_ATTR           |        1.0%  |     88.62%   |
+   +---------------------+--------------+--------------+
+   |BINARY_MODULO        |        0.9%  |     89.51%   |
+   +---------------------+--------------+--------------+
+   |BINARY_TRUE_DIVIDE   |        0.9%  |     90.37%   |
+   +---------------------+--------------+--------------+
+   |POP_JUMP_IF_TRUE     |        0.8%  |     91.18%   |
+   +---------------------+--------------+--------------+
+   |UNPACK_SEQUENCE      |        0.8%  |     91.99%   |
+   +---------------------+--------------+--------------+
+   |CONTAINS_OP          |        0.7%  |     92.73%   |
+   +---------------------+--------------+--------------+
+   |JUMP_FORWARD         |        0.7%  |     93.43%   |
+   +---------------------+--------------+--------------+
+   |YIELD_FROM           |        0.6%  |     94.03%   |
+   +---------------------+--------------+--------------+
+   |SETUP_FINALLY        |        0.5%  |     94.57%   |
+   +---------------------+--------------+--------------+
+   |POP_BLOCK            |        0.5%  |     95.10%   |
+   +---------------------+--------------+--------------+
+   |BUILD_TUPLE          |        0.4%  |     95.51%   |
+   +---------------------+--------------+--------------+
+   |STORE_NAME           |        0.4%  |     95.92%   |
+   +---------------------+--------------+--------------+
+   |GET_ITER             |        0.3%  |     96.27%   |
+   +---------------------+--------------+--------------+
+   |MAKE_FUNCTION        |        0.3%  |     96.61%   |
+   +---------------------+--------------+--------------+
+   |BINARY_SUBTRACT      |        0.3%  |     96.92%   |
+   +---------------------+--------------+--------------+
+   |LOAD_NAME            |        0.3%  |     97.22%   |
+   +---------------------+--------------+--------------+
+   |DUP_TOP              |        0.3%  |     97.50%   |
+   +---------------------+--------------+--------------+
+   |LIST_APPEND          |        0.3%  |     97.75%   |
+   +---------------------+--------------+--------------+
+   |BUILD_LIST           |        0.2%  |     97.98%   |
+   +---------------------+--------------+--------------+
+   |YIELD_VALUE          |        0.2%  |     98.16%   |
+   +---------------------+--------------+--------------+
+   |JUMP_IF_FALSE_OR_POP |        0.2%  |     98.34%   |
+   +---------------------+--------------+--------------+
+   |BUILD_SLICE          |        0.1%  |     98.47%   |
+   +---------------------+--------------+--------------+
+   |BINARY_AND           |        0.1%  |     98.59%   |
+   +---------------------+--------------+--------------+
+   |CALL_FUNCTION_KW     |        0.1%  |     98.71%   |
+   +---------------------+--------------+--------------+
+   |INPLACE_ADD          |        0.1%  |     98.81%   |
+   +---------------------+--------------+--------------+
+   |LOAD_CLOSURE         |        0.1%  |     98.90%   |
+   +---------------------+--------------+--------------+
+   |ROT_TWO              |        0.1%  |     98.98%   |
+   +---------------------+--------------+--------------+
+   |BUILD_MAP            |        0.1%  |     99.06%   |
+   +---------------------+--------------+--------------+
+   |JUMP_IF_TRUE_OR_POP  |        0.1%  |     99.13%   |
+   +---------------------+--------------+--------------+
+   |JUMP_IF_NOT_EXC_MATCH|        0.1%  |     99.21%   |
+   +---------------------+--------------+--------------+
+   |SETUP_WITH           |        0.1%  |     99.27%   |
+   +---------------------+--------------+--------------+
+   |CALL_FUNCTION_EX     |        0.1%  |     99.34%   |
+   +---------------------+--------------+--------------+
+   |FORMAT_VALUE         |        0.1%  |     99.39%   |
+   +---------------------+--------------+--------------+
+   |POP_EXCEPT           |        0.0%  |     99.44%   |
+   +---------------------+--------------+--------------+
+   |STORE_DEREF          |        0.0%  |     99.49%   |
+   +---------------------+--------------+--------------+
+   |IMPORT_NAME          |        0.0%  |     99.53%   |
+   +---------------------+--------------+--------------+
+   |DELETE_SUBSCR        |        0.0%  |     99.56%   |
+   +---------------------+--------------+--------------+
+   |BUILD_STRING         |        0.0%  |     99.60%   |
+   +---------------------+--------------+--------------+
+   |DICT_MERGE           |        0.0%  |     99.63%   |
+   +---------------------+--------------+--------------+
+   |IMPORT_FROM          |        0.0%  |     99.67%   |
+   +---------------------+--------------+--------------+
+   |MAP_ADD              |        0.0%  |     99.70%   |
+   +---------------------+--------------+--------------+
+   |ROT_THREE            |        0.0%  |     99.73%   |
+   +---------------------+--------------+--------------+
+   |UNARY_NOT            |        0.0%  |     99.76%   |
+   +---------------------+--------------+--------------+
+   |RAISE_VARARGS        |        0.0%  |     99.78%   |
+   +---------------------+--------------+--------------+
+   |LIST_EXTEND          |        0.0%  |     99.81%   |
+   +---------------------+--------------+--------------+
+   |BUILD_CONST_KEY_MAP  |        0.0%  |     99.83%   |
+   +---------------------+--------------+--------------+
+   |LOAD_BUILD_CLASS     |        0.0%  |     99.85%   |
+   +---------------------+--------------+--------------+
+   |BINARY_OR            |        0.0%  |     99.87%   |
+   +---------------------+--------------+--------------+
+   |LIST_TO_TUPLE        |        0.0%  |     99.89%   |
+   +---------------------+--------------+--------------+
+   |INPLACE_SUBTRACT     |        0.0%  |     99.90%   |
+   +---------------------+--------------+--------------+
+   |BINARY_POWER         |        0.0%  |     99.92%   |
+   +---------------------+--------------+--------------+
+   |BINARY_FLOOR_DIVIDE  |        0.0%  |     99.93%   |
+   +---------------------+--------------+--------------+
+   |BUILD_SET            |        0.0%  |     99.94%   |
+   +---------------------+--------------+--------------+
+   |GET_YIELD_FROM_ITER  |        0.0%  |     99.95%   |
+   +---------------------+--------------+--------------+
+   |INPLACE_FLOOR_DIVIDE |        0.0%  |     99.96%   |
+   +---------------------+--------------+--------------+
+   |UNARY_INVERT         |        0.0%  |     99.97%   |
+   +---------------------+--------------+--------------+
+   |INPLACE_OR           |        0.0%  |     99.98%   |
+   +---------------------+--------------+--------------+
+   |DELETE_NAME          |        0.0%  |     99.98%   |
+   +---------------------+--------------+--------------+
+   |DELETE_ATTR          |        0.0%  |     99.98%   |
+   +---------------------+--------------+--------------+
+   |UNARY_NEGATIVE       |        0.0%  |     99.99%   |
+   +---------------------+--------------+--------------+
+   |STORE_GLOBAL         |        0.0%  |     99.99%   |
+   +---------------------+--------------+--------------+
+   |INPLACE_RSHIFT       |        0.0%  |     99.99%   |
+   +---------------------+--------------+--------------+
+   |SET_ADD              |        0.0%  |     99.99%   |
+   +---------------------+--------------+--------------+
+   |BINARY_XOR           |        0.0%  |     99.99%   |
+   +---------------------+--------------+--------------+
+   |ROT_FOUR             |        0.0%  |    100.00%   |
+   +---------------------+--------------+--------------+
+   |IMPORT_STAR          |        0.0%  |    100.00%   |
+   +---------------------+--------------+--------------+
+   |BINARY_LSHIFT        |        0.0%  |    100.00%   |
+   +---------------------+--------------+--------------+
+   |RERAISE              |        0.0%  |    100.00%   |
+   +---------------------+--------------+--------------+
+   |WITH_EXCEPT_START    |        0.0%  |    100.00%   |
+   +---------------------+--------------+--------------+
+   |INPLACE_AND          |        0.0%  |    100.00%   |
+   +---------------------+--------------+--------------+
+   |INPLACE_MODULO       |        0.0%  |    100.00%   |
+   +---------------------+--------------+--------------+
+   |BINARY_RSHIFT        |        0.0%  |    100.00%   |
+   +---------------------+--------------+--------------+
+   |INPLACE_MULTIPLY     |        0.0%  |    100.00%   |
+   +---------------------+--------------+--------------+
+   |DELETE_FAST          |        0.0%  |    100.00%   |
+   +---------------------+--------------+--------------+
+   |INPLACE_LSHIFT       |        0.0%  |    100.00%   |
+   +---------------------+--------------+--------------+
+   |SET_UPDATE           |        0.0%  |    100.00%   |
+   +---------------------+--------------+--------------+
+   |DUP_TOP_TWO          |        0.0%  |    100.00%   |
+   +---------------------+--------------+--------------+
+   |LOAD_CLASSDEREF      |        0.0%  |    100.00%   |
+   +---------------------+--------------+--------------+
+   |DICT_UPDATE          |        0.0%  |    100.00%   |
+   +---------------------+--------------+--------------+
+
+
+Copyright
+=========
+
+This document is placed in the public domain or under the
+CC0-1.0-Universal license, whichever is more permissive.
+
+
+
+..
+   Local Variables:
+   mode: indented-text
+   indent-tabs-mode: nil
+   sentence-end-double-space: t
+   fill-column: 70
+   coding: utf-8
+   End:

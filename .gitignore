@@ -2,6 +2,10 @@
 # First, rules intended to apply in all subdirectories.
 # These contain no slash, or only a trailing slash.
 
+# Stuff Skip added...
+*,cover
+*.html
+
 *.cover
 *.iml
 *.o

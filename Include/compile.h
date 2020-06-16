@@ -81,6 +81,14 @@ PyAPI_FUNC(PyFutureFeatures *) PyFuture_FromASTObject(
     PyObject *filename
     );
 
+#define _PyAST_CompileR(mod, s, f, ar) _PyAST_CompileExR(mod, s, f, -1, ar)
+PyAPI_FUNC(PyCodeObject *) _PyAST_CompileExR(
+    struct _mod *mod,
+    const char *filename,       /* decoded from the filesystem encoding */
+    PyCompilerFlags *flags,
+    int optimize,
+    PyArena *arena);
+
 /* _Py_Mangle is defined in compile.c */
 PyAPI_FUNC(PyObject*) _Py_Mangle(PyObject *p, PyObject *name);
 

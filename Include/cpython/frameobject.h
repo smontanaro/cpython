@@ -10,6 +10,49 @@ typedef struct {
     int b_level;                /* value stack level to pop to */
 } PyTryBlock;
 
+/*
+
+# Layout of locals, cells, frees, stack in current CPython:
+
++-------------------+-------------------+-------------------+-------------------+
+|                   |                   |                   |                   |
+| fastlocals        | cells             | frees             | stack             |
+|  len(co_nlocals)  |  len(co_cellvars) |  len(co_freevars) |  len(co_stacksize)|
++-------------------+-------------------+-------------------+-------------------+
+^                   ^                                       ^
+|                   |                                       |
++-- f_localsplus    +-- f_cellvars                          +-- f_valuestack
+
+If we move the stack next to the locals, we can treat the locals+stack
+as a contiguous register file. ISTR Tim Peters saying in the old
+rattlesnake days that the number of registers would be no greater than
+the max stack size. This will eliminate LOAD_FAST_REG and
+STORE_FAST_REG opcodes which should be a good performance win.
+
++-------------------+-------------------+-------------------+-------------------+
+|                   |                   |                   |                   |
+| fastlocals        | stack             | cells             | frees             |
+|  len(co_nlocals)  |  len(co_stacksize)|  len(co_cellvars) |  len(co_freevars) |
++-------------------+-------------------+-------------------+-------------------+
+^                   ^                   ^
+|                   |                   |
++-- f_localsplus    +-- f_valuestack    +-- f_cellvars
+
+This requires some adjustment to the offset to the start of cell and
+free variables. My first attempt failed miserably. On my second
+attempt, I added the above f_cellvars slot to the _frame struct and am
+proceeding more carefully.  It took a bit of effort to work this out,
+but I think it's working now (tests pass, at least). See
+_PyFrame_New_NoTrack.
+
+It wasn't obvious to me why cells and free vars were added adjacent to
+locals. It does seem that in certain places, locals, cells and frees
+are all treated as one, so having them adjacent in memory makes things
+a touch simpler, but separating into separate for loops (for example)
+isn't much extra work, mostly confined to frameobject.c.
+
+*/
+
 struct _frame {
     PyObject_VAR_HEAD
     struct _frame *f_back;      /* previous frame, or NULL */
@@ -18,6 +61,7 @@ struct _frame {
     PyObject *f_globals;        /* global symbol table (PyDictObject) */
     PyObject *f_locals;         /* local symbol table (any mapping) */
     PyObject **f_valuestack;    /* points after the last local */
+    PyObject **f_cellvars;      /* points to the first cell/free var */
     /* Next free slot in f_valuestack.  Frame creation sets to f_valuestack.
        Frame evaluation usually NULLs it, but a frame that yields sets it
        to the current stack top. */

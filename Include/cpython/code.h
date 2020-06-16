@@ -82,6 +82,8 @@ struct PyCodeObject {
 #define CO_COROUTINE            0x0080
 #define CO_ITERABLE_COROUTINE   0x0100
 #define CO_ASYNC_GENERATOR      0x0200
+/* Code contains register-based instructions. */
+#define CO_REGISTER             0x0400
 
 /* bpo-39562: These constant values are changed in Python 3.9
    to prevent collision with compiler flags. CO_FUTURE_ and PyCF_

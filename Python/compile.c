@@ -1101,6 +1101,63 @@ stack_effect(int opcode, int oparg, int jump)
         case DICT_MERGE:
         case DICT_UPDATE:
             return -1;
+        /* Ideally, everything >= HAVE_REGISTERS would result in a
+           stack effect of 0, but the way test__opcode.py is
+           (currently) written we must enumerate each instruction. */
+        case BINARY_ADD_REG:
+        case BINARY_AND_REG:
+        case BINARY_FLOOR_DIVIDE_REG:
+        case BINARY_LSHIFT_REG:
+        case BINARY_MATRIX_MULTIPLY_REG:
+        case BINARY_MODULO_REG:
+        case BINARY_MULTIPLY_REG:
+        case BINARY_OR_REG:
+        case BINARY_POWER_REG:
+        case BINARY_RSHIFT_REG:
+        case BINARY_SUBSCR_REG:
+        case BINARY_SUBTRACT_REG:
+        case BINARY_TRUE_DIVIDE_REG:
+        case BINARY_XOR_REG:
+        case BUILD_LIST_REG:
+        case BUILD_MAP_REG:
+        case BUILD_TUPLE_REG:
+        case CALL_FUNCTION_KW_REG:
+        case CALL_FUNCTION_REG:
+        case COMPARE_OP_REG:
+        case DELETE_ATTR_REG:
+        case FOR_ITER_REG:
+        case GET_ITER_REG:
+        case IMPORT_NAME_REG:
+        case INPLACE_ADD_REG:
+        case INPLACE_AND_REG:
+        case INPLACE_FLOOR_DIVIDE_REG:
+        case INPLACE_LSHIFT_REG:
+        case INPLACE_MATRIX_MULTIPLY_REG:
+        case INPLACE_MODULO_REG:
+        case INPLACE_MULTIPLY_REG:
+        case INPLACE_OR_REG:
+        case INPLACE_POWER_REG:
+        case INPLACE_RSHIFT_REG:
+        case INPLACE_SUBTRACT_REG:
+        case INPLACE_TRUE_DIVIDE_REG:
+        case INPLACE_XOR_REG:
+        case JUMP_IF_FALSE_REG:
+        case JUMP_IF_TRUE_REG:
+        case LIST_EXTEND_REG:
+        case LOAD_ATTR_REG:
+        case LOAD_CONST_REG:
+        case LOAD_FAST_REG:
+        case LOAD_GLOBAL_REG:
+        case RETURN_VALUE_REG:
+        case STORE_ATTR_REG:
+        case STORE_FAST_REG:
+        case STORE_GLOBAL_REG:
+        case UNARY_INVERT_REG:
+        case UNARY_NEGATIVE_REG:
+        case UNARY_NOT_REG:
+        case UNARY_POSITIVE_REG:
+        case YIELD_VALUE_REG:
+            return 0;
         default:
             return PY_INVALID_STACK_EFFECT;
     }

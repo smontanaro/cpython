@@ -743,7 +743,7 @@ regen-importlib: Programs/_freeze_importlib
 
 regen-all: regen-opcode regen-opcode-targets regen-typeslots \
 	regen-token regen-symbol regen-ast regen-importlib clinic \
-	regen-pegen-metaparser regen-pegen
+	regen-pegen-metaparser regen-pegen regen-opcode-map
 
 ############################################################################
 # Special rules for object files
@@ -947,8 +947,16 @@ regen-opcode-targets:
 		$(srcdir)/Python/opcode_targets.h.new
 	$(UPDATE_FILE) $(srcdir)/Python/opcode_targets.h $(srcdir)/Python/opcode_targets.h.new
 
+.PHONY: regen-opcode-map
+regen-opcode-map:
+	# Regenerate Python/opcode_map.h from Lib/opcode.py
+	# using Python/makeopcodemap.py
+	$(PYTHON_FOR_REGEN) $(srcdir)/Python/makeopcodemap.py \
+		$(srcdir)/Python/opcode_map.h.new
+	$(UPDATE_FILE) $(srcdir)/Python/opcode_map.h $(srcdir)/Python/opcode_map.h.new
+
 Python/ceval.o: $(srcdir)/Python/opcode_targets.h $(srcdir)/Python/ceval_gil.h \
-		$(srcdir)/Python/condvar.h
+		$(srcdir)/Python/condvar.h $(srcdir)/Python/opcode_map.h
 
 Python/frozen.o: $(srcdir)/Python/importlib.h $(srcdir)/Python/importlib_external.h \
 		$(srcdir)/Python/importlib_zipimport.h
