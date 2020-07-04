@@ -22,6 +22,15 @@ static PyMemberDef frame_memberlist[] = {
     {NULL}      /* Sentinel */
 };
 
+
+static struct _Py_frame_state *
+get_frame_state(void)
+{
+    PyInterpreterState *interp = _PyInterpreterState_GET();
+    return &interp->frame;
+}
+
+
 static PyObject *
 frame_getlocals(PyFrameObject *f, void *closure)
 {
@@ -615,8 +624,7 @@ frame_dealloc(PyFrameObject *f)
         co->co_zombieframe = f;
     }
     else {
-        PyInterpreterState *interp = _PyInterpreterState_GET();
-        struct _Py_frame_state *state = &interp->frame;
+        struct _Py_frame_state *state = get_frame_state();
 #ifdef Py_DEBUG
         // frame_dealloc() must not be called after _PyFrame_Fini()
         assert(state->numfree != -1);
@@ -831,8 +839,7 @@ frame_alloc(PyCodeObject *code)
     Py_ssize_t ncells = PyTuple_GET_SIZE(code->co_cellvars);
     Py_ssize_t nfrees = PyTuple_GET_SIZE(code->co_freevars);
     Py_ssize_t extras = code->co_stacksize + code->co_nlocals + ncells + nfrees;
-    PyInterpreterState *interp = _PyInterpreterState_GET();
-    struct _Py_frame_state *state = &interp->frame;
+    struct _Py_frame_state *state = get_frame_state();
     if (state->free_list == NULL)
     {
         f = PyObject_GC_NewVar(PyFrameObject, &PyFrame_Type, extras);
@@ -1267,8 +1274,7 @@ _PyFrame_Fini(PyThreadState *tstate)
 void
 _PyFrame_DebugMallocStats(FILE *out)
 {
-    PyInterpreterState *interp = _PyInterpreterState_GET();
-    struct _Py_frame_state *state = &interp->frame;
+    struct _Py_frame_state *state = get_frame_state();
     _PyDebugAllocatorStats(out,
                            "free PyFrameObject",
                            state->numfree, sizeof(PyFrameObject));
