@@ -4155,7 +4155,7 @@ _PyEval_EvalCode(PyThreadState *tstate,
         return NULL;
     }
     PyObject **fastlocals = f->f_localsplus;
-    PyObject **freevars = f->f_localsplus + co->co_nlocals;
+    PyObject **freevars = f->f_cellvars;
 
     /* Create a dictionary for keyword parameters (**kwags) */
     PyObject *kwdict;
