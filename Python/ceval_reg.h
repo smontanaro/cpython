@@ -828,20 +828,20 @@
             DISPATCH();
         }
 
-        case TARGET(YIELD_VALUE_REG): {
-            int src = REGARG1(oparg);
-            retval = GETLOCAL(src);
+        /* case TARGET(YIELD_VALUE_REG): { */
+        /*     int src = REGARG1(oparg); */
+        /*     retval = GETLOCAL(src); */
 
-            if (co->co_flags & CO_ASYNC_GENERATOR) {
-                PyObject *w = _PyAsyncGenValueWrapperNew(retval);
-                Py_DECREF(retval);
-                if (w == NULL) {
-                    retval = NULL;
-                    goto error;
-                }
-                retval = w;
-            }
+        /*     if (co->co_flags & CO_ASYNC_GENERATOR) { */
+        /*         PyObject *w = _PyAsyncGenValueWrapperNew(retval); */
+        /*         Py_DECREF(retval); */
+        /*         if (w == NULL) { */
+        /*             retval = NULL; */
+        /*             goto error; */
+        /*         } */
+        /*         retval = w; */
+        /*     } */
 
-            /* f->f_stacktop = stack_pointer; */
-            goto exiting;
-        }
+        /*     f->f_stacktop = stack_pointer; *\/ */
+        /*     goto exiting; */
+        /* } */

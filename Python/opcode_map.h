@@ -170,7 +170,7 @@ static char *opcode_map[256] = {
     "GET_ITER_REG",
     "FOR_ITER_REG",
     "IMPORT_NAME_REG",
-    "YIELD_VALUE_REG",
+    "unknown",
     "unknown",
     "unknown",
     "unknown",

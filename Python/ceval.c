@@ -2084,8 +2084,10 @@ main_loop:
             assert(f->f_iblock == 0);
             assert(EMPTY());
 
+            /*
             if (f->f_gen != NULL)
                 ((PyGenObject *)f->f_gen)->gi_returning = 1;
+            */
 
             goto exiting;
         }
@@ -2255,8 +2257,10 @@ main_loop:
             /* receiver remains on stack, retval is value to be yielded */
             f->f_stacktop = stack_pointer;
 
+            /*
             assert(f->f_gen != NULL);
             ((PyGenObject *)f->f_gen)->gi_returning = 0;
+            */
 
             /* and repeat... */
             assert(f->f_lasti >= (int)sizeof(_Py_CODEUNIT));
@@ -2279,8 +2283,10 @@ main_loop:
 
             f->f_stacktop = stack_pointer;
 
+            /*
             assert(f->f_gen != NULL);
             ((PyGenObject *)f->f_gen)->gi_returning = 0;
+            */
 
             goto exiting;
         }
@@ -5231,6 +5237,7 @@ _PyEval_SliceIndexNotNone(PyObject *v, Py_ssize_t *pi)
     return 1;
 }
 
+/*
 void
 _PyEval_SaveValue(PyFrameObject *f, PyObject *value)
 {
@@ -5271,6 +5278,7 @@ _PyEval_GetYieldValue(PyFrameObject *f)
     }
     return yf;
 }
+*/
 
 static PyObject *
 import_name(PyThreadState *tstate, PyFrameObject *f,

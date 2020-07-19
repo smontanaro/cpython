@@ -170,7 +170,7 @@ static void *opcode_targets[256] = {
     &&TARGET_GET_ITER_REG,
     &&TARGET_FOR_ITER_REG,
     &&TARGET_IMPORT_NAME_REG,
-    &&TARGET_YIELD_VALUE_REG,
+    &&_unknown_opcode,
     &&_unknown_opcode,
     &&_unknown_opcode,
     &&_unknown_opcode,
