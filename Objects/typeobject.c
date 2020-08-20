@@ -8116,6 +8116,7 @@ super_init_without_args(PyFrameObject *f, PyCodeObject *co,
         PyObject *name = PyTuple_GET_ITEM(co->co_freevars, i);
         assert(PyUnicode_Check(name));
         if (_PyUnicode_EqualToASCIIId(name, &PyId___class__)) {
+            /* i indexes into the free vars, which follow the cell vars. */
             PyObject *cell = f->f_cellvars[ncells + i];
             if (cell == NULL || !PyCell_Check(cell)) {
                 PyErr_SetString(PyExc_RuntimeError,
