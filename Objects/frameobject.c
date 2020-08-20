@@ -643,6 +643,7 @@ frame_dealloc(PyFrameObject *f)
     Py_TRASHCAN_SAFE_END(f)
 }
 
+/* hmmm... */
 static inline Py_ssize_t
 frame_nslots(PyFrameObject *frame)
 {
@@ -752,10 +753,9 @@ frame_sizeof(PyFrameObject *f, PyObject *Py_UNUSED(ignored))
     PyCodeObject *code = f->f_code;
     ncells = PyTuple_GET_SIZE(code->co_cellvars);
     nfrees = PyTuple_GET_SIZE(code->co_freevars);
-    extras = code->co_stacksize + code->co_nlocals + ncells + nfrees;
-    /* Subtract one as f_localsplus[0] is already included in
-       PyFrameObject. */
-    res = sizeof(PyFrameObject) + (extras-1) * sizeof(PyObject *);
+    /* - 1 since f_localsplus[0] is counted as part of PyFrameObject. */
+    extras = code->co_stacksize + code->co_nlocals + ncells + nfrees - 1;
+    res = sizeof(PyFrameObject) + extras * sizeof(PyObject *);
 
     return PyLong_FromSsize_t(res);
 }
@@ -868,12 +868,14 @@ frame_alloc(PyCodeObject *code)
        assignments below to extras, f_valuestack and
        f_cellvars. */
 
-    /* to order as: locals / cells+frees / stack */
+    /* To order as: locals / cells+frees / stack */
     // extras = code->co_nlocals + ncells + nfrees;
     // f->f_valuestack = f->f_localsplus + extras;
     // f->f_cellvars = f->f_localsplus + code->co_nlocals;
 
-    /* to order as: locals / stack / cells+frees */
+    /* To order as: locals / stack / cells+frees */
+    /* This is needed with register instructions, as locals + stack
+       are treated as a contiguous "register file". */
     extras = code->co_nlocals + code->co_stacksize + ncells + nfrees;
     f->f_valuestack = f->f_localsplus + code->co_nlocals;
     f->f_cellvars = f->f_valuestack + code->co_stacksize;
