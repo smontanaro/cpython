@@ -77,10 +77,6 @@ struct _frame {
     PyObject *f_locals;         /* local symbol table (any mapping) */
     PyObject **f_valuestack;    /* points after the last local */
     PyObject **f_cellvars;      /* points to the first cell/free var */
-    /* Next free slot in f_valuestack.  Frame creation sets to f_valuestack.
-       Frame evaluation usually NULLs it, but a frame that yields sets it
-       to the current stack top. */
-    PyObject **f_stacktop;
     PyObject *f_trace;          /* Trace function */
     int f_stackdepth;           /* Depth of value stack */
     char f_trace_lines;         /* Emit per-line trace events? */
