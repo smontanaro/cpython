@@ -194,7 +194,6 @@ gen_send_ex(PyGenObject *gen, PyObject *arg, int exc, int closing)
     } else {
         /* Push arg onto the frame's value stack */
         result = arg ? arg : Py_None;
-        //_PyEval_SaveValue(f, result);
         Py_INCREF(result);
         gen->gi_frame->f_valuestack[gen->gi_frame->f_stackdepth] = result;
         gen->gi_frame->f_stackdepth++;
