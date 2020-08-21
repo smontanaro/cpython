@@ -112,11 +112,11 @@ extern "C" {
 #define CALL_FUNCTION_KW        101
 #define CALL_FUNCTION_EX        102
 #define SETUP_WITH              103
-#define LIST_APPEND             104
-#define SET_ADD                 105
-#define MAP_ADD                 106
-#define LOAD_CLASSDEREF         107
-#define EXTENDED_ARG            108
+#define EXTENDED_ARG            104
+#define LIST_APPEND             105
+#define SET_ADD                 106
+#define MAP_ADD                 107
+#define LOAD_CLASSDEREF         108
 #define SETUP_ASYNC_WITH        109
 #define FORMAT_VALUE            110
 #define BUILD_CONST_KEY_MAP     111
@@ -180,6 +180,28 @@ extern "C" {
 #define GET_ITER_REG            168
 #define FOR_ITER_REG            169
 #define IMPORT_NAME_REG         170
+#ifdef NEED_OPCODE_JUMP_TABLES
+static uint32_t _PyOpcode_RelativeJump[8] = {
+    0U,
+    2147483648U,
+    33587200U,
+    8320U,
+    0U,
+    512U,
+    0U,
+    0U,
+};
+static uint32_t _PyOpcode_Jump[8] = {
+    0U,
+    2147483648U,
+    52396032U,
+    8320U,
+    0U,
+    512U,
+    0U,
+    0U,
+};
+#endif /* OPCODE_TABLES */
 
 /* EXCEPT_HANDLER is a special, implicit block type which is created when
    entering an except handler. It is not an opcode but we define it here

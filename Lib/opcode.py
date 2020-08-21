@@ -212,13 +212,13 @@ def_op('DELETE_DEREF', op) ; op += 1
 def_op('CALL_FUNCTION_KW', op) ; op += 1  # #args + #kwargs
 def_op('CALL_FUNCTION_EX', op) ; op += 1  # Flags
 jrel_op('SETUP_WITH', op) ; op += 1
+EXTENDED_ARG = op
+def_op('EXTENDED_ARG', op) ; op += 1
 def_op('LIST_APPEND', op) ; op += 1
 def_op('SET_ADD', op) ; op += 1
 def_op('MAP_ADD', op) ; op += 1
 hasfree.append(op)
 def_op('LOAD_CLASSDEREF', op) ; op += 1
-EXTENDED_ARG = op
-def_op('EXTENDED_ARG', op) ; op += 1
 jrel_op('SETUP_ASYNC_WITH', op) ; op += 1
 def_op('FORMAT_VALUE', op) ; op += 1
 def_op('BUILD_CONST_KEY_MAP', op) ; op += 1
