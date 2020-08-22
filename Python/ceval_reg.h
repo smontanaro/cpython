@@ -207,6 +207,9 @@
                something to return. */
             Py_INCREF(retval);
             assert(f->f_iblock == 0);
+            f->f_state = FRAME_RETURNED;
+            /* not sure what to do with this, so just mimic stack vm for now */
+            f->f_stackdepth = 0;
             goto exiting;
         }
 
@@ -842,6 +845,7 @@
         /*         retval = w; */
         /*     } */
 
-        /*     f->f_stacktop = stack_pointer; *\/ */
+        /*     f->f_state = FRAME_SUSPENDED; */
+        /*     f->f_stackdepth = stack_pointer-f->f_valuestack; */
         /*     goto exiting; */
         /* } */
