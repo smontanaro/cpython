@@ -16,4 +16,3 @@ from . import misc
 from . import sequence
 from . import stack
 from . import unary
-from . import yieldstuff
