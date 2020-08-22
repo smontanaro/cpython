@@ -31,18 +31,6 @@ PyAPI_FUNC(void) _PyEval_SetCoroutineOriginTrackingDepth(
     PyThreadState *tstate,
     int new_depth);
 
-/* The following three functions are just thin veneers over former
-   direct stack manipulation in genobject.c. They might well not make
-   sense as far as logical APIs are concerned, but they move the stack
-   manipulation into ceval.c and make it theoretically possible for
-   other VMs to handle the values which flow back and forth. */
-/* Hand value back to VM to be saved for later use. */
-PyAPI_FUNC(void) _PyEval_SaveValue(struct _frame *f, PyObject *value);
-/* Retrieve yield from value from VM. */
-PyAPI_FUNC(PyObject *) _PyEval_GetYieldValue(struct _frame *f);
-/* Get subiterator from VM. */
-PyAPI_FUNC(PyObject *) _PyEval_GetSubIterator(struct _frame *f);
-
 /* Private function */
 void _PyEval_Fini(void);
 

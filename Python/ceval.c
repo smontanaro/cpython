@@ -5230,49 +5230,6 @@ _PyEval_SliceIndexNotNone(PyObject *v, Py_ssize_t *pi)
     return 1;
 }
 
-/*
-void
-_PyEval_SaveValue(PyFrameObject *f, PyObject *value)
-{
-    Py_INCREF(value);
-    if (f->f_code->co_flags & CO_REGISTER) {
-        Py_FatalError("not implemented for RVM yet!");
-    }
-    else {
-        *(f->f_stacktop++) = value;
-    }
-}
-
-PyObject *
-_PyEval_GetSubIterator(PyFrameObject *f)
-{
-    PyObject *ret;
-    if (f->f_code->co_flags & CO_REGISTER) {
-        Py_FatalError("not implemented for RVM yet!");
-        return NULL;
-    }
-    else {
-        ret = *(--f->f_stacktop);
-    }
-    return ret;
-}
-
-PyObject *
-_PyEval_GetYieldValue(PyFrameObject *f)
-{
-    PyObject *yf;
-    if (f->f_code->co_flags & CO_REGISTER) {
-        Py_FatalError("not implemented for RVM yet!");
-        return NULL;
-    }
-    else {
-        yf = f->f_stacktop[-1];
-        Py_INCREF(yf);
-    }
-    return yf;
-}
-*/
-
 static PyObject *
 import_name(PyThreadState *tstate, PyFrameObject *f,
             PyObject *name, PyObject *fromlist, PyObject *level)
