@@ -1098,12 +1098,6 @@ _PyEval_EvalFrameDefault(PyThreadState *tstate, PyFrameObject *f, int throwflag)
 #define JUMPTO(x)       (next_instr = first_instr + (x) / sizeof(_Py_CODEUNIT))
 #define JUMPBY(x)       (next_instr += (x) / sizeof(_Py_CODEUNIT))
 
-/* extract arg elements out of oparg. */
-#define REGARG4(oparg) (oparg >> 24)
-#define REGARG3(oparg) ((oparg >> 16) & 0xff)
-#define REGARG2(oparg) ((oparg >> 8) & 0xff)
-#define REGARG1(oparg) (oparg & 0xff)
-
 /* OpCode prediction macros
     Some opcodes tend to come in pairs thus making it possible to
     predict the second code when the first is run.  For example,

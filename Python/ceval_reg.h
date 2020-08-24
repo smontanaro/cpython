@@ -1,5 +1,11 @@
 /* Put register code here then #include it to minimize merge conflicts */
 
+/* extract arg elements out of oparg. */
+#define REGARG4(oparg) (oparg >> 24)
+#define REGARG3(oparg) ((oparg >> 16) & 0xff)
+#define REGARG2(oparg) ((oparg >> 8) & 0xff)
+#define REGARG1(oparg) (oparg & 0xff)
+
         case TARGET(BINARY_ADD_REG): {
             int dst = REGARG3(oparg);
             int src1 = REGARG2(oparg);
