@@ -588,24 +588,23 @@ frame_dealloc(PyFrameObject *f)
     }
 
     Py_TRASHCAN_SAFE_BEGIN(f)
-    /* Kill all local variables */
+    /* Free local variables */
     p = f->f_localsplus;
-    for (i = 0 ; i < f->f_code->co_nlocals ; i++) {
+    for (i = 0 ; i < f->f_code->co_nlocals ; i++, p++) {
         Py_CLEAR(*p);
-        p++;
     }
 
-    /* cells and frees */
+    /* Free cell and free vars */
     ncells = PyTuple_GET_SIZE(f->f_code->co_cellvars);
     nfreevars = PyTuple_GET_SIZE(f->f_code->co_freevars);
     p = f->f_cellvars;
-    for (i = 0 ; i < ncells + nfreevars ; i++) {
+    for (i = 0 ; i < ncells + nfreevars ; i++, p++) {
         Py_CLEAR(*p);
-        p++;
     }
 
     /* Free stack */
-    for (int i = 0; i < f->f_stackdepth; i++) {
+    p = f->f_valuestack;
+    for (int i = 0; i < f->f_stackdepth; i++, p++) {
         /* CLEAR instead of just XDECREF to make sure if these
            slots are ever treated as registers we don't
            accidentally over-DECREF. */
@@ -682,8 +681,10 @@ frame_traverse(PyFrameObject *f, visitproc visit, void *arg)
     }
 
     /* stack */
-    for (int i = 0; i < f->f_stackdepth; i++) {
-        Py_VISIT(f->f_valuestack[i]);
+    p = f->f_valuestack;
+    slots = f->f_stackdepth;
+    for (int i = slots; --i >= 0; ++p) {
+        Py_VISIT(*p);
     }
     return 0;
 }
@@ -719,8 +720,10 @@ frame_tp_clear(PyFrameObject *f)
     }
 
     /* stack */
-    for (int i = 0; i < f->f_stackdepth; i++) {
-        Py_CLEAR(f->f_valuestack[i]);
+    slots = f->f_stackdepth;
+    p = f->f_valuestack;
+    for (i = slots; --i >= 0; ++p) {
+        Py_CLEAR(*p);
     }
     f->f_stackdepth = 0;
     return 0;
