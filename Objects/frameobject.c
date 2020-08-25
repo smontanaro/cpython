@@ -642,16 +642,6 @@ frame_dealloc(PyFrameObject *f)
     Py_TRASHCAN_SAFE_END(f)
 }
 
-/* hmmm... */
-static inline Py_ssize_t
-frame_nslots(PyFrameObject *frame)
-{
-    PyCodeObject *code = frame->f_code;
-    return (code->co_nlocals
-            + PyTuple_GET_SIZE(code->co_cellvars)
-            + PyTuple_GET_SIZE(code->co_freevars));
-}
-
 static int
 frame_traverse(PyFrameObject *f, visitproc visit, void *arg)
 {
@@ -683,7 +673,7 @@ frame_traverse(PyFrameObject *f, visitproc visit, void *arg)
     /* stack */
     p = f->f_valuestack;
     slots = f->f_stackdepth;
-    for (int i = slots; --i >= 0; ++p) {
+    for (i = slots; --i >= 0; ++p) {
         Py_VISIT(*p);
     }
     return 0;
@@ -867,9 +857,9 @@ frame_alloc(PyCodeObject *code)
 
     f->f_code = code;
 
-    /* To move the stack space next to locals, swap the
-       assignments below to extras, f_valuestack and
-       f_cellvars. */
+    /* To move the stack space next to locals, swap the assignments
+       below to f_valuestack and f_cellvars (and extras, if
+       necessary). */
 
     /* To order as: locals / cells+frees / stack */
     // extras = code->co_nlocals + ncells + nfrees;
@@ -879,7 +869,6 @@ frame_alloc(PyCodeObject *code)
     /* To order as: locals / stack / cells+frees */
     /* This is needed with register instructions, as locals + stack
        are treated as a contiguous "register file". */
-    extras = code->co_nlocals + code->co_stacksize + ncells + nfrees;
     f->f_valuestack = f->f_localsplus + code->co_nlocals;
     f->f_cellvars = f->f_valuestack + code->co_stacksize;
 
