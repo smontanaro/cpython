@@ -4323,6 +4323,11 @@ _PyEval_EvalCode(PyThreadState *tstate,
 
     /* Allocate and initialize storage for cell vars, and copy free
        vars into frame. */
+    /* j is the offset to the first cell/free var.  We compute it this
+       way to make it independent of the ordering of locals, stack and
+       cells/frees.  See Include/cpython/frameobject.h for explanation
+       of the possible layouts and Objects/frameobject.c:frame_alloc
+       for which ordering is currently in use. */
     j = f->f_cellvars - f->f_localsplus;
     for (i = 0; i < PyTuple_GET_SIZE(co->co_cellvars); ++i) {
         PyObject *c;
