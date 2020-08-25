@@ -57,8 +57,9 @@ This requires some adjustment to the offset to the start of cell and
 free variables. My first attempt failed miserably. On my second
 attempt, I added the above f_cellvars slot to the _frame struct and am
 proceeding more carefully.  It took a bit of effort to work this out,
-but I think it's working now (tests pass, at least). See
-_PyFrame_New_NoTrack.
+but I got it working (tests passed, at least). See
+frameobject.c:frame_alloc. Alas, other changes to the internals appear
+to have broken things again (still broken as of 2020-08-25.)
 
 It wasn't obvious to me why cells and free vars were added adjacent to
 locals. It does seem that in certain places, locals, cells and frees
