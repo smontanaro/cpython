@@ -228,10 +228,13 @@ def_op('CALL_METHOD', op) ; op += 1
 def_op('LIST_EXTEND', op) ; op += 1
 def_op('SET_UPDATE', op) ; op += 1
 def_op('DICT_MERGE', op) ; op += 1
+# Note that Tools/scripts/ generate_opcode_h.py assumes that
+# DICT_UPDATE is the last non-register instruction and will need to be
+# modified if new instructions are added above.
 def_op('DICT_UPDATE', op) ; op += 1
 
-# register instructions after here (until we run out of space and have
-# to get more crafty)
+# All register instructions are after here (until we run out of space
+# and have to get more crafty).
 
 HAVE_REGISTERS = op
 
