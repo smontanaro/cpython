@@ -4348,10 +4348,11 @@ _PyEval_EvalCode(PyThreadState *tstate,
     }
 
     /* Copy closure variables to free variables */
+    Py_ssize_t ncells = PyTuple_GET_SIZE(co->co_cellvars);
     for (i = 0; i < PyTuple_GET_SIZE(co->co_freevars); ++i) {
         PyObject *o = PyTuple_GET_ITEM(closure, i);
         Py_INCREF(o);
-        freevars[PyTuple_GET_SIZE(co->co_cellvars) + i] = o;
+        freevars[ncells + i] = o;
     }
 
     /* Handle generator/coroutine/asynchronous generator */
