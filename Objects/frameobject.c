@@ -671,8 +671,8 @@ frame_traverse(PyFrameObject *f, visitproc visit, void *arg)
     }
 
     /* stack */
-    p = f->f_valuestack;
     slots = f->f_stackdepth;
+    p = f->f_valuestack;
     for (i = slots; --i >= 0; ++p) {
         Py_VISIT(*p);
     }
