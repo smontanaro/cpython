@@ -5584,7 +5584,7 @@ unicode_concatenate(PyThreadState *tstate, PyObject *v, PyObject *w,
         {
             PyObject **freevars = f->f_cellvars;
             PyObject *c = freevars[oparg];
-            if (PyCell_GET(c) ==  v) {
+            if (PyCell_GET(c) == v) {
                 PyCell_SET(c, NULL);
                 Py_DECREF(v);
             }
