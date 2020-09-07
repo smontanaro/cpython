@@ -60,6 +60,20 @@ for proto, ver in (
 def data_file(*name):
     return os.path.join(os.path.dirname(__file__), *name)
 
+UBUNTU_2004 = False
+if sys.platform.startswith('linux'):
+    import subprocess
+    distro = version = "unknown"
+    try:
+        distro = subprocess.run(["lsb_release", "-is"],
+                                capture_output=True).stdout
+        version = subprocess.run(["lsb_release", "-rs"],
+                                     capture_output=True).stdout
+        UBUNTU_2004 = distro == b"Ubuntu\n" and version == b"20.04\n"
+    except FileNotFoundError:
+        pass
+
+
 # The custom key and certificate files used in test_ssl are generated
 # using Lib/test/make_ssl_certs.py.
 # Other certificates are simply fetched from the Internet servers they
@@ -2829,6 +2843,7 @@ def try_protocol_combo(server_protocol, client_protocol, expect_success,
 
 class ThreadedTests(unittest.TestCase):
 
+    @unittest.skipIf(UBUNTU_2004, "Broken on Ubuntu 20.04")
     def test_echo(self):
         """Basic test of an SSL client connecting to a server"""
         if support.verbose:
@@ -3246,6 +3261,7 @@ class ThreadedTests(unittest.TestCase):
         try_protocol_combo(ssl.PROTOCOL_SSLv2, ssl.PROTOCOL_TLS, False,
                            client_options=ssl.OP_NO_TLSv1)
 
+    @unittest.skipIf(UBUNTU_2004, "Broken on Ubuntu 20.04")
     def test_PROTOCOL_TLS(self):
         """Connecting to an SSLv23 server with various client options"""
         if support.verbose:
@@ -3307,6 +3323,7 @@ class ThreadedTests(unittest.TestCase):
                                False, client_options=ssl.OP_NO_SSLv2)
 
     @requires_tls_version('TLSv1')
+    @unittest.skipIf(UBUNTU_2004, "Broken on Ubuntu 20.04")
     def test_protocol_tlsv1(self):
         """Connecting to a TLSv1 server with various client options"""
         if support.verbose:
@@ -3322,6 +3339,7 @@ class ThreadedTests(unittest.TestCase):
                            client_options=ssl.OP_NO_TLSv1)
 
     @requires_tls_version('TLSv1_1')
+    @unittest.skipIf(UBUNTU_2004, "Broken on Ubuntu 20.04")
     def test_protocol_tlsv1_1(self):
         """Connecting to a TLSv1.1 server with various client options.
            Testing against older TLS versions."""
@@ -3838,6 +3856,7 @@ class ThreadedTests(unittest.TestCase):
 
     @requires_minimum_version
     @requires_tls_version('TLSv1_1')
+    @unittest.skipIf(UBUNTU_2004, "Broken on Ubuntu 20.04")
     def test_min_max_version_tlsv1_1(self):
         client_context, server_context, hostname = testing_context()
         # client 1.0 to 1.2, server 1.0 to 1.1
@@ -3854,6 +3873,7 @@ class ThreadedTests(unittest.TestCase):
 
     @requires_minimum_version
     @requires_tls_version('TLSv1_2')
+    @unittest.skipIf(UBUNTU_2004, "Broken on Ubuntu 20.04")
     def test_min_max_version_mismatch(self):
         client_context, server_context, hostname = testing_context()
         # client 1.0, server 1.2 (mismatch)
