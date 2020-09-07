@@ -7,7 +7,7 @@
 #
 # The test_importlib also tests this module but because those tests
 # are much more complicated, it might be unclear why they are failing.
-# Invalid marshalled data in frozen.c could case the interpreter to
+# Invalid marshalled data in frozen.c could cause the interpreter to
 # crash when __hello__ is imported.
 
 import sys
