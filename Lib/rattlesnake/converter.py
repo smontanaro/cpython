@@ -263,8 +263,13 @@ class InstructionSetConverter:
     # register allocation scheme the registers which were freed up in
     # this stage will be useful.
 
+    # Note: At one point I had a backward_propagate_fast_stores method
+    # as well, but analysis of a failing test showed that both forward
+    # and backward propagation (at least as I'd implemented them)
+    # caused problems, so I removed backward_propagate_fast_stores.
+
     def forward_propagate_fast_loads(self):
-        """Remove most LOAD_FAST_REG & STORE_FAST_REG instructions.
+        """Remove most LOAD_FAST_REG instructions.
 
         Propagate forward source register where destination register
         is used.
@@ -349,7 +354,7 @@ class InstructionSetConverter:
         # instr.dest and instr.dest+instr.length
         #
         # I've hacked something together here.  Not sure it's entirely
-        # correct (it's certainly still incomplete, failing to
+        # correct. It's certainly still incomplete, failing to
         # consider calls at this point), but the failing test passes,
         # so we're done. :-)
         for block in self.blocks["RVM"]:
