@@ -199,6 +199,12 @@ class InstructionTest(unittest.TestCase):
         self.assertEqual(pyvm(False), rvm(False))
         self.assertEqual(pyvm(True), rvm(True))
 
+    def test_set(self):
+        def set_(x):
+            return {'a', x, 'c'}
+        (pyvm, rvm) = self.function_helper(set_)
+        self.assertEqual(pyvm(42), rvm(42))
+
     def test_list(self):
         def list_(x):
             return ['a', x, 'c']

@@ -180,6 +180,7 @@ extern "C" {
 #define GET_ITER_REG            168
 #define FOR_ITER_REG            169
 #define IMPORT_NAME_REG         170
+#define BUILD_SET_REG           171
 #ifdef NEED_OPCODE_JUMP_TABLES
 static uint32_t _PyOpcode_RelativeJump[8] = {
     0U,

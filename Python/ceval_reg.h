@@ -437,6 +437,25 @@
             goto error;
         }
 
+        case TARGET(BUILD_SET_REG): {
+            /* registers go from src to src+len */
+            int dst = REGARG2(oparg);
+            int len = REGARG1(oparg);
+            PyObject *set = PySet_New(NULL);
+            int err = 0;
+            int i;
+            if (set == NULL)
+                goto error;
+            while (--len >= 0) {
+                PyObject *item = GETLOCAL(dst+len);
+                Py_INCREF(item);
+                if (err == 0)
+                    err = PySet_Add(set, item);
+            }
+            SETLOCAL(dst, set);
+            DISPATCH();
+        }
+
         case TARGET(BUILD_TUPLE_REG): {
             /* registers go from src to src+len */
             int dst = REGARG2(oparg);

@@ -1144,6 +1144,7 @@ stack_effect(int opcode, int oparg, int jump)
         case BINARY_XOR_REG:
         case BUILD_LIST_REG:
         case BUILD_MAP_REG:
+        case BUILD_SET_REG:
         case BUILD_TUPLE_REG:
         case CALL_FUNCTION_KW_REG:
         case CALL_FUNCTION_REG:
@@ -6432,4 +6433,3 @@ PyCode_Optimize(PyObject *code, PyObject* Py_UNUSED(consts),
     Py_INCREF(code);
     return code;
 }
-
