@@ -383,12 +383,12 @@ class InstructionTest(unittest.TestCase):
     #     (pyvm, rvm) = self.function_helper(yield_value)
     #     self.assertEqual(list(pyvm(42)), list(rvm(42)))
 
-    # def test_simple_import(self):
-    #     def import_name():
-    #         import sys
-    #         return sys
-    #     (pyvm, rvm) = self.function_helper(import_name)
-    #     self.assertEqual(pyvm(), rvm())
+    def test_simple_import(self):
+        def import_name():
+            import sys
+            return sys
+        (pyvm, rvm) = self.function_helper(import_name)
+        self.assertEqual(pyvm(), rvm())
 
     def test_src_dst(self):
         lfr = opcode.opmap['LOAD_FAST_REG']
