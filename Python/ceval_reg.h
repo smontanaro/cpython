@@ -864,8 +864,7 @@
             PyObject *name = GETITEM(names, nm);
             PyObject *fromlist = GETLOCAL(src);
             PyObject *level = GETLOCAL(n);
-            PyObject *res;
-            res = import_name(tstate, f, name, fromlist, level);
+            PyObject *res = import_name(tstate, f, name, fromlist, level);
             SETLOCAL(dst, res);
             if (res == NULL)
                 goto error;
