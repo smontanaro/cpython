@@ -10,6 +10,7 @@ will depend on their enclosing block's address.
 
 """
 
+import atexit
 import opcode
 
 class Instruction:
@@ -22,6 +23,9 @@ class Instruction:
 
     EXT_ARG_OPCODE = opcode.opmap["EXTENDED_ARG"]
 
+    counters = {}               # count what we convert
+    dump_at_end = False
+
     def __init__(self, op, block, **kwargs):
         self.opcode = op
         self._opargs = (0,)
@@ -32,6 +36,9 @@ class Instruction:
         self.line_number = -1
         if kwargs:
             raise ValueError(f"Non-empty kwargs at top level {kwargs}")
+        if "_REG" in self.name:
+            counters = Instruction.counters
+            counters[self.name] = counters.get(self.name, 0) + 1
 
     @property
     def name(self):
@@ -87,6 +94,16 @@ class Instruction:
             setattr(self, attr, kwargs[attr])
             del kwargs[attr]
 
+    @staticmethod
+    def dumpcounts():
+        if not Instruction.dump_at_end:
+            return
+        print("Untested _REG instructions:")
+        for nm in sorted(Instruction.counters):
+            count = Instruction.counters[nm]
+            if count == 0:
+                print(nm)
+
 class PyVMInstruction(Instruction):
     "For basic PyVM instructions."
     def __init__(self, op, block, **kwargs):
@@ -97,3 +114,9 @@ class PyVMInstruction(Instruction):
 
 class NOPInstruction(Instruction):
     "nop"
+
+for nm in opcode.opname:
+    if "_REG" in nm:
+        Instruction.counters[nm] = 0
+
+atexit.register(Instruction.dumpcounts)

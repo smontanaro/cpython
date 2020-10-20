@@ -8,6 +8,8 @@ from rattlesnake.converter import InstructionSetConverter
 from rattlesnake import instructions, util
 from rattlesnake.loadstore import LoadFastInstruction
 
+instructions.Instruction.dump_at_end = True
+
 _A_GLOBAL = 42
 
 # When referencing issues in the issue tracker, name them rsNNNN,
