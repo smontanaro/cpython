@@ -98,10 +98,13 @@ class Instruction:
     def dumpcounts():
         if not Instruction.dump_at_end:
             return
-        print("Untested _REG instructions:")
+        header = False
         for nm in sorted(Instruction.counters):
             count = Instruction.counters[nm]
             if count == 0:
+                if not header:
+                    print("Untested _REG instructions:")
+                    header = True
                 print(nm)
 
 class PyVMInstruction(Instruction):
