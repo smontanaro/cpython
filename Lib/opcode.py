@@ -280,6 +280,7 @@ hasregns.append(op)
 def_op('STORE_GLOBAL_REG', op) ; op += 1
 hascompare.append(op)
 def_op('COMPARE_OP_REG', op) ; op += 1
+def_op('CONTAINS_OP_REG', op) ; op += 1
 hasregjc.append(op)
 def_op('JUMP_IF_FALSE_REG', op) ; op += 1
 hasregjc.append(op)

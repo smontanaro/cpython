@@ -17,6 +17,18 @@ def compare(self, instr, block):
                                 source2=src2, compare_op=cmpop)
 DISPATCH[opcode.opmap['COMPARE_OP']] = compare
 
+def contains(self, instr, block):
+    oparg = instr.opargs[0] # All PyVM opcodes have a single oparg
+    contop = oparg
+    src2 = self.pop()
+    src1 = self.pop()
+    dst = self.push()
+    return ContainsOpInstruction(opcode.opmap['CONTAINS_OP_REG'],
+                                 block,
+                                 dest=dst, source1=src1,
+                                 source2=src2, contains_op=contop)
+DISPATCH[opcode.opmap['CONTAINS_OP']] = contains
+
 class CompareOpInstruction(Instruction):
     "Specialized behavior for COMPARE_OP_REG."
     def __init__(self, op, block, **kwargs):
@@ -26,3 +38,13 @@ class CompareOpInstruction(Instruction):
     @property
     def opargs(self):
         return (self.dest, self.source1, self.source2, self.compare_op)
+
+class ContainsOpInstruction(Instruction):
+    "Specialized behavior for CONTAINS_OP_REG."
+    def __init__(self, op, block, **kwargs):
+        self.populate(("dest", "source1", "contains_op", "source2"), kwargs)
+        super().__init__(op, block, **kwargs)
+
+    @property
+    def opargs(self):
+        return (self.dest, self.source1, self.source2, self.contains_op)

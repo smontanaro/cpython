@@ -1149,6 +1149,7 @@ stack_effect(int opcode, int oparg, int jump)
         case CALL_FUNCTION_KW_REG:
         case CALL_FUNCTION_REG:
         case COMPARE_OP_REG:
+        case CONTAINS_OP_REG:
         case DELETE_ATTR_REG:
         case FOR_ITER_REG:
         case GET_ITER_REG:

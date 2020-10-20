@@ -360,6 +360,23 @@
             DISPATCH();
         }
 
+        case TARGET(CONTAINS_OP_REG): {
+            int dst = REGARG4(oparg);
+            int src1 = REGARG3(oparg);
+            int src2 = REGARG2(oparg);
+            int contop = REGARG1(oparg);
+            PyObject *left = GETLOCAL(src1);
+            PyObject *right = GETLOCAL(src2);
+            int res = PySequence_Contains(right, left);
+            if (res < 0) {
+                goto error;
+            }
+            PyObject *b = (res^contop) ? Py_True : Py_False;
+            Py_INCREF(b);
+            SETLOCAL(dst, b);
+            DISPATCH();
+        }
+
         case TARGET(COMPARE_OP_REG): {
             int dst = REGARG4(oparg);
             int src1 = REGARG3(oparg);
@@ -443,7 +460,6 @@
             int len = REGARG1(oparg);
             PyObject *set = PySet_New(NULL);
             int err = 0;
-            int i;
             if (set == NULL)
                 goto error;
             while (--len >= 0) {

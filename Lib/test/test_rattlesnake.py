@@ -357,10 +357,14 @@ class InstructionTest(unittest.TestCase):
         def branch_func(a):
             if a > 4:
                 return a
+            if a in (1, 2):
+                return a
             b = a + 4
             return b
         (pyvm, rvm) = self.function_helper(branch_func)
         self.assertEqual(pyvm(7), rvm(7))
+        self.assertEqual(pyvm(1), rvm(1))
+        self.assertEqual(pyvm(0), rvm(0))
 
     def test_simple_for(self):
         def for_():
