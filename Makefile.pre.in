@@ -954,7 +954,8 @@ regen-opcode-map:
 	$(UPDATE_FILE) $(srcdir)/Python/opcode_map.h $(srcdir)/Python/opcode_map.h.new
 
 Python/ceval.o: $(srcdir)/Python/opcode_targets.h $(srcdir)/Python/ceval_gil.h \
-		$(srcdir)/Python/condvar.h $(srcdir)/Python/opcode_map.h
+		$(srcdir)/Python/condvar.h $(srcdir)/Python/opcode_map.h \
+		$(srcdir)/Python/ceval_reg.h
 
 Python/frozen.o: $(srcdir)/Python/importlib.h $(srcdir)/Python/importlib_external.h \
 		$(srcdir)/Python/importlib_zipimport.h
