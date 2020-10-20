@@ -484,11 +484,31 @@ class InstructionTest(unittest.TestCase):
         (pyvm, rvm) = self.function_helper(xor)
         self.assertEqual(pyvm(5, 70), rvm(5, 70))
 
+    def test_matmul(self):
+        def matmul(a, b):
+            return a @ b
+        mata = Matrix([[1, 2.0], [1.0, 3]])
+        matb = Matrix([[10, 11], [-1.0, -3]])
+        (pyvm, rvm) = self.function_helper(matmul)
+        self.assertEqual(pyvm(mata, matb), rvm(mata, matb))
+
+    def test_inplace_matmul(self):
+        def inplace_matmul(a, b):
+            a @= b
+            return a
+        a_list = [[1, 2.0], [1.0, 3]]
+        b_list = [[10, 11], [-1.0, -3]]
+        (pyvm, rvm) = self.function_helper(inplace_matmul)
+        pyvm_result = pyvm(Matrix(a_list), Matrix(b_list))
+        rvm_result = rvm(Matrix(a_list), Matrix(b_list))
+        self.assertEqual(pyvm_result, rvm_result)
+
     def function_helper(self, func, propagate=True, verbose=False):
         pyvm_code = func.__code__
 
         # just for symmetry with construction of rvm below...
-        def pyvm(a): return a
+        def pyvm(a):
+            return a
         pyvm.__code__ = pyvm_code
         if verbose:
             print()
@@ -505,7 +525,8 @@ class InstructionTest(unittest.TestCase):
             isc.display_blocks(isc.blocks["RVM"])
 
         # Lacking a proper API at this point...
-        def rvm(a): return a
+        def rvm(a):
+            return a
         rvm_replace_code(rvm, pyvm_code, isc)
 
         self.assertEqual(pyvm.__code__.co_flags & util.CO_REGISTER, 0)
@@ -532,10 +553,6 @@ def _callfunc_kw():
 
 # STILL TO DO:
 
-def _inplace_matmul(a, b):
-    a @= b
-    return a
-
 def _build_slice(*args):
     keys = args[::2]
     vals = args[1::2]
@@ -545,6 +562,35 @@ def _build_slice(*args):
 # ... and many more ...
 
 # HELPERS:
+
+class Matrix:
+    def __init__(self, mat):
+        "Operate on mat - list of lists having dimension rows x cols"
+        self.matrix = mat
+        # Note that we make few assumptions about the structure of the
+        # arrays. Since this is just for testing, I think that's okay.
+
+    def __matmul__(self, other):
+        "self @ other, return a new result Matrix"
+        assert len(self.matrix[0]) == len(other.matrix)
+        new_matrix = []
+        for (i, row) in enumerate(self.matrix):
+            new_matrix.append([])
+            for j in range(len(self.matrix[0])):
+                col = other.column(j)
+                new_matrix[-1].append(sum(e1 * e2 for (e1, e2) in
+                                          zip(row, col)))
+        return Matrix(new_matrix)
+
+    def column(self, i):
+        "extra column i as a list from matrix"
+        result = []
+        for row in self.matrix:
+            result.append(row[i])
+        return result
+
+    def __eq__(self, other):
+        return self.matrix == other.matrix
 
 def get_opcodes(blocks):
     ops = []
