@@ -3180,7 +3180,6 @@ main_loop:
                 if (co_opcache != NULL && /* co_opcache can be NULL after a DEOPT() call. */
                     type->tp_getattro == PyObject_GenericGetAttr)
                 {
-                    PyObject *descr;
                     Py_ssize_t ret;
 
                     if (type->tp_dictoffset > 0) {
@@ -3191,12 +3190,7 @@ main_loop:
                                 goto error;
                             }
                         }
-
-                        descr = _PyType_Lookup(type, name);
-                        if (descr == NULL ||
-                            Py_TYPE(descr)->tp_descr_get == NULL ||
-                            !PyDescr_IsData(descr))
-                        {
+                        if (_PyType_Lookup(type, name) == NULL) {
                             dictptr = (PyObject **) ((char *)owner + type->tp_dictoffset);
                             dict = *dictptr;
 
