@@ -241,9 +241,12 @@ def is_macosx_sdk_path(path):
 
 def grep_headers_for(function, headers):
     for header in headers:
-        with open(header, 'r') as f:
-            if function in f.read():
-                return True
+        try:
+            with open(header, 'r') as f:
+                if function in f.read():
+                    return True
+        except UnicodeDecodeError:
+            print("Failed to read", header, "... skipping", file=sys.stderr)
     return False
 
 def find_file(filename, std_dirs, paths):
