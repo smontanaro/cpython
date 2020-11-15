@@ -6,6 +6,15 @@
 #define REGARG2(oparg) ((oparg >> 8) & 0xff)
 #define REGARG1(oparg) (oparg & 0xff)
 
+/* Disable a few PyVM macros in case I miss something... */
+
+#pragma push_macro("PEEK")
+#undef PEEK
+#pragma push_macro("TOP")
+#undef TOP
+#pragma push_macro("POP")
+#undef POP
+
         case TARGET(BINARY_ADD_REG): {
             int dst = REGARG3(oparg);
             int src1 = REGARG2(oparg);
@@ -871,6 +880,82 @@
             DISPATCH();
         }
 
+        case TARGET(DICT_MERGE_REG): {
+            PyObject *update = GETLOCAL(REGARG1(oparg));
+            PyObject *dict = GETLOCAL(REGARG2(oparg));
+
+            if (_PyDict_MergeEx(dict, update, 2) < 0) {
+                _PyErr_Format(tstate, PyExc_TypeError,
+                              "argument after ** must be a mapping, not %.200s",
+                              Py_TYPE(update)->tp_name);
+                goto error;
+            }
+            PREDICT(CALL_FUNCTION_EX);
+            DISPATCH();
+        }
+
+        case TARGET(DICT_UPDATE_REG): {
+            int dst = REGARG2(oparg);
+            int src = REGARG1(oparg);
+            PyObject *update = GETLOCAL(src);
+            PyObject *dict = GETLOCAL(dst);
+
+            if (PyDict_Update(dict, update) < 0) {
+                if (_PyErr_ExceptionMatches(tstate, PyExc_AttributeError)) {
+                    _PyErr_Format(tstate, PyExc_TypeError,
+                                    "'%.200s' object is not a mapping",
+                                    Py_TYPE(update)->tp_name);
+                }
+                goto error;
+            }
+            DISPATCH();
+        }
+
+        case TARGET(CALL_FUNCTION_EX_REG): {
+            int dst = REGARG4(oparg);
+            int kw = REGARG3(oparg);
+            int cargs = REGARG2(oparg);
+            int fn = REGARG1(oparg);
+            PyObject *func, *callargs, *kwargs = NULL, *result;
+            if (oparg & 0x01) {
+                kwargs = GETLOCAL(kw);
+                if (!PyDict_CheckExact(kwargs)) {
+                    PyObject *d = PyDict_New();
+                    if (d == NULL)
+                        goto error;
+                    if (_PyDict_MergeEx(d, kwargs, 2) < 0) {
+                        Py_DECREF(d);
+                        _PyErr_Format(tstate, SECOND(), kwargs);
+                        goto error;
+                    }
+                    kwargs = d;
+                }
+                assert(PyDict_CheckExact(kwargs));
+            }
+            callargs = GETLOCAL(cargs);
+            func = GETLOCAL(fn);
+            if (!PyTuple_CheckExact(callargs)) {
+                if (check_args_iterable(tstate, func, callargs) < 0) {
+                    Py_DECREF(callargs);
+                    goto error;
+                }
+                Py_SETREF(callargs, PySequence_Tuple(callargs));
+                if (callargs == NULL) {
+                    goto error;
+                }
+            }
+            assert(PyTuple_CheckExact(callargs));
+
+            result = do_call_core(tstate, func, callargs, kwargs);
+
+            SETLOCAL(dst, result);
+            if (result == NULL) {
+                goto error;
+            }
+            DISPATCH();
+        }
+
+
         /* case TARGET(YIELD_VALUE_REG): { */
         /*     int src = REGARG1(oparg); */
         /*     retval = GETLOCAL(src); */
@@ -889,3 +974,7 @@
         /*     f->f_stackdepth = stack_pointer-f->f_valuestack; */
         /*     goto exiting; */
         /* } */
+
+#pragma pop_macro("POP")
+#pragma pop_macro("TOP")
+#pragma pop_macro("PEEK")

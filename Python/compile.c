@@ -1147,11 +1147,14 @@ stack_effect(int opcode, int oparg, int jump)
         case BUILD_MAP_REG:
         case BUILD_SET_REG:
         case BUILD_TUPLE_REG:
+        case CALL_FUNCTION_EX_REG:
         case CALL_FUNCTION_KW_REG:
         case CALL_FUNCTION_REG:
         case COMPARE_OP_REG:
         case CONTAINS_OP_REG:
         case DELETE_ATTR_REG:
+        case DICT_MERGE_REG:
+        case DICT_UPDATE_REG:
         case FOR_ITER_REG:
         case GET_ITER_REG:
         case IMPORT_NAME_REG:

@@ -295,6 +295,7 @@ def_op('BUILD_LIST_REG', op) ; op += 1
 def_op('LIST_EXTEND_REG', op) ; op += 1
 def_op('CALL_FUNCTION_REG', op) ; op += 1
 def_op('CALL_FUNCTION_KW_REG', op) ; op += 1
+def_op('CALL_FUNCTION_EX_REG', op) ; op += 1
 def_op('INPLACE_ADD_REG', op) ; op += 1
 def_op('INPLACE_AND_REG', op) ; op += 1
 def_op('INPLACE_FLOOR_DIVIDE_REG', op) ; op += 1
@@ -315,6 +316,8 @@ def_op('GET_ITER_REG', op) ; op += 1
 jrel_op('FOR_ITER_REG', op) ; op += 1
 name_op('IMPORT_NAME_REG', op) ; op += 1     # Index in name list
 def_op('BUILD_SET_REG', op) ; op += 1
+def_op('DICT_MERGE_REG', op) ; op += 1
+def_op('DICT_UPDATE_REG', op) ; op += 1
 
 assert op <= 256, op
 

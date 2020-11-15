@@ -12,6 +12,7 @@ will depend on their enclosing block's address.
 
 import atexit
 import opcode
+import sys
 
 class Instruction:
     """Represent an instruction in either PyVM or RVM.
@@ -91,7 +92,11 @@ class Instruction:
     def populate(self, attrs, kwargs):
         "Set attr names from kwargs dict and delete those keys."
         for attr in attrs:
-            setattr(self, attr, kwargs[attr])
+            try:
+                setattr(self, attr, kwargs[attr])
+            except KeyError:
+                print(attr, kwargs, file=sys.stderr)
+                raise
             del kwargs[attr]
 
     @staticmethod

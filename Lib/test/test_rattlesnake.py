@@ -2,6 +2,7 @@
 
 import dis
 import opcode
+import types
 import unittest
 
 from rattlesnake.converter import InstructionSetConverter
@@ -502,6 +503,14 @@ class InstructionTest(unittest.TestCase):
         pyvm_result = pyvm(Matrix(a_list), Matrix(b_list))
         rvm_result = rvm(Matrix(a_list), Matrix(b_list))
         self.assertEqual(pyvm_result, rvm_result)
+
+    def test_dict_merge(self):
+        def f(ns_dict):
+            ns = types.SimpleNamespace(**ns_dict)
+            return ns
+        (pyvm, rvm) = self.function_helper(f)
+        ns_dict = {'a': 1}
+        self.assertEqual(pyvm(ns_dict), rvm(ns_dict))
 
     def function_helper(self, func, propagate=True, verbose=False):
         pyvm_code = func.__code__

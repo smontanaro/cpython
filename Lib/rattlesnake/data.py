@@ -13,8 +13,9 @@ def dict_op(self, instr, block):
     opname = "%s_REG" % opcode.opname[op]
     update = self.pop()
     dict_ = self.top()
-    #print(f">>> dict: {dict_}, update: {update}")
-    return DictOpInstruction(opcode.opmap[opname], block)
+    # print(f">>> dict: {dict_}, update: {update}")
+    return DictOpInstruction(opcode.opmap[opname], block, dict=dict_,
+                             update=update)
 DISPATCH[opcode.opmap['DICT_MERGE']] = dict_op
 DISPATCH[opcode.opmap['DICT_UPDATE']] = dict_op
 

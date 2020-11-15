@@ -162,26 +162,29 @@ extern "C" {
 #define LIST_EXTEND_REG         150
 #define CALL_FUNCTION_REG       151
 #define CALL_FUNCTION_KW_REG    152
-#define INPLACE_ADD_REG         153
-#define INPLACE_AND_REG         154
-#define INPLACE_FLOOR_DIVIDE_REG 155
-#define INPLACE_LSHIFT_REG      156
-#define INPLACE_MATRIX_MULTIPLY_REG 157
-#define INPLACE_MODULO_REG      158
-#define INPLACE_MULTIPLY_REG    159
-#define INPLACE_OR_REG          160
-#define INPLACE_POWER_REG       161
-#define INPLACE_RSHIFT_REG      162
-#define INPLACE_SUBTRACT_REG    163
-#define INPLACE_TRUE_DIVIDE_REG 164
-#define INPLACE_XOR_REG         165
-#define LOAD_ATTR_REG           166
-#define STORE_ATTR_REG          167
-#define DELETE_ATTR_REG         168
-#define GET_ITER_REG            169
-#define FOR_ITER_REG            170
-#define IMPORT_NAME_REG         171
-#define BUILD_SET_REG           172
+#define CALL_FUNCTION_EX_REG    153
+#define INPLACE_ADD_REG         154
+#define INPLACE_AND_REG         155
+#define INPLACE_FLOOR_DIVIDE_REG 156
+#define INPLACE_LSHIFT_REG      157
+#define INPLACE_MATRIX_MULTIPLY_REG 158
+#define INPLACE_MODULO_REG      159
+#define INPLACE_MULTIPLY_REG    160
+#define INPLACE_OR_REG          161
+#define INPLACE_POWER_REG       162
+#define INPLACE_RSHIFT_REG      163
+#define INPLACE_SUBTRACT_REG    164
+#define INPLACE_TRUE_DIVIDE_REG 165
+#define INPLACE_XOR_REG         166
+#define LOAD_ATTR_REG           167
+#define STORE_ATTR_REG          168
+#define DELETE_ATTR_REG         169
+#define GET_ITER_REG            170
+#define FOR_ITER_REG            171
+#define IMPORT_NAME_REG         172
+#define BUILD_SET_REG           173
+#define DICT_MERGE_REG          174
+#define DICT_UPDATE_REG         175
 #ifdef NEED_OPCODE_JUMP_TABLES
 static uint32_t _PyOpcode_RelativeJump[8] = {
     0U,
@@ -189,7 +192,7 @@ static uint32_t _PyOpcode_RelativeJump[8] = {
     33587200U,
     8320U,
     0U,
-    1024U,
+    2048U,
     0U,
     0U,
 };
@@ -199,7 +202,7 @@ static uint32_t _PyOpcode_Jump[8] = {
     52396032U,
     8320U,
     0U,
-    1024U,
+    2048U,
     0U,
     0U,
 };
