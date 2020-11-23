@@ -247,8 +247,12 @@ pipe. (Contributed by Pablo Galindo in :issue:`41625`.)
 pathlib
 -------
 
-Added slice support to :meth:`~pathlib.Path.parents`.
+Added slice support to :attr:`PurePath.parents <pathlib.PurePath.parents>`.
 (Contributed by Joshua Cannon in :issue:`35498`)
+
+Added negative indexing support to :attr:`PurePath.parents
+<pathlib.PurePath.parents>`.
+(Contributed by Yaroslav Pankovych in :issue:`21041`)
 
 py_compile
 ----------
@@ -511,6 +515,10 @@ New Features
 * Added :c:func:`Py_NewRef` and :c:func:`Py_XNewRef` functions to increment the
   reference count of an object and return the object.
   (Contributed by Victor Stinner in :issue:`42262`.)
+
+* The :c:func:`PyType_FromSpecWithBases` and :c:func:`PyType_FromModuleAndSpec`
+  functions now accept a single class as the *bases* argument.
+  (Contributed by Serhiy Storchaka in :issue:`42423`.)
 
 * The :c:func:`PyType_FromModuleAndSpec` function now accepts NULL ``tp_doc``
   slot.
