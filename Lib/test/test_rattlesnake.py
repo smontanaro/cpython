@@ -512,6 +512,10 @@ class InstructionTest(unittest.TestCase):
             ns = types.SimpleNamespace(**ns_dict)
             return ns
         (pyvm, rvm) = self.function_helper(f)
+        print("*** stack ***")
+        dis.dis(pyvm)
+        print("*** register ***")
+        dis.dis(rvm)
         ns_dict = {'a': 1}
         self.assertEqual(pyvm(ns_dict), rvm(ns_dict))
 
