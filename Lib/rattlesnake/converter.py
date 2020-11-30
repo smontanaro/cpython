@@ -450,6 +450,8 @@ class InstructionSetConverter:
             instr_bytes.append(bytes(block))
         return b"".join(instr_bytes)
 
+    # XXX Needs to be rewritten to conform to new table format
+    # described in Objects/lnotab_notes.txt.
     def get_lnotab(self):
         firstlineno = self.codeobj.co_firstlineno
         last_line_number = firstlineno
