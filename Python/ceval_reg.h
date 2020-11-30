@@ -890,7 +890,6 @@
                               Py_TYPE(update)->tp_name);
                 goto error;
             }
-            PREDICT(CALL_FUNCTION_EX);
             DISPATCH();
         }
 
@@ -912,10 +911,9 @@
         }
 
         case TARGET(CALL_FUNCTION_EX_REG): {
-            int dst = REGARG4(oparg);
-            int kw = REGARG3(oparg);
-            int cargs = REGARG2(oparg);
-            int fn = REGARG1(oparg);
+            int fn = REGARG3(oparg);
+            int kw = REGARG2(oparg);
+            int cargs = REGARG1(oparg);
             PyObject *func, *callargs, *kwargs = NULL, *result;
             if (oparg & 0x01) {
                 kwargs = GETLOCAL(kw);
@@ -925,7 +923,9 @@
                         goto error;
                     if (_PyDict_MergeEx(d, kwargs, 2) < 0) {
                         Py_DECREF(d);
-                        _PyErr_Format(tstate, SECOND(), kwargs);
+                        _PyErr_Format(tstate, SECOND(),
+                                      "argument after ** must be a mapping, not %.200s",
+                                      kwargs);
                         goto error;
                     }
                     kwargs = d;
@@ -948,7 +948,7 @@
 
             result = do_call_core(tstate, func, callargs, kwargs);
 
-            SETLOCAL(dst, result);
+            SETLOCAL(fn, result);
             if (result == NULL) {
                 goto error;
             }
