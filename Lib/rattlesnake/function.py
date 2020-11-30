@@ -35,11 +35,9 @@ def function_ex(self, instr, block):
         kwargs = self.pop()
     cargs = self.pop()
     func = self.top()
-    dest = self.push()
-    print(kwargs, cargs, func, dest)
+    print(kwargs, cargs, func)
     return CallInstructionEX(opcode.opmap['CALL_FUNCTION_EX_REG'],
-                             block, kwargs_=kwargs, cargs=cargs, func=func,
-                             dest=dest)
+                             block, kwargs_=kwargs, cargs=cargs, func=func)
 DISPATCH[opcode.opmap['CALL_FUNCTION_EX']] = function_ex
 
 class CallInstruction(Instruction):
@@ -65,9 +63,9 @@ class CallInstructionKW(Instruction):
 class CallInstructionEX(Instruction):
     "CALL_FUNCTION_EX_REG."
     def __init__(self, op, block, **kwargs):
-        self.populate(("dest", "kwargs_", "cargs", "func"), kwargs)
+        self.populate(("kwargs_", "cargs", "func"), kwargs)
         super().__init__(op, block, **kwargs)
 
     @property
     def opargs(self):
-        return (self.dest, self.kwargs_, self.cargs, self.func)
+        return (self.kwargs_, self.cargs, self.func)
