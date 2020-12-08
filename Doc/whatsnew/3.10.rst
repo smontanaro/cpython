@@ -254,6 +254,14 @@ Added negative indexing support to :attr:`PurePath.parents
 <pathlib.PurePath.parents>`.
 (Contributed by Yaroslav Pankovych in :issue:`21041`)
 
+platform
+--------
+
+Added :func:`platform.freedesktop_os_release()` to retrieve operation system
+identification from `freedesktop.org os-release
+<https://www.freedesktop.org/software/systemd/man/os-release.html>`_ standard file.
+(Contributed by Christian Heimes in :issue:`28468`)
+
 py_compile
 ----------
 
@@ -386,7 +394,8 @@ Optimizations
   with ``gcc`` by up to 30%. See `this article
   <https://developers.redhat.com/blog/2020/06/25/red-hat-enterprise-linux-8-2-brings-faster-python-3-8-run-speeds/>`_
   for more details. (Contributed by Victor Stinner and Pablo Galindo in
-  :issue:`38980`)
+  :issue:`38980`.)
+
 
 * Function parameters and their annotations are no longer computed at runtime,
   but rather at compilation time.  They are stored as a tuple of strings at the
@@ -412,6 +421,21 @@ Deprecated
   :exc:`ImportWarning` and/or :exc:`DeprecationWarning` will be raised
   as appropriate to help identify code which needs updating during
   this transition.
+
+* The various ``load_module()`` methods of :mod:`importlib` have been
+  documented as deprecated since Python 3.6, but will now also trigger
+  a :exc:`DeprecationWarning`. Use
+  :meth:`~importlib.abc.Loader.exec_module` instead.
+  (Contributed by Brett Cannon in :issue:`26131`.)
+
+* :meth:`zimport.zipimporter.load_module` has been deprecated in
+  preference for :meth:`~zipimport.zipimporter.exec_module`.
+  (Contributed by Brett Cannon in :issue:`26131`.)
+
+* The use of :meth:`~importlib.abc.Loader.load_module` by the import
+  system now triggers an :exc:`ImportWarning` as
+  :meth:`~importlib.abc.Loader.exec_module` is preferred.
+  (Contributed by Brett Cannon in :issue:`26131`.)
 
 * ``sqlite3.OptimizedUnicode`` has been undocumented and obsolete since Python
   3.3, when it was made an alias to :class:`str`.  It is now deprecated,
@@ -455,6 +479,11 @@ Removed
   after Python 2.7 EOL. Existing users should copy whatever classes they use
   into their code.
   (Contributed by Dong-hee Na and Terry J. Reedy in :issue:`42299`.)
+
+* Removed the :c:func:`PyModule_GetWarningsModule` function that was useless
+  now due to the _warnings module was converted to a builtin module in 2.6.
+  (Contributed by Hai Shi in :issue:`42599`.)
+
 
 Porting to Python 3.10
 ======================
@@ -586,6 +615,13 @@ Porting to Python 3.10
   :ref:`Python Initialization Configuration API <init-config>` to get the
   :ref:`Python Path Configuration.  <init-path-config>`.
   (Contributed by Victor Stinner in :issue:`42260`.)
+
+* :c:func:`PyList_SET_ITEM`, :c:func:`PyTuple_SET_ITEM` and
+  :c:func:`PyCell_SET` macros can no longer be used as l-value or r-value.
+  For example, ``x = PyList_SET_ITEM(a, b, c)`` and
+  ``PyList_SET_ITEM(a, b, c) = x`` now fail with a compiler error. It prevents
+  bugs like ``if (PyList_SET_ITEM (a, b, c) < 0) ...`` test.
+  (Contributed by Zackery Spytz and Victor Stinner in :issue:`30459`.)
 
 Deprecated
 ----------
