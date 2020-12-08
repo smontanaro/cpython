@@ -8,7 +8,7 @@ __all__ = ["cmp_op", "hasconst", "hasname", "hasjrel", "hasjabs",
            "haslocal", "hascompare", "hasfree", "opname", "opmap",
            "HAVE_ARGUMENT", "EXTENDED_ARG", "hasnargs", "HAVE_REGISTERS",
            "hasregs", "hasregds", "hasregdss", "hasregdn", "hasregdc",
-           "hasregjc", "hasregns",]
+           "hasregjc", "hasregns", "hasregdsa",]
 
 # It's a chicken-and-egg I'm afraid:
 # We're imported before _opcode's made.
@@ -62,14 +62,15 @@ hasjabs = []
 haslocal = []
 hascompare = []
 hasfree = []
-hasnargs = [] # unused
-hasregs = []
-hasregds = []
-hasregdss = []
-hasregdn = []
-hasregns = []
-hasregdc = []
-hasregjc = []
+hasnargs = []                   # unused
+hasregs = []                    # Src
+hasregds = []                   # Dst <- Src
+hasregdss = []                  # Dst <- Src op Src
+hasregdn = []                   # Dst <- Name
+hasregns = []                   # Name <- Src
+hasregdc = []                   # Dst <- Const
+hasregjc = []                   # Jump(Const)
+hasregdsa = []                  # Dst <- Src.Attr
 
 opmap = {}
 opname = ['<%r>' % (op,) for op in range(256)]
@@ -309,6 +310,7 @@ def_op('INPLACE_RSHIFT_REG', op) ; op += 1
 def_op('INPLACE_SUBTRACT_REG', op) ; op += 1
 def_op('INPLACE_TRUE_DIVIDE_REG', op) ; op += 1
 def_op('INPLACE_XOR_REG', op) ; op += 1
+hasregdsa.append(op)
 def_op('LOAD_ATTR_REG', op) ; op += 1
 def_op('STORE_ATTR_REG', op) ; op += 1
 def_op('DELETE_ATTR_REG', op) ; op += 1
