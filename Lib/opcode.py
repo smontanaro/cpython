@@ -8,7 +8,7 @@ __all__ = ["cmp_op", "hasconst", "hasname", "hasjrel", "hasjabs",
            "haslocal", "hascompare", "hasfree", "opname", "opmap",
            "HAVE_ARGUMENT", "EXTENDED_ARG", "hasnargs", "HAVE_REGISTERS",
            "hasregs", "hasregds", "hasregdss", "hasregdn", "hasregdc",
-           "hasregjc", "hasregns", "hasregdsa",]
+           "hasregjc", "hasregns", "hasregdsa", "hasregdas", "hasregss",]
 
 # It's a chicken-and-egg I'm afraid:
 # We're imported before _opcode's made.
@@ -64,6 +64,7 @@ hascompare = []
 hasfree = []
 hasnargs = []                   # unused
 hasregs = []                    # Src
+hasregss = []                   # Src, Src
 hasregds = []                   # Dst <- Src
 hasregdss = []                  # Dst <- Src op Src
 hasregdn = []                   # Dst <- Name
@@ -71,6 +72,7 @@ hasregns = []                   # Name <- Src
 hasregdc = []                   # Dst <- Const
 hasregjc = []                   # Jump(Const)
 hasregdsa = []                  # Dst <- Src.Attr
+hasregdas = []                  # Dst.Attr <- Src
 
 opmap = {}
 opname = ['<%r>' % (op,) for op in range(256)]
@@ -312,12 +314,14 @@ def_op('INPLACE_TRUE_DIVIDE_REG', op) ; op += 1
 def_op('INPLACE_XOR_REG', op) ; op += 1
 hasregdsa.append(op)
 def_op('LOAD_ATTR_REG', op) ; op += 1
+hasregdas.append(op)
 def_op('STORE_ATTR_REG', op) ; op += 1
 def_op('DELETE_ATTR_REG', op) ; op += 1
 def_op('GET_ITER_REG', op) ; op += 1
 jrel_op('FOR_ITER_REG', op) ; op += 1
 name_op('IMPORT_NAME_REG', op) ; op += 1     # Index in name list
 def_op('BUILD_SET_REG', op) ; op += 1
+hasregss.append(op)
 def_op('DICT_MERGE_REG', op) ; op += 1
 def_op('DICT_UPDATE_REG', op) ; op += 1
 

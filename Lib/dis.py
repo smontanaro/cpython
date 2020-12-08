@@ -306,6 +306,10 @@ def _get_regs_info(arg):
     """Register instruction helper - single source register."""
     return arg, f"%r{arg & 0xff}"
 
+def _get_regss_info(arg):
+    """Register instruction helper - two source registers."""
+    return arg, f"%r{arg >> 8 & 0xff}, %r{arg & 0xff}"
+
 def _get_regdc_info(arg, constants):
     """Register instruction helper - dest register and constant."""
     return arg, f"%r{arg >> 8 & 0xff} <- {repr(constants[arg & 0xff])}"
@@ -332,6 +336,18 @@ def _get_regdss_info(arg, binop):
     """Register instruction helper - dest & two source registers."""
     return arg, (f"%r{arg >> 16 & 0xff} <- %r{arg >> 8 & 0xff} {binop} "
                  f"%r{arg & 0xff}")
+
+def _get_regdas_info(arg, names):
+    """Register instruction helper - dest.attr <- src."""
+    if names is not None:
+        return arg, f"%r{arg >> 16 & 0xff}.{names[arg & 0xff]} <- %r{arg >> 8 & 0xff}"
+    return _get_reg_info(arg)
+
+def _get_regdsa_info(arg, names):
+    """Register instruction helper - dest <- source.attr."""
+    if names is not None:
+        return arg, f"%r{arg >> 16 & 0xff} <- %r{arg >> 8 & 0xff}.{names[arg & 0xff]}"
+    return _get_reg_info(arg)
 
 def _get_regcmp_info(arg):
     """Register compare instruction helper"""
@@ -414,8 +430,14 @@ def _get_instructions_bytes(code, varnames=None, names=None, constants=None,
                     argval, argrepr = _get_regds_info(arg)
                 elif op in hasregs:
                     argval, argrepr = _get_regs_info(arg)
+                elif op in hasregss:
+                    argval, argrepr = _get_regss_info(arg)
                 elif op in hasregjc:
                     argval, argrepr = _get_regjc_info(arg)
+                elif op in hasregdsa:
+                    argval, argrepr = _get_regdsa_info(arg, names)
+                elif op in hasregdas:
+                    argval, argrepr = _get_regdas_info(arg, names)
                 else:
                     argval, argrepr = _get_reg_info(arg)
             elif op in hasconst:
