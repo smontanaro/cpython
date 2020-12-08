@@ -2,6 +2,7 @@
 
 import dis
 import opcode
+import sys
 import types
 import unittest
 
@@ -512,10 +513,10 @@ class InstructionTest(unittest.TestCase):
             ns = types.SimpleNamespace(**ns_dict)
             return ns
         (pyvm, rvm) = self.function_helper(f)
-        print("*** stack ***")
-        dis.dis(pyvm)
-        print("*** register ***")
-        dis.dis(rvm)
+        print("*** stack ***", file=sys.stderr)
+        dis.dis(pyvm, file=sys.stderr)
+        print("*** register ***", file=sys.stderr)
+        dis.dis(rvm, file=sys.stderr)
         ns_dict = {'a': 1}
         self.assertEqual(pyvm(ns_dict), rvm(ns_dict))
 
@@ -527,8 +528,8 @@ class InstructionTest(unittest.TestCase):
             return a
         pyvm.__code__ = pyvm_code
         if verbose:
-            print()
-            dis.dis(pyvm)
+            print(file=sys.stderr)
+            dis.dis(pyvm, file=sys.stderr)
 
         isc = InstructionSetConverter(pyvm_code)
         isc.gen_rvm()
@@ -537,7 +538,7 @@ class InstructionTest(unittest.TestCase):
             isc.delete_nops()
 
         if verbose:
-            print()
+            print(file=sys.stderr)
             isc.display_blocks(isc.blocks["RVM"])
 
         # Lacking a proper API at this point...
@@ -550,8 +551,8 @@ class InstructionTest(unittest.TestCase):
                          util.CO_REGISTER)
 
         if verbose:
-            print()
-            dis.dis(rvm)
+            print(file=sys.stderr)
+            dis.dis(rvm, file=sys.stderr)
         return (pyvm, rvm)
 
 # Still required to be at top level for now...
