@@ -1,6 +1,7 @@
 "The actual converter class"
 
 import opcode
+import pprint
 
 from .blocks import Block
 from .instructions import PyVMInstruction, NOPInstruction
@@ -456,16 +457,22 @@ class InstructionSetConverter:
         firstlineno = self.codeobj.co_firstlineno
         last_line_number = firstlineno
         last_address = 0
-        address = 0
+        start = end = 0
         lnotab = []
         for block in self.blocks["RVM"]:
             for instr in block.instructions:
                 line_number = instr.line_number
-                if line_number > last_line_number:
-                    offset = line_number - last_line_number
-                    lnotab.append(address - last_address)
-                    lnotab.append(offset)
-                    last_line_number = line_number
-                    last_address = address
-                address += len(instr)
-        return bytes(lnotab)
+                end = start + len(instr)
+                print(">>", instr, start, end, len(instr))
+                lnotab.append((start, end, line_number))
+                start = end
+        pprint.pprint(lnotab)
+        last_line = 0
+        tab = []
+        for (start, end, line) in lnotab:
+            print(">>", (end - start, line - last_line))
+            tab.extend((end - start, line - last_line))
+            last_line = line
+        tab.append(255)
+        pprint.pprint(tab)
+        return bytes(tab)
