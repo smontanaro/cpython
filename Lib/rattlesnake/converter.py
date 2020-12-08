@@ -1,7 +1,6 @@
 "The actual converter class"
 
 import opcode
-import pprint
 
 from .blocks import Block
 from .instructions import PyVMInstruction, NOPInstruction
@@ -451,8 +450,7 @@ class InstructionSetConverter:
             instr_bytes.append(bytes(block))
         return b"".join(instr_bytes)
 
-    # XXX Needs to be rewritten to conform to new table format
-    # described in Objects/lnotab_notes.txt.
+    # Described in Objects/lnotab_notes.txt and Objects/codeobject.c:emit_delta.
     def get_lnotab(self):
         firstlineno = self.codeobj.co_firstlineno
         last_line_number = firstlineno
@@ -463,16 +461,25 @@ class InstructionSetConverter:
             for instr in block.instructions:
                 line_number = instr.line_number
                 end = start + len(instr)
-                print(">>", instr, start, end, len(instr))
                 lnotab.append((start, end, line_number))
                 start = end
-        pprint.pprint(lnotab)
         last_line = 0
         tab = []
         for (start, end, line) in lnotab:
-            print(">>", (end - start, line - last_line))
-            tab.extend((end - start, line - last_line))
+            delta = end - start
+            offset = line - last_line
+            while delta > 255:
+                tab.extend((255, 0))
+                delta -= 255
+            while offset > 127:
+                tab.extend((delta, 127))
+                delta = 0
+                offset -= 127
+            while offset < -128:
+                tab.extend((delta, -128))
+                delta = 0
+                offset += 128
+            tab.extend((delta, offset))
             last_line = line
         tab.append(255)
-        pprint.pprint(tab)
         return bytes(tab)
