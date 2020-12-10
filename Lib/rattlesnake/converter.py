@@ -459,7 +459,7 @@ class InstructionSetConverter:
         lnotab = []
         for block in self.blocks["RVM"]:
             for instr in block.instructions:
-                line_number = instr.line_number
+                line_number = instr.line_number - firstlineno
                 end = start + len(instr)
                 lnotab.append((start, end, line_number))
                 start = end
