@@ -453,8 +453,6 @@ class InstructionSetConverter:
     # Described in Objects/lnotab_notes.txt and Objects/codeobject.c:emit_delta.
     def get_lnotab(self):
         firstlineno = self.codeobj.co_firstlineno
-        last_line_number = firstlineno
-        last_address = 0
         start = end = 0
         lnotab = []
         for block in self.blocks["RVM"]:
