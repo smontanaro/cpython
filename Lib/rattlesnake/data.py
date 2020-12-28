@@ -12,7 +12,7 @@ def dict_op(self, instr, block):
     oparg = instr.opargs[0] # All PyVM opcodes have a single oparg
     opname = "%s_REG" % opcode.opname[op]
     update = self.pop()
-    dict_ = self.top()
+    dict_ = self.peek(oparg)
     # print(f">>> dict: {dict_}, update: {update}")
     return DictOpInstruction(opcode.opmap[opname], block, dict=dict_,
                              update=update)
