@@ -121,7 +121,6 @@ def_op('BINARY_FLOOR_DIVIDE', op) ; op += 1
 def_op('BINARY_TRUE_DIVIDE', op) ; op += 1
 def_op('INPLACE_FLOOR_DIVIDE', op) ; op += 1
 def_op('INPLACE_TRUE_DIVIDE', op) ; op += 1
-def_op('RERAISE', op) ; op += 1
 def_op('WITH_EXCEPT_START', op) ; op += 1
 def_op('GET_AITER', op) ; op += 1
 def_op('GET_ANEXT', op) ; op += 1
@@ -161,6 +160,7 @@ def_op('POP_EXCEPT', op) ; op += 1
 
 HAVE_ARGUMENT = op              # Opcodes from here have an argument:
 
+def_op('RERAISE', op) ; op += 1
 name_op('STORE_NAME', op) ; op += 1       # Index in name list
 name_op('DELETE_NAME', op) ; op += 1      # ""
 def_op('UNPACK_SEQUENCE', op) ; op += 1   # Number of tuple items
