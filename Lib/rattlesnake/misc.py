@@ -16,6 +16,10 @@ def import_name(self, instr, block):
                                  level=level)
 DISPATCH[opcode.opmap['IMPORT_NAME']] = import_name
 
+def nop(self, instr, block):
+    return NopInstruction(opcode.opmap['NOP'], block)
+DISPATCH[opcode.opmap['NOP']] = nop
+
 # def misc_convert(self, instr, block):
 #     op = instr.opcode
 #     # if op == opcode.opmap['IMPORT_NAME']:
@@ -37,3 +41,12 @@ class ImportNameInstruction(Instruction):
     @property
     def opargs(self):
         return (self.dest, self.level, self.source1, self.name1)
+
+class NopInstruction(Instruction):
+    "NOP"
+    def __init__(self, op, block, **kwargs):
+        super().__init__(op, block, **kwargs)
+
+    @property
+    def opargs(self):
+        return (0,)
