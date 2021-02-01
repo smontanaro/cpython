@@ -501,7 +501,7 @@ class DisTests(unittest.TestCase):
 
     def test_boundaries(self):
         self.assertEqual(dis.opmap["EXTENDED_ARG"], dis.EXTENDED_ARG)
-        self.assertEqual(dis.opmap["STORE_NAME"], dis.HAVE_ARGUMENT)
+        self.assertEqual(dis.opmap["RERAISE"], dis.HAVE_ARGUMENT)
 
     def test_widths(self):
         for opcode, opname in enumerate(dis.opname):
