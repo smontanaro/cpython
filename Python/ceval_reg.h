@@ -300,7 +300,7 @@
                                        (PyDictObject *)f->f_builtins,
                                        name);
                 if (v == NULL) {
-                    if (!_PyErr_OCCURRED()) {
+                    if (!_PyErr_Occurred(tstate)) {
                         /* _PyDict_LoadGlobal() returns NULL without raising
                          * an exception if the key doesn't exist */
                         format_exc_check_arg(tstate, PyExc_NameError,
@@ -563,7 +563,7 @@
             int dst = REGARG2(oparg);
             int nargs = REGARG1(oparg);
             sp = &GETLOCAL(dst + nargs + 1);
-            res = call_function(tstate, &sp, nargs, NULL);
+            res = call_function(tstate, &trace_info, &sp, nargs, NULL);
             SETLOCAL(dst, res);
             if (res == NULL) {
                 goto error;
@@ -585,7 +585,7 @@
             assert(PyTuple_GET_SIZE(names) <= nargs);
             /* We assume without checking that names contains only strings */
             sp = &GETLOCAL(dst + nargs + 1);
-            res = call_function(tstate, &sp, nargs, names);
+            res = call_function(tstate, &trace_info, &sp, nargs, names);
             Py_DECREF(names);
             SETLOCAL(dst, res);
 
@@ -856,7 +856,7 @@
                     goto error;
                 }
                 else if (tstate->c_tracefunc != NULL) {
-                    call_exc_trace(tstate->c_tracefunc, tstate->c_traceobj, tstate, f);
+                    call_exc_trace(tstate->c_tracefunc, tstate->c_traceobj, tstate, f, &trace_info);
                 }
                 _PyErr_Clear(tstate);
             }
@@ -946,7 +946,7 @@
             }
             assert(PyTuple_CheckExact(callargs));
 
-            result = do_call_core(tstate, func, callargs, kwargs);
+            result = do_call_core(tstate, &trace_info, func, callargs, kwargs);
 
             SETLOCAL(fn, result);
             if (result == NULL) {

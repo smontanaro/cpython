@@ -227,6 +227,7 @@ def_op('SET_ADD', op) ; op += 1
 def_op('MAP_ADD', op) ; op += 1
 hasfree.append(op)
 def_op('LOAD_CLASSDEREF', op) ; op += 1
+def_op('MATCH_CLASS', op) ; op += 1
 jrel_op('SETUP_ASYNC_WITH', op) ; op += 1
 def_op('FORMAT_VALUE', op) ; op += 1
 def_op('BUILD_CONST_KEY_MAP', op) ; op += 1
