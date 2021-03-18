@@ -4,7 +4,7 @@ Author: Skip Montanaro <skip@python.org>
 Status: Active
 Type: Standards Track
 Content-Type: text/x-rst
-Created: 28-Mar-2020
+Created: 18-Mar-2021
 Python-Version: 4.0
 Post-History: dd-mmm-yyyy
 
@@ -17,13 +17,13 @@ Abstract
 This PEP proposes the addition of register-based instructions to the
 existing Python virtual machine, with the intent that they eventually
 replace the existing stack-based opcodes.  Though both sets of
-instructions are active in this effort, they are almost completely
-distinct.  Within a single function only one set of opcodes or the
-other will be used at any one time.  (A few instructions are used by
-both.)  Considering that, the current stack-based opcodes are referred
-to below as the Python Virtual Machine ("PyVM") and the new
-register-based opcodes are referred to as the Register Virtual Machine
-("RVM").
+instructions are active in this effort, that is largely to make
+initial testing easier.  They are almost completely distinct.  Within
+a single function only one set of opcodes or the other will be used at
+any one time.  (A few instructions are used by both.)  Considering
+that, the current stack-based opcodes are referred to below as the
+Python Virtual Machine ("PyVM") and the new register-based opcodes are
+referred to as the Register Virtual Machine ("RVM").
 
 Though submitted as a standards track PEP, the approach taken in the
 initial implementation requires PyVM to be active as RVM is developed.
@@ -45,7 +45,7 @@ are:
 
 - Use of computed gotos and opcode prediction [#predpitr]_
 
-- Introduction of new instructions (reference?)
+- Introduction of many new instructions (reference?)
 
 - Wordcode [#wordcode]_
 
@@ -63,8 +63,8 @@ complete table of opcode frequencies is in `Appendix - Opcode
 Frequencies`_.)
 
 While swapping out the virtual machine in toto doesn't qualify as low
-hanging fruit, even after all this time it seems like it might be a
-profitable change.
+hanging fruit, even after all this time it seems like it might
+worthwhile to investigate such a change.
 
 
 Previous Work
@@ -79,7 +79,8 @@ author [#peepmont]_ and implemented as a peephole optimization class
 which could be chained together with other optimizations.  As such, it
 worked from the existing PyVM instructions, not any higher-level
 representation.  While it never saw the light of day, the code
-followed the author of this document around as a subtle reminder of
+followed the author of this document around from one computer to
+another (somehow never getting lost) and remained a subtle reminder of
 the possibility it represented.  It lives on, providing much of the
 initial starting framework for the current translator.
 
@@ -106,10 +107,10 @@ should provide enough data to decide if the general idea is workable.
 Aside from allowing quicker experimentation, it also makes the
 development more accessible to Python developers without much
 experience with the CPython implementation.  If the approach proves
-worthwhile, developers with more experience with the compiler can push
-that part of the system forward.  Consider the current approach an
-attempt at producing a "minimum viable product," to use a business
-buzz phrase.
+worthwhile, developers with more experience in the current Python
+internals can push that part of the system forward.  Consider the
+current approach an attempt at producing a "minimum viable product,"
+to use a business buzz phrase.
 
 Obviously, some work in the C code base is required.  This is mostly
 confined to two files:
@@ -119,16 +120,16 @@ confined to two files:
   the current PyVM instructions.  For the most part, the semantics of
   an RVM instruction are the same as the corresponding PyVM
   instruction.  The main difference between pairs of related
-  instructions is how they get their data.
+  instructions is how they fetch their data and store their results.
 
 - ``Objects/frameobject.c`` - Most of this work has been done already,
   but more could be done.  The primary work necessary was
   reorganization of the ``f_localsplus`` array so local variables and
-  the stack space were adjacent.  As Stinner noted though [#regstin]_,
-  adding a copy of the code object's constants to the frame object is
-  also a performance win.  This is suggested by the opcode frequencies
-  table.  ``LOAD_CONST`` is the second most frequently executed
-  instruction.
+  the PyVM stack space were adjacent.  As Stinner noted though
+  [#regstin]_, adding a copy of the code object's constants to the
+  frame object is also a performance win.  This is suggested by the
+  opcode frequencies table.  ``LOAD_CONST`` is the second most
+  frequently executed instruction.
 
 
 Reference Counts
@@ -150,87 +151,6 @@ implementation, this happens at the end of
 register space can differ from one call of a function to the next and
 frame objects are reused where possible, the registers are cleared,
 not just decref'd.
-
-
-A Conundrum
-'''''''''''
-
-Consider these two simple functions::
-
-    def f(a):
-        if a:
-            return 42
-        return 42
-
-    def g(a):
-        if a != 0:
-            return 42
-        return 42
-
-In PyVM, their conditional statements disassemble as follows::
-
-    >>> dis.dis(f)
-      3           0 LOAD_FAST                   0 (a)
-                  2 POP_JUMP_IF_FALSE           8
-                  ...
-
-    >>> dis.dis(g)
-      3           0 LOAD_FAST                   0 (a)
-                  2 LOAD_CONST                  1 (0)
-                  4 COMPARE_OP                  3 (!=)
-                  6 POP_JUMP_IF_FALSE          12
-                  ...
-
-In RVM, the start of disassembly looks like this (simplified by
-eliding the ``EXTENDED_ARG`` instructions which have no bearing on this
-discussion)::
-
-    >>> dis.dis(rvm)    # f
-      3           4 JUMP_IF_FALSE_REG        3072 (to 12, %r0)
-                  ...
-
-    >>> dis.dis(rvm)    # g
-      3           2 LOAD_CONST_REG            513 (%r2 <- 0)
-                 10 COMPARE_OP_REG       16777731 (%r1 <- %r0 != %r2)
-                 16 JUMP_IF_FALSE_REG        6145 (to 24, %r1)
-                 ...
-
-Function f first considers the "truthiness" of its local variable
-``a`` (though a bit more rigorously than Stephen Colbert might).  If
-we execute ``f(5)``, what happens to the reference count on the small
-integer object with value ``5``?  In the PyVM case, its reference
-count is incremented by the ``LOAD_FAST`` when it's pushed onto the
-stack, then decremented again by the ``POP_JUMP_IF_FALSE``
-instruction, so the net change to ``5``'s reference count is zero.
-
-Now look at the RVM formulation.  It needs no ``LOAD_FAST_REG``
-instruction to make ``a`` available for the test.  If
-``JUMP_IF_FALSE_REG`` decrements the reference count of its source
-register (``%r0`` == ``a`` == ``5``), the reference count of ``5``
-would drop.  That would be bad.  Okay, so don't decrement.  Problem
-solved.
-
-Well, perhaps not.  Look at the beginning of function ``g``.  It makes
-a slightly more complicated comparison involving a constant load of
-``0``, comparison with ``%r0``, then a jump decision based on the
-output of the comparison in ``%r1``.  The ``COMPARE_OP_REG``
-instruction calls ``PyObject_RichCompare()`` to do its work, which
-returns a new reference to the result (``Py_True`` or ``Py_False``).
-If ``JUMP_IF_FALSE_REG`` doesn't decrement the reference count of the
-value in ``%r1``, we leak that new reference.
-
-Now we could perhaps get away with decrementing the reference count of
-the object returned by ``COMPARE_OP_REG`` because we know it will be
-``Py_True`` or ``Py_False``, both of which will have large non-zero
-reference counts in steady state operation::
-
-    >>> sys.getrefcount(True)
-    193
-    >>> sys.getrefcount(False)
-    206
-
-Maybe that's the way to go, but it seems a bit sketchy to me.  Still,
-that seems to work, so I'm going with it for the time being.
 
 
 Object Lifetime
@@ -267,10 +187,11 @@ Backwards Compatibility
 =======================
 
 Since the instruction set is an internal implementation detail
-(although a significant one), there should be no backward
-compatibility issues.  Tools which manipulate bytecode will obviously
-have to be modified.  The ``dis`` module will be modified as
-necessary.
+(although a significant one), there should be few backward
+compatibility issues.  (Note the object lifetime discussion above,
+however.) Tools which manipulate bytecode will obviously have to be
+modified.  The ``dis`` module has been modified as necessary and will
+probably undergo further changes.
 
 
 Reference Implementation
@@ -278,20 +199,29 @@ Reference Implementation
 
 An in-progress (not yet complete) implementation [#regmont]_ is
 available as a fork of the current CPython GitHub repo.  As of this
-writing (March 2020) it remains quite incomplete.
+writing (March 2021) it remains quite incomplete, implementing just 57
+register instructions compared with the 120+ PyVM instructions. (Note
+though that some PyVM instructions should disappear, including stack
+rotation instructions and --- with optimizations --- many register
+loads and stores.
 
 
 Current Status
 --------------
 
-As of April 18, 2020:
+As of March 18, 2021:
 
-- Implemented 46 instructions - all ``BINARY``, ``INPLACE`` and ,
-  ``UNARY`` instructions, ``RETURN_VALUE_REG``, most ``LOAD``
-  instructions, several ``STORE`` instructions, ``COMPARE_OP_REG``,
-  JUMP_IF_(TRUE|FALSE)_REG, ``CALL_FUNCTION_REG``,
-  ``CALL_FUNCTION_KW_REG``, most container-related ``BUILD``
-  instructions, ``LIST_EXTEND_REG``.
+- Implemented more than 50 instructions (the easy ones <wink>) - all
+  ``BINARY``, ``INPLACE`` and , ``UNARY`` instructions,
+  ``RETURN_VALUE_REG``, most ``LOAD`` instructions, several ``STORE``
+  instructions, ``COMPARE_OP_REG``, JUMP_IF_(TRUE|FALSE)_REG, some
+  ``CALL_FUNCTION`` instructions, most container-related ``BUILD``
+  instructions, ``LIST_EXTEND_REG``, some loop and iteration
+  instructions and dictionary merge/update. Simple test cases exist
+  for most of these, though the most recently added instructions
+  probably still lack suitable test cases. (When the 'make test'
+  target completes, it identifies implemented instructions which
+  weren't executed on the run.)
 
 - Implemented translator parts
 
@@ -301,9 +231,10 @@ As of April 18, 2020:
     instructions (much leftover from Rattlesnake, but not yet tested)
 
   - Elimination of ``LOAD_FAST_REG`` and ``STORE_FAST_REG`` by forward
-    propagation of the former and backward propagation of the latter
-    when those registers are used explicitly.  When used implicitly
-    (``CALL_FUNCTION``, ``BUILD_LIST``, etc) they are retained.
+    propagation of the former. Implementation of backward propagation
+    to eliminate the latter was broken, so is currently disabled.
+    There is still work to do here, but it represents a good place for
+    optimization.  Note
 
   - Generation of wordcode from the RVM blocks.
 
@@ -320,16 +251,13 @@ translations.  Plenty of instructions remain which can be implemented
 in isolation, most of which should have straightforward
 implementations.  For example (not exhaustive)::
 
-    BUILD_SET
     BUILD_SLICE
     BUILD_STRING
     CALL_METHOD
-    CONTAINS_OP
     DELETE_GLOBAL
     DELETE_SUBSCR
     FORMAT_VALUE
     IMPORT_FROM
-    IMPORT_NAME
     LOAD_DEREF
     LOAD_METHOD
     STORE_SUBSCR
@@ -337,15 +265,15 @@ implementations.  For example (not exhaustive)::
 
 Some instructions (``DUP_TOP``, ``ROT`` instructions, ``POP_TOP``,
 etc) may not require translation at all, and just require a little bit
-of extra bookkeeping.
+of extra bookkeeping during translation.
 
 Still, as more complex control flow constructs are tackled, larger
-groups of as-yet-translated instructions must be implemented.  It
+groups of not-as-yet-translated instructions must be implemented.  It
 would be worthwhile to try and translate as many of the necessary
 instructions in more-or-less isolation to reduce the number of
-translations correct before any testing can proceed.  Here are some
-example functions and the instructions they use which have not yet
-been translated.
+translations which must be implemented correctly before any testing
+can proceed.  Here are some example functions and the instructions
+they use which have not yet been translated.
 
 This function::
 
@@ -470,19 +398,22 @@ A large number of issues remain unresolved.  See the `issue
 tracker <https://github.com/smontanaro/cpython/issues>`_ for a number
 of open issues not included here.
 
-- This proto-PEP - It is still quite incomplete.
+- This proto-PEP - It is still quite incomplete, and really hasn't
+  been tracking the implementation very well in the past several
+  months.
 
 - Wordcode - To simplify the work, wordcode was retained.  This works,
   but relies heavily on the ``EXTENDED_ARG`` instruction to provide
-  arguments to instructions which need more than one.  While
-  ``EXTENDED_ARG`` is really only half an instruction, most RVM
+  arguments to instructions which need more than one.  At the moment,
+  ``COMPARE_OP_REG`` is the argument champion, requiring four args.
+  While ``EXTENDED_ARG`` is really only half an instruction, most RVM
   instructions implemented so far must be prefixed by at least one of
   them.  It would be worth considering if a 32-bit instruction size
   for RVM makes more sense, both as a performance improvement and to
   reduce the size of the generated code.  (medium)
 
 - Implement opcode prediction/fast dispatch.  Without that, you can't
-  make apples-to-apples performance comparisons.  (easy)
+  make apples-to-apples performance comparisons.  (easy?)
 
 - Translation of larger compilation units than functions (classes,
   modules and packages) with output to a bytecode file (perhaps with
@@ -514,6 +445,57 @@ of open issues not included here.
 
 - Matrix multiplication is so far untested, mostly because I can't
   handle classes yet.
+
+
+Files
+=====
+
+These are the big changes.
+
+- Lib/rattlesnake - The Python implementation of the translator
+
+- Lib/opcode.py - Enumeration of the implemented opcodes
+
+- Python/ceval_reg.h - Implementation of the RVM opcodes - included
+  from Python/ceval.c (reduces merge conflicts)
+
+- reg-opcodes.h - Running list of opcodes which need still to be
+  implemented
+
+
+To Do
+=====
+
+Lots and lots.  Here are a few:
+
+- Getting the various ``YIELD`` instructions working.  I stalled on
+  the intimate relationship between Objects/genobject.c and the PyVM
+  stack.
+
+- Finish off the ``CALL_FUNCTION*`` opcodes.
+
+- Async this-n-that.  I have zero experience with that, even as a
+  Python programmer.
+
+- Implementing some of the more complex language constructs mentioned
+  above.  The challenge is that many of them require the successful
+  implementation of a number of different opcodes before testing can
+  reasonably be started.
+
+- Test cases.  Lots and lots of test cases.  Someone without a lot of
+  experience with Python's internals could tackle the creation of many
+  of these.
+
+- Refactor Lib/test/test_rattlesnake.py.  It should be broken into
+  multiple modules.
+
+- Optimization.  It's probably too early for much, but
+  fixing/generalizing ``forward_propagate_fast_loads`` to correctly
+  deal with implicit register reference would be huge.
+  (``LOAD_FAST_REG`` and ``STORE_FAST_REG`` are conceptually the same
+  opcode.)
+
+- Generate RVM code from the AST instead of a PyVM-to-RVM translator.
 
 
 References
