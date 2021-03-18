@@ -89,6 +89,9 @@ class LineNumberDict:
                 return val
             key -= 1
 
+    def __repr__(self):
+        return f"<LineNumberDict: {self.src_dict}>"
+    __str__ = __repr__
 
 class StackSizeException(Exception):
     """Raised when the stack would grow too small or too large.

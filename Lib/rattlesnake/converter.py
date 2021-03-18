@@ -95,6 +95,7 @@ class InstructionSetConverter:
         blocks = self.blocks["PyVM"]
         labels = self.findlabels(self.codestr)
         line_numbers = LineNumberDict(self.codeobj)
+        #print("line numbers:", line_numbers)
         #print(">>> labels:", labels)
         n = len(self.codestr)
         block_num = 0
@@ -452,11 +453,13 @@ class InstructionSetConverter:
 
     # Described in Objects/lnotab_notes.txt and Objects/codeobject.c:emit_delta.
     def get_lnotab(self):
+        #print("\nget_lnotab", self)
         firstlineno = self.codeobj.co_firstlineno
         start = end = 0
         lnotab = []
         for block in self.blocks["RVM"]:
             for instr in block.instructions:
+                #print(instr)
                 line_number = instr.line_number - firstlineno
                 end = start + len(instr)
                 lnotab.append((start, end, line_number))
@@ -464,20 +467,24 @@ class InstructionSetConverter:
         last_line = 0
         tab = []
         for (start, end, line) in lnotab:
+            #print("lnotab:", (start, end, line))
             delta = end - start
             offset = line - last_line
             while delta > 255:
                 tab.extend((255, 0))
+                #print("tab:", tab[-2:])
                 delta -= 255
             while offset > 127:
                 tab.extend((delta, 127))
+                #print("tab:", tab[-2:])
                 delta = 0
                 offset -= 127
-            while offset < -128:
-                tab.extend((delta, -128))
-                delta = 0
-                offset += 128
-            tab.extend((delta, offset))
+            if offset < 0:
+                tab.extend((delta, 255))
+            else:
+                tab.extend((delta, offset))
+            #print("tab:", tab[-2:])
             last_line = line
         tab.append(255)
+        #print("tab:", tab[-1])
         return bytes(tab)

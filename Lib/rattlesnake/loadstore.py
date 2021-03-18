@@ -22,6 +22,8 @@ def load_fast(self, instr, block):
 DISPATCH[opcode.opmap['LOAD_FAST']] = load_fast
 
 def load_const(self, instr, block):
+    #print("block:", block)
+    #print("instr:", instr)
     op = instr.opcode
     oparg = instr.opargs[0] # All PyVM opcodes have a single oparg
     src = oparg         # offset into localsplus

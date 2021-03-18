@@ -42,7 +42,7 @@ class InstructionTest(unittest.TestCase):
         self.assertEqual(len(isc.blocks["RVM"]), 1)
         self.assertEqual(get_opcodes(isc.blocks["RVM"]),
                          [
-                             [136, 136, 119, 133],
+                             [142, 142, 125, 139],
                          ])
         self.assertEqual(isc.blocks["RVM"][0].codelen(), 16)
         isc.forward_propagate_fast_loads()
@@ -50,7 +50,7 @@ class InstructionTest(unittest.TestCase):
         self.assertEqual(isc.blocks["RVM"][0].codelen(), 8)
         self.assertEqual(get_opcodes(isc.blocks["RVM"]),
                          [
-                             [119, 133],
+                             [125, 139],
                          ])
 
     def test_build_dict(self):
@@ -459,7 +459,6 @@ class InstructionTest(unittest.TestCase):
         self.assertEqual(util.encode_oparg((1, 24, 2)), 71682)
         self.assertEqual(util.encode_oparg(()), 0)
 
-    @unittest.skip('currently broken')
     def test_while1(self):
         def while1():
             while True:

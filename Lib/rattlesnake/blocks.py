@@ -1,5 +1,7 @@
 "Representation of a basic block."
 
+import sys
+
 from . import DISPATCH
 from .instructions import Instruction
 
@@ -53,7 +55,7 @@ class Block:
         if self.stacklevel != -1:
             if self.stacklevel == level:
                 print("Warning: Setting stacklevel to", level,
-                      "multiple times.")
+                      "multiple times.", file=sys.stderr)
             else:
                 raise ValueError(f"Already set stacklevel to {self.stacklevel} "
                                  f"for this block ({level})")
