@@ -498,6 +498,101 @@ Lots and lots.  Here are a few:
 - Generate RVM code from the AST instead of a PyVM-to-RVM translator.
 
 
+Implementing a New Opcode
+=========================
+
+A few steps are required to implement a new RVM opcode.
+
+- Add a simple test case to ``Lib/test/test_rattlesnake.py``.
+
+- Add a relevant ``def_op`` call to Lib/opcode.py.  Note that the PyVM
+  instructions have all been compressed to the low end.  There are no
+  more gaps.  Generally, you will want to add to the end so as not to
+  disturb the opcode numbers for existing instructions.  Still, if it
+  makes sense to add it in the middle, you'll just have a bit more
+  work later (tedious, not life-threatening).  You might also need
+  some auxiliary calls (e.g., ``hasregds``).  That's mostly for pretty
+  display by ``dis``. You'll figure that out when you need it...
+
+- Add a corresponding switch case to ``Python/ceval_reg.h``.
+
+- Assuming you already have a running interpreter, run:
+
+    make regen-all && make && ./python -E Lib/test/regrtest.py test_rattlesnake
+
+Example
+-------
+
+Let's add the framework for a ``CALL_METHOD_REG`` opcode. First, the test case::
+
+    def test_callmeth(self):
+        class X:
+            def meth1(self, a):
+                return self.meth2(a)
+            def meth2(self, a):
+                return a
+        x = X()
+        (pyvm, rvm) = self.function_helper(x.meth1)
+        self.assertEqual(pyvm(4), rvm(4))
+
+Verify that calling x.meth1 exercises ``CALL_METHOD``:
+
+    >>> dis.dis(X.meth1)
+      4           0 LOAD_FAST                       0 (self)
+                  2 LOAD_METHOD                     0 (meth2)
+                  4 LOAD_FAST                       1 (a)
+                  6 CALL_METHOD                     1
+                  8 RETURN_VALUE
+    >>> dis.dis(X.meth2)
+      6           0 LOAD_FAST                       1 (a)
+                  2 RETURN_VALUE
+
+Whoops! It also exercises ``LOAD_METHOD``. We need to implement
+``LOAD_METHOD_REG`` as well.
+
+Now, add two ``def_op`` calls to the end of Lib/opcode.py::
+
+    def_op('LOAD_METHOD_REG', op) ; op += 1
+    def_op('CALL_METHOD_REG', op) ; op += 1
+
+Next, stub out the relevant cases in ``ceval_reg.h``::
+
+    case TARGET(LOAD_METHOD_REG): {
+        /* not yet implemented */
+        goto error;
+        DISPATCH();
+    }
+
+    case TARGET(CALL_METHOD_REG): {
+        /* not yet implemented */
+        goto error;
+        DISPATCH();
+    }
+
+Run ``make regen-all``.  Chicken-and-egg means you will often have to
+run it twice. Now run ``make``.  Finally, check to see that our test
+case is exercised and fails::
+
+    % ./python -E Lib/test/regrtest.py test_rattlesnake
+    ...
+    test test_rattlesnake failed -- Traceback (most recent call last):
+      File "/home/skip/src/python/rvm/Lib/test/test_rattlesnake.py", line 75, in test_callmeth
+        (pyvm, rvm) = self.function_helper(x.meth1)
+      File "/home/skip/src/python/rvm/Lib/test/test_rattlesnake.py", line 544, in function_helper
+        isc.gen_rvm()
+      File "/home/skip/src/python/rvm/Lib/rattlesnake/converter.py", line 200, in gen_rvm
+        pyvm.gen_rvm(rvm)
+      File "/home/skip/src/python/rvm/Lib/rattlesnake/blocks.py", line 86, in gen_rvm
+        convert = DISPATCH[pyvm_inst.opcode]
+    KeyError: 119
+
+This fails because we haven't implemented anything yet.  To get
+farther, we need to implement the relevant functions in
+``Lib/rattlesnake``, probably in ``function.py``.
+
+Rest is currently TBD.
+
+
 References
 ==========
 
