@@ -120,6 +120,19 @@ were based on the old bytecode instruction format which used variable
 length instructions.  In 2005, Jeremy Hylton merged a new AST-based
 compiler to the master development branch [#asthylt]_.
 
+Parrot
+------
+
+Parrot [#parrot]_ is/was an ambitious project which aimed to be a
+common register-based virtual machine backend for a number of
+different languages, initially Python and Perl 6 (now known as Raku
+[#raku]_).  Python support was supposed to be mediated through a
+project called Pynie [#pynie]_ (or later, Puffin [#puffin]_), but all
+components except for Raku seem incomplete/dormant.  Raku is a
+language specification. Rakudo seems to be the most complete
+implementation.  Its compiler has three backends, JVM, JavaScript and
+MoarVM [#moar]_.
+
 
 Rationale
 =========
@@ -676,11 +689,26 @@ References
 .. [#instpage] Profiling CPython at Instagram, Page
    (https://instagram-engineering.com/profiling-cpython-at-instagram-89d4cbeeb898)
 
+.. [#moar] MoarVM
+   (https://moarvm.org/)
+
+.. [#parrot] Parrot
+   (http://www.parrot.org/)
+
 .. [#peephett] Improve code generation Hettinger, et al
    (https://github.com/python/cpython/commit/f6f575ae6fc4b58f8735b6aebaa422d48bedcef4)
 
 .. [#peepmont] A Peephole Optimizer for Python, Montanaro
    (https://web.archive.org/web/20010414044328/https://www.foretec.com/python/workshops/1998-11/proceedings/papers/montanaro/montanaro.html)
+
+.. [#puffin] Puffin GitHub Repository
+   (https://github.com/lucian1900/puffin)
+
+.. [#pynie] Pynie Dev Team
+   (https://launchpad.net/~pynie-dev)
+
+.. [#raku] Raku Programming Language
+   (https://raku.org/)
 
 .. [#regmont] Register fork of CPython, Montanaro
    (https://github.com/smontanaro/cpython/tree/register)
