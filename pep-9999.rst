@@ -561,7 +561,7 @@ Let's add the framework for a ``CALL_METHOD_REG`` opcode. First, the test case::
         (pyvm, rvm) = self.function_helper(x.meth1)
         self.assertEqual(pyvm(4), rvm(4))
 
-Verify that calling x.meth1 exercises ``CALL_METHOD``:
+Verify that calling x.meth1 exercises ``CALL_METHOD``::
 
     >>> dis.dis(X.meth1)
       4           0 LOAD_FAST                       0 (self)
