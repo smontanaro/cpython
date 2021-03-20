@@ -240,7 +240,7 @@ As of March 18, 2021:
 - Implemented more than 50 instructions (the easy ones <wink>) - all
   ``BINARY``, ``INPLACE`` and , ``UNARY`` instructions,
   ``RETURN_VALUE_REG``, most ``LOAD`` instructions, several ``STORE``
-  instructions, ``COMPARE_OP_REG``, JUMP_IF_(TRUE|FALSE)_REG, some
+  instructions, ``COMPARE_OP_REG``, ``JUMP_IF_(TRUE|FALSE)_REG``, some
   ``CALL_FUNCTION`` instructions, most container-related ``BUILD``
   instructions, ``LIST_EXTEND_REG``, some loop and iteration
   instructions and dictionary merge/update. Simple test cases exist
@@ -264,7 +264,7 @@ As of March 18, 2021:
 
   - Generation of wordcode from the RVM blocks.
 
-  - Based on current testing, using -R with the run_test.py script,
+  - Based on current testing, using -R with ``Tools/scripts/run_tests.py``,
     reference counting seems to work.
 
 
