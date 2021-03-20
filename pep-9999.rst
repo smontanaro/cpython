@@ -96,6 +96,18 @@ worthwhile to investigate such a change.
 Previous Work
 =============
 
+A number of previous systems implemented register virtual machines
+aimed (at least in part) at Python. Both Rattlesnake and Victor
+Stinner's systems described below were aimed only at Python and
+translated PyVM to their respective register virtual machines. Both
+were also based on the old variable length bytecode instruction
+format.  In 2005, Jeremy Hylton merged a new AST-based compiler to the
+master development branch [#asthylt]_.
+
+
+Rattlesnake
+-----------
+
 Between 1998 and 2001, the author began work on a system named
 Rattlesnake based on Python 1.5.2.  It was never more than a barebones
 proof-of-concept, but did implement over 50 register-oriented
@@ -110,15 +122,13 @@ another (somehow never getting lost) and remained a subtle reminder of
 the possibility it represented.  It lives on, providing much of the
 initial starting framework for the current translator.
 
+Victor Stinner
+--------------
+
 In 2012, Victor Stinner implemented a nearly complete system
 [#regstin].  It failed for a number of reasons, but it demonstrated a
 significant performance improvement and was very close to a complete
 system.
-
-Both systems worked from PyVM bytecode as the starting point, and both
-were based on the old bytecode instruction format which used variable
-length instructions.  In 2005, Jeremy Hylton merged a new AST-based
-compiler to the master development branch [#asthylt]_.
 
 Parrot
 ------
@@ -428,7 +438,9 @@ simply been following the path of least resistance.  That means
 implementing bits in Python where possible and disturbing the rest of
 the CPython implementation as little as possible.  Those are just
 trade-offs necessary to move things forward.  They aren't cast in
-stone.
+stone.  For expedience, a number of changes weren't undertaken.  For
+example, to minimize compatibility problems between PyVM and RVM,
+wordcode has so far been retained.
 
 
 Open Issues
@@ -443,14 +455,14 @@ of open issues not included here.
   months.
 
 - Wordcode - To simplify the work, wordcode was retained.  This works,
-  but relies heavily on the ``EXTENDED_ARG`` instruction to provide
-  arguments to instructions which need more than one.  At the moment,
-  ``COMPARE_OP_REG`` is the argument champion, requiring four args.
-  While ``EXTENDED_ARG`` is really only half an instruction, most RVM
-  instructions implemented so far must be prefixed by at least one of
-  them.  It would be worth considering if a 32-bit instruction size
-  for RVM makes more sense, both as a performance improvement and to
-  reduce the size of the generated code.  (medium)
+  but relies heavily on the ``EXTENDED_ARG`` mini-instruction to
+  provide arguments to instructions which need more than one.  At the
+  moment, ``COMPARE_OP_REG`` is the argument champ, requiring four
+  args.  While ``EXTENDED_ARG`` is really only half an instruction,
+  most RVM instructions implemented so far must be prefixed by at
+  least one of them.  It would be worth considering if a 32-bit
+  instruction size for RVM makes more sense, both as a performance
+  improvement and to reduce the size of the generated code.  (medium)
 
 - Implement opcode prediction/fast dispatch.  Without that, you can't
   make apples-to-apples performance comparisons.  (easy?)
