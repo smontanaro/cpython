@@ -550,10 +550,17 @@ Verify that calling x.meth1 exercises ``CALL_METHOD``:
 Whoops! It also exercises ``LOAD_METHOD``. We need to implement
 ``LOAD_METHOD_REG`` as well.
 
-Now, add two ``def_op`` calls to the end of Lib/opcode.py::
+Add two ``def_op`` calls to the end of Lib/opcode.py::
 
     def_op('LOAD_METHOD_REG', op) ; op += 1
     def_op('CALL_METHOD_REG', op) ; op += 1
+
+Extend the switch statement in ``Python/compile.c:stack_effect`` (this
+enumeration of each ``*_REG`` instruction needs to change - I just
+haven't gotten around to it)::
+
+    case LOAD_METHOD_REG:
+    case CALL_METHOD_REG:
 
 Next, stub out the relevant cases in ``ceval_reg.h``::
 
