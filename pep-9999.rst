@@ -516,7 +516,7 @@ A few steps are required to implement a new RVM opcode.
 
 - Add a corresponding switch case to ``Python/ceval_reg.h``.
 
-- Assuming you already have a running interpreter, run:
+- Assuming you already have a working interpreter, run:
 
     make regen-all && make && ./python -E Lib/test/regrtest.py test_rattlesnake
 
@@ -586,11 +586,45 @@ case is exercised and fails::
         convert = DISPATCH[pyvm_inst.opcode]
     KeyError: 119
 
-This fails because we haven't implemented anything yet.  To get
-farther, we need to implement the relevant functions in
+This fails because we haven't implemented the relevant converters yet.
+To get farther, we need to add the relevant functions in
 ``Lib/rattlesnake``, probably in ``function.py``.
 
-Rest is currently TBD.
+Converters for each instruction consist of a function which mimics the
+stack activity of the instruction being converted and a subclass of
+Instruction which the function instantiates and returns.  Here's a
+quick sketch for ``LOAD_METHOD`` (first cut - probably still needs
+some tweaks)::
+
+    def load_method(self, instr, block):
+        oparg = instr.opargs[0] # All PyVM opcodes have a single oparg
+        obj = self.top()
+        return LoadMethodInstruction(opcode.opmap['LOAD_METHOD_REG'],
+                                     block, dest=obj, name1=obj)
+    DISPATCH[opcode.opmap['LOAD_METHOD']] = load_method
+
+    class LoadMethodInstruction(Instruction):
+        "LOAD_METHOD_REG."
+        def __init__(self, op, block, **kwargs):
+            self.populate(("dest", "name1"), kwargs)
+            super().__init__(op, block, **kwargs)
+
+        @property
+        def opargs(self):
+            return (self.dest, self.name1)
+
+As noted in ``Python/ceval.c``, ``LOAD_METHOD`` and ``CALL_METHOD``
+are a pair.  The former does some work to decide if the method is
+bound or not, while the latter takes one of two different paths
+depending on the outcome of that decision.  (This extra logic is
+probably why I didn't tackle these at the same time as
+``CALL_FUNCTION`` and friends. Also, the stack diagrams in the
+comments look like they require more brain power to understand than
+I'm generally equipped with...)  Note that the extra logic in the
+``(LOAD|CALL)_METHOD`` instructions means more test cases will be
+required.
+
+Lather, rinse, repeat.
 
 
 References
