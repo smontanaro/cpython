@@ -264,8 +264,9 @@ As of March 18, 2021:
 
   - Generation of wordcode from the RVM blocks.
 
-  - Based on current testing, using -R with ``Tools/scripts/run_tests.py``,
-    reference counting seems to work.
+  - At one point, based on current testing, using -R with
+    ``Tools/scripts/run_tests.py``, reference counting seemed to
+    work.  That seems not to be the case at the moment.
 
 
 Implementing More Instructions
