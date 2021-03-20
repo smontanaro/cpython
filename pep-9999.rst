@@ -49,21 +49,47 @@ are:
 
 - Wordcode [#wordcode]_
 
-Despite all that effort, stack manipulation opcodes (``LOAD_FAST``,
-``POP_TOP``, etc) still account for a substantial fraction of all
-opcodes executed.  This has been consistently true over a long period
-of time [#dynlemb]_, [#instpage]_ and remains true today.  Running
-Pyperformance using a development version of Python 3.9 showed that
-the top four opcodes executed (``LOAD_FAST``, ``LOAD_CONST``,
-``STORE_FAST`` and ``LOAD_GLOBAL``) accounted for nearly half of all
-executed instructions.  They are low-cost instructions (compared with
+Despite all that effort, opcodes which do nothing more than move data
+onto or off of the stack (``LOAD_FAST``, ``LOAD_GLOBAL``, etc) still
+account for nearly half of all opcodes executed.  This has been
+consistently true over a long period of time [#dynlemb]_, [#instpage]_
+and remains true today.  Running Pyperformance using a development
+version of Python 3.9 showed that the five most frequently executed
+pure stack opcodes (``LOAD_FAST``, ``STORE_FAST``, ``POP_TOP``,
+``DUP_TOP`` and ``ROT_TWO``) accounted for 35% of all executed
+instructions.  They are low-cost instructions (compared with
 ``CALL_FUNCTION`` for example), but still eat up time and space in the
 virtual machine, making it less efficient than it might be.  (The
 complete table of opcode frequencies is in `Appendix - Opcode
 Frequencies`_.)
 
-While swapping out the virtual machine in toto doesn't qualify as low
-hanging fruit, even after all this time it seems like it might
+Consider the layout of the data section of a Frame object::
+
+    +----------------+-----------------+------------+
+    |                |                 |            |
+    | fastlocals     | cells + frees   | stack      |
+    +----------------+-----------------+------------+
+    ^                ^                 ^
+    |                |                 |
+    +-- f_localsplus +-- f_cellvars    +-- f_valuestack
+
+All those ``LOAD_FAST`` and ``STORE_FAST`` instructions just copy
+pointers between chunks of RAM which are just a few bytes away from
+each other in memory.  It seems reasonable to consider a different
+layout where ``fastlocals`` and the ``stack`` (reimagined as temporary
+registers) are adjacent and, taken together, could be reimagined as an
+addressable register file::
+
+    +---------------------------+----------------+
+    |                           |                |
+    | fastlocals + registers    | cells + frees  |
+    +---------------------------+----------------+
+    ^                           ^
+    |                           |
+    +-- f_localsplus            +-- f_cellvars
+
+While swapping out the virtual machine in toto doesn't qualify as "low
+hanging fruit," even after all this time it seems like it might
 worthwhile to investigate such a change.
 
 
