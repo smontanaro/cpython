@@ -65,6 +65,16 @@ class InstructionTest(unittest.TestCase):
         (pyvm, rvm) = self.function_helper(build_empty_dict)
         self.assertEqual(pyvm(), rvm())
 
+    def test_callmeth(self):
+        class X:
+            def meth1(self, a):
+                return self.meth2(a)
+            def meth2(self, a):
+                return a
+        x = X()
+        (pyvm, rvm) = self.function_helper(x.meth1)
+        self.assertEqual(pyvm(7), rvm(7))
+
     def test_callfunc(self):
         def callfunc():
             return [bin(2796202), list(enumerate("1234", 2))]

@@ -1229,6 +1229,8 @@ stack_effect(int opcode, int oparg, int jump)
         case UNARY_NEGATIVE_REG:
         case UNARY_NOT_REG:
         case UNARY_POSITIVE_REG:
+        case LOAD_METHOD_REG:
+        case CALL_METHOD_REG:
         /* case YIELD_VALUE_REG: */
             return 0;
         default:

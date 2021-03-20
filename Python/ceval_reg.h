@@ -558,6 +558,18 @@
             DISPATCH();
         }
 
+        case TARGET(LOAD_METHOD_REG): {
+            /* not yet implemented */
+            goto error;
+            DISPATCH();
+        }
+
+        case TARGET(CALL_METHOD_REG): {
+            /* not yet implemented */
+            goto error;
+            DISPATCH();
+        }
+
         case TARGET(CALL_FUNCTION_REG): {
             PyObject **sp, *res;
             int dst = REGARG2(oparg);

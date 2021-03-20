@@ -40,6 +40,13 @@ def function_ex(self, instr, block):
                              block, kwargs_=kwargs, cargs=cargs, func=func)
 DISPATCH[opcode.opmap['CALL_FUNCTION_EX']] = function_ex
 
+def load_method(self, instr, block):
+    oparg = instr.opargs[0] # All PyVM opcodes have a single oparg
+    obj = self.top()
+    return LoadMethodInstruction(opcode.opmap['LOAD_METHOD_REG'],
+                                 block, dest=obj, name1=obj)
+DISPATCH[opcode.opmap['LOAD_METHOD']] = load_method
+
 class CallInstruction(Instruction):
     "Basic CALL_FUNCTION_REG."
     def __init__(self, op, block, **kwargs):
@@ -69,3 +76,13 @@ class CallInstructionEX(Instruction):
     @property
     def opargs(self):
         return (self.kwargs_, self.cargs, self.func)
+
+class LoadMethodInstruction(Instruction):
+    "LOAD_METHOD_REG."
+    def __init__(self, op, block, **kwargs):
+        self.populate(("dest", "name1"), kwargs)
+        super().__init__(op, block, **kwargs)
+
+    @property
+    def opargs(self):
+        return (self.dest, self.name1)
