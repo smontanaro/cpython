@@ -35,6 +35,57 @@ be done as for a rationale for the new virtual machine.
 Motivation
 ==========
 
+Stacks vs. Registers
+--------------------
+
+Most high-level languages have traditionally been implemented with
+stack-based virtual machines.  Implementing a virtual machine
+increases portability of the language.  Implementing the virtual
+machine as a stack VM simplifies the implementation, at least
+initially.  Instead of managing the lifetimes of data in a potentially
+large register file, all the implementation has to worry about is the
+top few elements of the stack, managing a single stack pointer. Still,
+despite the management overhead and larger code size, research shows
+that the performance of register VMs can be significantly better than
+stack VMs ([#vmshowdown]_).  The authors showed a greater than 25%
+performance improvement of a register VM even when threaded dispatch
+was implemented for the stack VM.
+
+Cribbing an example from [#winterbottom]_, consider the memory
+activity of a simple ADD operation. To implement the simple C or Java
+statement ``c = a + b;`` in a stack VM, we execute a series of
+instructions like this::
+
+    push a    # LS
+    push b    # LS
+    add       # LLS
+    store c   # LS
+
+where in the comments, "L" indicates a load into the virtual machine
+and "S" a store.  So, to implement the ``push a`` instruction, the
+value associated with the name ``a`` is loaded into the virtual
+machine, then pushed onto the stack (we assume the stack is
+implemented in memory).  The result is four instruction dispatches,
+five loads, four stores and one add.  Contrast that with the execution
+of an add operation in a three-address register machine::
+
+    add a,b,c   # LLS
+
+We load ``a`` and ``b`` into the virtual machine, perform the add,
+then store the result into the memory location associated with ``c``.
+The result is one instruction dispatch, two loads, one add and one
+store.  While the add instruction is going to be larger in the
+register VM (it must specify all operands), the total amount of work
+done (instruction fetch and decode, movement between memory and the
+machine) is significantly reduced.
+
+We are mixing metaphors here a bit, as a virtual machine has no
+silicon, so the concept of a "register" is really just a location in
+memory.  Still, the extra data movement in the stack VM is real.
+
+Python's Stack Machine
+----------------------
+
 Over the past two decades, Python's virtual machine has been improved
 in many ways.  Among the most visible to the core Python developer
 are:
@@ -60,7 +111,7 @@ pure stack opcodes (``LOAD_FAST``, ``STORE_FAST``, ``POP_TOP``,
 instructions.  They are low-cost instructions (compared with
 ``CALL_FUNCTION`` for example), but still eat up time and space in the
 virtual machine, making it less efficient than it might be.  (The
-complete table of opcode frequencies is in `Appendix - Opcode
+pcomplete table of opcode frequencies is in `Appendix - Opcode
 Frequencies`_.)
 
 Consider the layout of the data section of a Frame object::
@@ -74,10 +125,10 @@ Consider the layout of the data section of a Frame object::
     +-- f_localsplus +-- f_cellvars    +-- f_valuestack
 
 All those ``LOAD_FAST`` and ``STORE_FAST`` instructions just copy
-pointers between chunks of RAM which are just a few bytes away from
-each other in memory.  It seems reasonable to consider a different
-layout where ``fastlocals`` and the ``stack`` (reimagined as temporary
-registers) are adjacent and, taken together, could be reimagined as an
+pointers between chunks of RAM which are separated by just a few bytes
+of memory.  It seems reasonable to consider a different layout where
+``fastlocals`` and the ``stack`` (reimagined as temporary registers)
+are adjacent and, taken together, could be reimagined as an
 addressable register file::
 
     +---------------------------+----------------+
@@ -93,8 +144,8 @@ hanging fruit," even after all this time it seems like it might
 worthwhile to investigate such a change.
 
 
-Previous Work
-=============
+Previous Work in Python
+=======================
 
 A number of previous systems implemented register virtual machines
 aimed (at least in part) at Python. Both Rattlesnake and Victor
@@ -102,7 +153,8 @@ Stinner's systems described below were aimed only at Python and
 translated PyVM to their respective register virtual machines. Both
 were also based on the old variable length bytecode instruction
 format.  In 2005, Jeremy Hylton merged a new AST-based compiler to the
-master development branch [#asthylt]_.
+master development branch [#asthylt]_. This was not available in the
+Rattlesnake era.
 
 
 Rattlesnake
@@ -118,17 +170,17 @@ which could be chained together with other optimizations.  As such, it
 worked from the existing PyVM instructions, not any higher-level
 representation.  While it never saw the light of day, the code
 followed the author of this document around from one computer to
-another (somehow never getting lost) and remained a subtle reminder of
-the possibility it represented.  It lives on, providing much of the
-initial starting framework for the current translator.
+another (somehow never getting lost) and remained a persistent
+reminder of the possibility it represented.  It lives on, providing
+much of the conceptual framework for the current project.
 
 Victor Stinner
 --------------
 
 In 2012, Victor Stinner implemented a nearly complete system
-[#regstin].  It failed for a number of reasons, but it demonstrated a
-significant performance improvement and was very close to a complete
-system.
+[#regstin].  Though noy incorporated into the Python codebase, it
+demonstrated a significant performance improvement and was very close
+to a complete system.
 
 Parrot
 ------
@@ -144,22 +196,22 @@ implementation.  Its compiler has three backends, JVM, JavaScript and
 MoarVM [#moar]_.
 
 
-Rationale
-=========
+Implementation
+==============
 
-The "correct" approach is to modify, replace or duplicate the existing
-AST-based compiler to produce RVM instructions.  Alas, the author had
-no experience with it and decided to fall back to translation of PyVM
-to RVM.  That provides fewer optimization opportunities, but allows
-all the translation to be done using an external Python program.  It
-should provide enough data to decide if the general idea is workable.
-Aside from allowing quicker experimentation, it also makes the
-development more accessible to Python developers without much
-experience with the CPython implementation.  If the approach proves
-worthwhile, developers with more experience in the current Python
-internals can push that part of the system forward.  Consider the
-current approach an attempt at producing a "minimum viable product,"
-to use a business buzz phrase.
+The "correct" approach would be to generate RVM instructions directly
+from the AST.  Alas, the author had no experience with it and decided
+to fall back to naive bytecode translation from PyVM to RVM with later
+optimization.  That provides fewer optimization opportunities
+initially, but allows all the translation to be done using a separate
+Python module.  It should provide enough data to decide if the general
+idea is workable.  Aside from allowing quicker experimentation, it
+also makes the development more accessible to Python developers
+without much experience with the CPython implementation.  If the
+approach proves worthwhile, developers with more experience in the
+current Python internals can push that part of the system forward.
+Consider the current approach an attempt at producing a "minimum
+viable product," to use a business buzz phrase.
 
 Obviously, some work in the C code base is required.  This is mostly
 confined to two files:
@@ -198,8 +250,9 @@ and require decrement of their reference counts.  In the current
 implementation, this happens at the end of
 ``_PyEval_EvalFrameDefault``.  Since the pattern of use of the
 register space can differ from one call of a function to the next and
-frame objects are reused where possible, the registers are cleared,
-not just decref'd.
+frame objects are reused where possible, the registers are cleared
+using ``Py_CLEAR`` (effectively ``Py_XDECREF`` followed by zeroing out
+the memory location), not just ``Py_XDECREF``'d.
 
 
 Object Lifetime
@@ -216,11 +269,14 @@ until the end of the function?  Consider this (silly) function::
         x = [1] * int(10e7)
         y = [2] * int(10e7)
         z = (x + y) * 3
-        # Could reclaim x and y here
         char = z[99]
-        # Could reclaim z here
         result = do_something_long_running(char)
         return result
+
+In PyVM, the memory for ``x`` and ``y`` would be reclaimed after being
+added together. RVM currently only reclaims them at the end of the
+function, when the reference counts of all registers are
+``Py_XDECREF``'d.  This will need to change.
 
 Currently, RVM clears registers at the end of frame execution.
 Instead, registers should be cleared upon last reference.  All three
@@ -547,8 +603,18 @@ Lots and lots.  Here are a few:
   (``LOAD_FAST_REG`` and ``STORE_FAST_REG`` are conceptually the same
   opcode.)
 
+- Opcode prediction and fast dispatch.  Currently, the register
+  instruction implementations all end with normal calls to
+  DISPATCH(). There is no use of the PREDICTED(), PREDICT() or
+  FAST_DISPATCH() macros.  These can all be applied to the register
+  VM.
+
 - Generate RVM code from the AST instead of a PyVM-to-RVM translator.
 
+- Paul Sokolovsky [#callingsokolovsky] pointed out that the calling
+  convention for operations such as functions and list (and other
+  containers) construction might best be changed.  Currently, the
+  implementation preserves the existing calling conventions.
 
 Implementing a New Opcode
 =========================
@@ -692,6 +758,9 @@ References
 .. [#asthylt] Merge ast-branch to head, Hylton
    (https://github.com/python/cpython/commit/3e0055f8c65c407e74ce476b8e2b1fb889723514)
 
+.. [#callingsokolovsky] Discussion on Python-Ideas mailing list
+   (https://mail.python.org/archives/list/python-ideas@python.org/message/VXJ6MEX5EXHXUNB45ODP4VT2KUDAYNTE/)
+
 .. [#dynlemb] Reordering opcodes (PEP 203 Augmented Assignment), Lemburg
    (https://mail.python.org/pipermail/python-dev/2000-July/007609.html)
 
@@ -733,6 +802,12 @@ References
 
 .. [#predpitr] Faster opcode dispatch on gcc, Pitrou
    (https://bugs.python.org/issue4753)
+
+.. [#vmshowdown] Virtual Machine Showdown: Stack Versus Registers
+   (https://www.usenix.org/legacy/events/vee05/full_papers/p153-yunhe.pdf)
+
+.. [#winterbottom] The design of the Inferno virtual machine
+   (http://www.vitanuova.com/inferno/papers/hotchips.pdf)
 
 .. [#wordcode] ceval: use Wordcode, 16-bit bytecode, Remud
    (https://bugs.python.org/issue26647)
