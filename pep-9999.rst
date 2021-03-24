@@ -890,6 +890,9 @@ References
 .. [#instpage] Profiling CPython at Instagram, Page
    (https://instagram-engineering.com/profiling-cpython-at-instagram-89d4cbeeb898)
 
+.. [#maurowordcode] Beyond Bytecode: a Wordcode-based Python
+   (http://repository.root-me.org/Programmation/Python/EN%20-%20Beyond%20python%20bytecode.pdf)
+
 .. [#moar] MoarVM
    (https://moarvm.org/)
 
