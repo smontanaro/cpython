@@ -196,6 +196,117 @@ implementation.  Its compiler has three backends, JVM, JavaScript and
 MoarVM [#moar]_.
 
 
+Basic Example
+=============
+
+Consider the following trivial function::
+
+    def foo(a,b):
+        return a+b
+
+Python's bytecode compiler generates the following code for the
+function body::
+
+     0 LOAD_FAST                0 (a)
+     2 LOAD_FAST                1 (b)
+     4 BINARY_ADD
+     6 RETURN_VALUE
+
+The first two instructions copy the values associated with the local
+variables a and b to the top-of-stack so the ``BINARY_ADD`` opcode can
+operate on them.  The result of the add operation replaces the two
+values at the top-of-stack with the sum.  The ``RETURN_VALUE`` opcode
+then returns that value to the caller.  Note that the memory locations
+of ``a`` and ``b`` and the stack are only a few bytes apart, making
+the extra data movement all that much more frustrating. Why not
+operate on them in place?
+
+The register virtual machine (RVM) changes that.  It converts PyVM
+opcodes to a new three-address virtual machine.  In its initial form,
+it generates code very similar to the existing compiler for the above
+function::
+
+     0 EXTENDED_ARG         2
+     2 LOAD_FAST_REG      512
+     4 EXTENDED_ARG         3
+     6 LOAD_FAST_REG      769
+     8 EXTENDED_ARG         2
+    10 EXTENDED_ARG       514
+    12 BINARY_ADD_REG  131587
+    14 RETURN_VALUE_REG     2
+
+That's a bit difficult to read, so I will decode the arguments to the
+load, add and return opcodes::
+
+     0 EXTENDED_ARG                 2
+     2 LOAD_FAST_REG           %r2, a
+     4 EXTENDED_ARG                 3
+     6 LOAD_FAST_REG           %r3, b
+     8 EXTENDED_ARG                 2
+    10 EXTENDED_ARG               514
+    12 BINARY_ADD_REG   %r2, %r2, %r3
+    14 RETURN_VALUE_REG           %r2
+
+The ``LOAD_FAST_REG`` opcode works just like the current ``LOAD_FAST``
+opcode but copies the values to a register instead of the top-of-stack
+(though as should be apparent the difference between a "register" and
+the "stack" is only semantic).  The ``BINARY_ADD_REG`` opcode adds the
+contents of registers ``%r2`` and ``%r3`` and places the result back
+into ``%r2``.  (For three-address instructions, the operand order is
+dst, src1, src2).  Finally, the ``RETURN_VALUE_REG`` opcode returns
+the value in ``%r2``.
+
+This doesn't seem any more efficient than the current VM instructions,
+and in fact, it isn't.  In addition, it uses more memory than the
+stack version (14 bytes vs 6) because registers must be explicitly
+addressed.  However, RVM takes advantage of an interesting property of
+Python frame objects, namely that the space allocated for local
+variables and the stack space are adjacent (or nearly so)::
+
+    typedef struct _frame {
+        PyObject_HEAD
+        ...
+        PyObject **f_valuestack;   /* points after the last local */
+        ...
+        int f_nlocals;             /* number of locals */
+        int f_stacksize;           /* size of value stack */
+        PyObject *f_localsplus[1]; /* locals+stack, dynamically sized */
+    } PyFrameObject;
+
+The _frame declaration was extracted from the 1.5.2 frame object
+struct definition.  Python 3.9, the current base version for
+Rattlesnake, is slightly different, but we can still make the local
+variables and stack/register adjacent.)
+
+If we treat the local variable array and the temporary operand stack
+as a contiguous array, in many instances we can operate on the values
+they contain without first copying values onto the stack.  In fact, we
+will consider the variables a and b to reside in registers ``%r0`` and
+``%r1``.  We can thus optimize out the load operations.  First, we
+propagate ``a`` and ``b`` through the code where we read ``%r2`` and
+``%r3``.  (In what follows, I elide the ``EXTENDED_ARG`` opcodes, but
+they are really still there where required.)::
+
+     2 LOAD_FAST_REG      %r2, a
+     6 LOAD_FAST_REG      %r3, b
+    12 BINARY_ADD_REG     %r2, a, b
+    14 RETURN_VALUE_REG   %r2
+
+Note that we only propagate references to ``a`` until some other
+opcode overwrites ``%r2``.  Accordingly, we don't replace ``%r2`` with
+a in either the ``BINARY_ADD_REG`` or ``RETURN_VALUE_REG`` opcodes.
+
+Since ``%r2`` and ``%r3`` are no longer used as source operands before
+``%r2`` is written by ``BINARY_ADD_REG``, the load ops which populated
+them are no longer necessary and can be deleted::
+
+    12 BAR      %r2, a, b
+    14 RVR      %r2
+
+The end result is a reduced instruction count, less memory usage, and a
+faster virtual machine.
+
+
 Implementation
 ==============
 
@@ -367,6 +478,7 @@ implementations.  For example (not exhaustive)::
     LOAD_DEREF
     LOAD_METHOD
     STORE_SUBSCR
+    YIELD_FROM
     YIELD_VALUE
 
 Some instructions (``DUP_TOP``, ``ROT`` instructions, ``POP_TOP``,
@@ -554,6 +666,9 @@ of open issues not included here.
 - Matrix multiplication is so far untested, mostly because I can't
   handle classes yet.
 
+- API separating generator object implementation from stack VM.
+  Currently, ``Objects/genobject.c`` manipulates the current virtual
+  machine stack directly.
 
 Files
 =====
@@ -615,6 +730,11 @@ Lots and lots.  Here are a few:
   convention for operations such as functions and list (and other
   containers) construction might best be changed.  Currently, the
   implementation preserves the existing calling conventions.
+
+- Potentially extend instruction size from two bytes to four,
+  dramatically reducing use of ``EXTENDED_ARG`` in the process at the
+  expense of even larger code (maybe, but maybe not).
+
 
 Implementing a New Opcode
 =========================
@@ -1039,7 +1159,7 @@ CC0-1.0-Universal license, whichever is more permissive.
 
 ..
    Local Variables:
-   mode: indented-text
+   mode: rst
    indent-tabs-mode: nil
    sentence-end-double-space: t
    fill-column: 70
