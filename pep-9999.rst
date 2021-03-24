@@ -733,7 +733,7 @@ Lots and lots.  Here are a few:
 
 - Potentially extend instruction size from two bytes to four,
   dramatically reducing use of ``EXTENDED_ARG`` in the process at the
-  expense of even larger code (maybe, but maybe not).
+  expense of even larger code (maybe, but maybe not [#wordcode]_).
 
 
 Implementing a New Opcode
@@ -928,6 +928,9 @@ References
 
 .. [#winterbottom] The design of the Inferno virtual machine
    (http://www.vitanuova.com/inferno/papers/hotchips.pdf)
+
+.. [#wordcode] Wordcode
+   (https://stupidpythonideas.blogspot.com/search?q=wordcode)
 
 .. [#wordcode] ceval: use Wordcode, 16-bit bytecode, Remud
    (https://bugs.python.org/issue26647)
