@@ -16,7 +16,7 @@ if test "$srcdir" != . -a "$srcdir" != "$(pwd)"; then
     # If we're building out-of-tree, we need to make sure the following
     # resources get picked up before their $srcdir counterparts.
     #   Objects/ -> typeslots.inc
-    #   Include/ -> Python-ast.h
+    #   Include/ -> Python.h
     #   Python/  -> importlib.h
     # (A side effect of this is that these resources will automatically be
     #  regenerated when building out-of-tree, regardless of whether or not
@@ -5807,6 +5807,30 @@ if test "$have_openssl" = yes; then
     LDFLAGS="$save_LDFLAGS"
     LIBS="$save_LIBS"
 fi
+
+# rpath to libssl and libcrypto
+AC_MSG_CHECKING(for --with-openssl-rpath)
+AC_ARG_WITH(openssl-rpath,
+    AS_HELP_STRING([--with-openssl-rpath=@<:@DIR|auto|no@:>@],
+                   [Set runtime library directory (rpath) for OpenSSL libraries,
+                    no (default): don't set rpath,
+                    auto: auto-detect rpath from --with-openssl and pkg-config,
+                    DIR: set an explicit rpath
+                   ]),
+    [],
+    [with_openssl_rpath=no]
+)
+AS_CASE($with_openssl_rpath,
+    [auto|yes],[OPENSSL_RPATH=auto],
+    [no],[OPENSSL_RPATH=],
+    [AS_IF(
+        [test -d "$with_openssl_rpath"],
+        [OPENSSL_RPATH="$with_openssl_rpath"],
+        AC_MSG_ERROR([--with-openssl-rpath "$with_openssl_rpath" is not a directory]))
+    ]
+)
+AC_MSG_RESULT($OPENSSL_RPATH)
+AC_SUBST([OPENSSL_RPATH])
 
 # ssl module default cipher suite string
 AH_TEMPLATE(PY_SSL_DEFAULT_CIPHERS,

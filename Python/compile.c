@@ -1,7 +1,7 @@
 /*
  * This file compiles an abstract syntax tree (AST) into Python bytecode.
  *
- * The primary entry point is PyAST_Compile(), which returns a
+ * The primary entry point is _PyAST_Compile(), which returns a
  * PyCodeObject.  The compiler makes several passes to build the code
  * object:
  *   1. Checks for future statements.  See future.c
@@ -23,10 +23,11 @@
 
 #include "Python.h"
 #include "pycore_ast.h"           // _PyAST_GetDocString()
+#include "pycore_compile.h"       // _PyFuture_FromAST()
 #include "pycore_pymem.h"         // _PyMem_IsPtrFreed()
 #include "pycore_long.h"          // _PyLong_GetZero()
+#include "pycore_symtable.h"      // PySTEntryObject
 
-#include "symtable.h"             // struct symtable
 #define NEED_OPCODE_JUMP_TABLES
 #include "opcode.h"               // EXTENDED_ARG
 #include "wordcode_helpers.h"     // instrsize()
@@ -350,8 +351,8 @@ compiler_init(struct compiler *c)
 }
 
 PyCodeObject *
-PyAST_CompileObject(mod_ty mod, PyObject *filename, PyCompilerFlags *flags,
-                   int optimize, PyArena *arena)
+_PyAST_Compile(mod_ty mod, PyObject *filename, PyCompilerFlags *flags,
+               int optimize, PyArena *arena)
 {
     struct compiler c;
     PyCodeObject *co = NULL;
@@ -373,7 +374,7 @@ PyAST_CompileObject(mod_ty mod, PyObject *filename, PyCompilerFlags *flags,
     Py_INCREF(filename);
     c.c_filename = filename;
     c.c_arena = arena;
-    c.c_future = PyFuture_FromASTObject(mod, filename);
+    c.c_future = _PyFuture_FromAST(mod, filename);
     if (c.c_future == NULL)
         goto finally;
     if (!flags) {
@@ -394,7 +395,7 @@ PyAST_CompileObject(mod_ty mod, PyObject *filename, PyCompilerFlags *flags,
         goto finally;
     }
 
-    c.c_st = PySymtable_BuildObject(mod, filename, c.c_future);
+    c.c_st = _PySymtable_Build(mod, filename, c.c_future);
     if (c.c_st == NULL) {
         if (!PyErr_Occurred())
             PyErr_SetString(PyExc_SystemError, "no symtable");
@@ -409,26 +410,11 @@ PyAST_CompileObject(mod_ty mod, PyObject *filename, PyCompilerFlags *flags,
     return co;
 }
 
-PyCodeObject *
-PyAST_CompileEx(mod_ty mod, const char *filename_str, PyCompilerFlags *flags,
-                int optimize, PyArena *arena)
-{
-    PyObject *filename;
-    PyCodeObject *co;
-    filename = PyUnicode_DecodeFSDefault(filename_str);
-    if (filename == NULL)
-        return NULL;
-    co = PyAST_CompileObject(mod, filename, flags, optimize, arena);
-    Py_DECREF(filename);
-    return co;
-
-}
-
 static void
 compiler_free(struct compiler *c)
 {
     if (c->c_st)
-        PySymtable_Free(c->c_st);
+        _PySymtable_Free(c->c_st);
     if (c->c_future)
         PyObject_Free(c->c_future);
     Py_XDECREF(c->c_filename);
@@ -729,7 +715,7 @@ compiler_set_qualname(struct compiler *c)
             mangled = _Py_Mangle(parent->u_private, u->u_name);
             if (!mangled)
                 return 0;
-            scope = PyST_GetScope(parent->u_ste, mangled);
+            scope = _PyST_GetScope(parent->u_ste, mangled);
             Py_DECREF(mangled);
             assert(scope != GLOBAL_IMPLICIT);
             if (scope == GLOBAL_EXPLICIT)
@@ -1920,10 +1906,10 @@ get_ref_type(struct compiler *c, PyObject *name)
     if (c->u->u_scope_type == COMPILER_SCOPE_CLASS &&
         _PyUnicode_EqualToASCIIString(name, "__class__"))
         return CELL;
-    scope = PyST_GetScope(c->u->u_ste, name);
+    scope = _PyST_GetScope(c->u->u_ste, name);
     if (scope == 0) {
         PyErr_Format(PyExc_SystemError,
-                     "PyST_GetScope(name=%R) failed: "
+                     "_PyST_GetScope(name=%R) failed: "
                      "unknown scope in unit %S (%R); "
                      "symbols: %R; locals: %R; globals: %R",
                      name,
@@ -3608,7 +3594,7 @@ compiler_nameop(struct compiler *c, identifier name, expr_context_ty ctx)
 
     op = 0;
     optype = OP_NAME;
-    scope = PyST_GetScope(c->u->u_ste, mangled);
+    scope = _PyST_GetScope(c->u->u_ste, mangled);
     switch (scope) {
     case FREE:
         dict = c->u->u_freevars;
@@ -6757,15 +6743,6 @@ assemble(struct compiler *c, int addNone)
     assemble_free(&a);
     return co;
 }
-
-#undef PyAST_Compile
-PyCodeObject *
-PyAST_Compile(mod_ty mod, const char *filename, PyCompilerFlags *flags,
-              PyArena *arena)
-{
-    return PyAST_CompileEx(mod, filename, flags, -1, arena);
-}
-
 
 /* Replace LOAD_CONST c1, LOAD_CONST c2 ... LOAD_CONST cn, BUILD_TUPLE n
    with    LOAD_CONST (c1, c2, ... cn).
