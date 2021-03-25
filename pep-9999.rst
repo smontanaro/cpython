@@ -18,12 +18,12 @@ This PEP proposes the addition of register-based instructions to the
 existing Python virtual machine, with the intent that they eventually
 replace the existing stack-based opcodes.  Though both sets of
 instructions are active in this effort, that is largely to make
-initial testing easier.  They are almost completely distinct.  Within
-a single function only one set of opcodes or the other will be used at
-any one time.  (A few instructions are used by both.)  Considering
-that, the current stack-based opcodes are referred to below as the
-Python Virtual Machine ("PyVM") and the new register-based opcodes are
-referred to as the Register Virtual Machine ("RVM").
+initial testing easier.  As currently implemented, only one set of
+opcodes or the other will be used within any one function.  (A few
+instructions are used by both.)  Considering that, the current
+stack-based opcodes are referred to below as the Python Virtual
+Machine ("PyVM") and the new register-based opcodes are referred to as
+the Register Virtual Machine ("RVM").
 
 Though submitted as a standards track PEP, the approach taken in the
 initial implementation requires PyVM to be active as RVM is developed.
@@ -41,15 +41,13 @@ Stacks vs. Registers
 Most high-level languages have traditionally been implemented with
 stack-based virtual machines.  Implementing a virtual machine
 increases portability of the language.  Implementing the virtual
-machine as a stack VM simplifies the implementation, at least
-initially.  Instead of managing the lifetimes of data in a potentially
-large register file, all the implementation has to worry about is the
-top few elements of the stack, managing a single stack pointer. Still,
-despite the management overhead and larger code size, research shows
-that the performance of register VMs can be significantly better than
-stack VMs ([#vmshowdown]_).  The authors showed a greater than 25%
-performance improvement of a register VM even when threaded dispatch
-was implemented for the stack VM.
+machine as a stack VM generally simplifies the implementation, at
+least initially.  Instead of managing the explicit lifetimes of data
+in a potentially large register file, all the stack VM has to worry
+about are the top of the stack and at most a few elements below
+that. Still, despite the management overhead and larger code size,
+research shows that the performance of register VMs can be
+significantly better than stack VMs ([#vmshowdown]_).
 
 Cribbing an example from [#winterbottom]_, consider the memory
 activity of a simple ADD operation. To implement the simple C or Java
@@ -62,26 +60,30 @@ instructions like this::
     store c   # LS
 
 where in the comments, "L" indicates a load into the virtual machine
-and "S" a store.  So, to implement the ``push a`` instruction, the
-value associated with the name ``a`` is loaded into the virtual
-machine, then pushed onto the stack (we assume the stack is
-implemented in memory).  The result is four instruction dispatches,
-five loads, four stores and one add.  Contrast that with the execution
-of an add operation in a three-address register machine::
+and "S" a store from the virtual machine to memory.  So, to implement
+the ``push a`` instruction, the value associated with the name ``a``
+is loaded into the virtual machine, then pushed onto the stack (which
+we assume is implemented in memory).  The result is four instruction
+dispatches, five loads, four stores and one add.  Contrast that with
+the execution of an add operation in a three-address register
+machine::
 
     add a,b,c   # LLS
 
 We load ``a`` and ``b`` into the virtual machine, perform the add,
 then store the result into the memory location associated with ``c``.
 The result is one instruction dispatch, two loads, one add and one
-store.  While the add instruction is going to be larger in the
-register VM (it must specify all operands), the total amount of work
-done (instruction fetch and decode, movement between memory and the
+store.  While the add opcode is going to be larger in the register VM
+(since it must specify all operands), the total amount of work done
+(instruction fetch and decode, movement between memory and the
 machine) is significantly reduced.
 
-We are mixing metaphors here a bit, as a virtual machine has no
-silicon, so the concept of a "register" is really just a location in
-memory.  Still, the extra data movement in the stack VM is real.
+Of course, in a virtual machine all data access is in memory (modulo
+whatever the compiler of the virtual machine itself can do to maximize
+data residence in hardware registers), so it's a little bit of a lie
+to talk about moving data into the machine or out to memory.  Still,
+the extra data movement in the stack VM is real.
+
 
 Python's Stack Machine
 ----------------------
@@ -726,10 +728,14 @@ Lots and lots.  Here are a few:
 
 - Generate RVM code from the AST instead of a PyVM-to-RVM translator.
 
-- Paul Sokolovsky [#callingsokolovsky] pointed out that the calling
-  convention for operations such as functions and list (and other
-  containers) construction might best be changed.  Currently, the
-  implementation preserves the existing calling conventions.
+- Retain a stack for some operations and/or revise function calling
+  conventions.  Paul Sokolovsky [#callsokol] pointed out that the
+  calling convention for operations such as functions and list (and
+  other containers) construction might profitably be changed.
+  Currently, the implementation preserves the existing calling
+  conventions and repurposes the stack space in a frame as registers.
+  This makes the creation of a separate register file in the frame as
+  done in [#regstin]_ look more attractive.
 
 - Potentially extend instruction size from two bytes to four,
   dramatically reducing use of ``EXTENDED_ARG`` in the process at the
@@ -878,7 +884,7 @@ References
 .. [#asthylt] Merge ast-branch to head, Hylton
    (https://github.com/python/cpython/commit/3e0055f8c65c407e74ce476b8e2b1fb889723514)
 
-.. [#callingsokolovsky] Discussion on Python-Ideas mailing list
+.. [#callsokol] Discussion on Python-Ideas mailing list
    (https://mail.python.org/archives/list/python-ideas@python.org/message/VXJ6MEX5EXHXUNB45ODP4VT2KUDAYNTE/)
 
 .. [#dynlemb] Reordering opcodes (PEP 203 Augmented Assignment), Lemburg
