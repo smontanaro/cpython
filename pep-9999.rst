@@ -113,8 +113,7 @@ pure stack opcodes (``LOAD_FAST``, ``STORE_FAST``, ``POP_TOP``,
 instructions.  They are low-cost instructions (compared with
 ``CALL_FUNCTION`` for example), but still eat up time and space in the
 virtual machine, making it less efficient than it might be.  (The
-pcomplete table of opcode frequencies is in `Appendix - Opcode
-Frequencies`_.)
+pcomplete table of opcode frequencies is in `Opcode Frequencies`_.)
 
 Consider the layout of the data section of a Frame object::
 
@@ -663,7 +662,8 @@ of open issues not included here.
   the first letters of each word won't work though (collisions -
   ``BINARY_ADD_REG`` and ``BINARY_AND_REG`` would both map to
   ``BAR``), so you'd have to implement a scheme which overrides in
-  specific instances (``BAR`` and ``BANDR``, for example).  (easy?)
+  specific instances (``BAR`` and ``BANDR``, for example). See `Short
+  Opcode Names`_. (easy?)
 
 - API separating generator object implementation from stack VM.
   Currently, ``Objects/genobject.c`` manipulates the current virtual
@@ -942,8 +942,12 @@ References
    (https://bugs.python.org/issue26647)
 
 
-Appendix - Opcode Frequencies
-=============================
+Appendices
+==========
+
+
+Opcode Frequencies
+------------------
 
 Pyperformance 1.0.0 was run using Python 3.9.0a5+ compiled with
 ``-DDYNAMIC_EXECUTION_PROFILE=true``, capturing instruction counts for
@@ -1158,12 +1162,12 @@ each benchmark.  The results are displayed below:
    +---------------------+--------------+--------------+
 
 
-Appendix - Short Opcode Names
-=============================
+Short Opcode Names
+------------------
 
 (This is largely tongue-in-cheek, but still...)
 
-As noted in [#open-issues], as the opcode names continue to get
+As noted in `Open Issues`_, as the opcode names continue to get
 longer, it becomes problematic.  If for no other reason,
 ``test_dis.py`` needed a fair bit of tedious editing to keep from
 breaking.  One possibility that occurred to the author was that it
@@ -1175,7 +1179,11 @@ using such a scheme.  For example, short versions of
 ``LOAD_CLASSDEREF``, ``LOAD_CLOSURE`` and ``LOAD_CONST`` might be
 disambiguated by using ``LCLSD``, ``LCLO`` and ``LCON``.  Adding a
 trailing ``R`` would be sufficient to create relevant short RVM opcode
-names.
+names.  Also, note that just because most opcode names *can* be
+abbreviated using just the first letters of their individual words,
+that doesn't mean they should be in many or most cases.  That
+abbreviation technique just highlights the long opcode names with the
+largest potential for short name collisions.
 
 .. table:: Opcode Names
    :widths: 10 50
