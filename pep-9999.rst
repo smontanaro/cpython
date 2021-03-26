@@ -708,9 +708,6 @@ Lots and lots.  Here are a few:
   experience with Python's internals could tackle the creation of many
   of these.
 
-- Refactor Lib/test/test_rattlesnake.py.  It should be broken into
-  multiple modules.
-
 - Optimization.  It's probably too early for much, but
   fixing/generalizing ``forward_propagate_fast_loads`` to correctly
   deal with implicit register reference would be huge.
