@@ -1200,6 +1200,7 @@ stack_effect(int opcode, int oparg, int jump)
         case INPLACE_SUBTRACT_REG:
         case INPLACE_TRUE_DIVIDE_REG:
         case INPLACE_XOR_REG:
+        case IS_OP_REG:
         case JUMP_IF_FALSE_REG:
         case JUMP_IF_TRUE_REG:
         case LIST_EXTEND_REG:
@@ -1215,9 +1216,6 @@ stack_effect(int opcode, int oparg, int jump)
         case UNARY_NEGATIVE_REG:
         case UNARY_NOT_REG:
         case UNARY_POSITIVE_REG:
-        case LOAD_METHOD_REG:
-        case CALL_METHOD_REG:
-        /* case YIELD_VALUE_REG: */
             return 0;
         default:
             return PY_INVALID_STACK_EFFECT;

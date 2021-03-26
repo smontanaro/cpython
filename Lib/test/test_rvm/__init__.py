@@ -1,7 +1,9 @@
 "RVM Tests"
 
+import dis
 import opcode
 import os
+import sys
 from test.support import load_package_tests
 import unittest
 
@@ -12,15 +14,13 @@ from rattlesnake.loadstore import LoadFastInstruction
 
 instructions.Instruction.dump_at_end = False
 
-_A_GLOBAL = 42
-
 class InstructionTest(unittest.TestCase):
     def function_helper(self, func, propagate=True, verbose=False):
         pyvm_code = func.__code__
 
         # just for symmetry with construction of rvm below...
-        def pyvm(a):
-            return a
+        def pyvm(*args):
+            return args
         pyvm.__code__ = pyvm_code
         if verbose:
             print(file=sys.stderr)
@@ -37,8 +37,8 @@ class InstructionTest(unittest.TestCase):
             isc.display_blocks(isc.blocks["RVM"])
 
         # Lacking a proper API at this point...
-        def rvm(a):
-            return a
+        def rvm(*args):
+            return args
         rvm_replace_code(rvm, pyvm_code, isc)
 
         self.assertEqual(pyvm.__code__.co_flags & util.CO_REGISTER, 0)
@@ -67,8 +67,9 @@ class InstructionTest(unittest.TestCase):
 
     def test_simple_import(self):
         def import_name():
-            import sys
-            return sys
+            # pylint: disable=import-outside-toplevel
+            import string
+            return string
         (pyvm, rvm) = self.function_helper(import_name)
         self.assertEqual(pyvm(), rvm())
 
@@ -93,14 +94,6 @@ class InstructionTest(unittest.TestCase):
             b = a
             return a + b
         (pyvm, rvm) = self.function_helper(load_store)
-        self.assertEqual(pyvm(), rvm())
-
-    def test_set_global(self):
-        def set_global():
-            global _A_GLOBAL
-            _A_GLOBAL = 42
-            return _A_GLOBAL
-        (pyvm, rvm) = self.function_helper(set_global)
         self.assertEqual(pyvm(), rvm())
 
 # HELPERS:

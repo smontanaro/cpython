@@ -1,10 +1,5 @@
 
-import unittest
-
-from rattlesnake.converter import InstructionSetConverter
-from rattlesnake import util
-
-from . import InstructionTest, get_opcodes
+from . import InstructionTest
 
 class JumpTest(InstructionTest):
     def test_jump_if_false(self):

@@ -8,7 +8,8 @@ __all__ = ["cmp_op", "hasconst", "hasname", "hasjrel", "hasjabs",
            "haslocal", "hascompare", "hasfree", "opname", "opmap",
            "HAVE_ARGUMENT", "EXTENDED_ARG", "hasnargs", "HAVE_REGISTERS",
            "hasregs", "hasregds", "hasregdss", "hasregdn", "hasregdc",
-           "hasregjc", "hasregns", "hasregdsa", "hasregdas", "hasregss",]
+           "hasregjc", "hasregns", "hasregdsa", "hasregdas", "hasregss",
+           "hasregis",]
 
 # It's a chicken-and-egg I'm afraid:
 # We're imported before _opcode's made.
@@ -67,6 +68,7 @@ hasregs = []                    # Src
 hasregss = []                   # Src, Src
 hasregds = []                   # Dst <- Src
 hasregdss = []                  # Dst <- Src op Src
+hasregis = []                   # Dst <- Src "is|is not" Src
 hasregdn = []                   # Dst <- Name
 hasregns = []                   # Name <- Src
 hasregdc = []                   # Dst <- Const
@@ -289,6 +291,8 @@ hasregns.append(op)
 def_op('STORE_GLOBAL_REG', op) ; op += 1
 hascompare.append(op)
 def_op('COMPARE_OP_REG', op) ; op += 1
+hasregis.append(op)
+def_op('IS_OP_REG', op) ; op += 1
 def_op('CONTAINS_OP_REG', op) ; op += 1
 hasregjc.append(op)
 def_op('JUMP_IF_FALSE_REG', op) ; op += 1
@@ -330,8 +334,6 @@ def_op('BUILD_SET_REG', op) ; op += 1
 hasregss.append(op)
 def_op('DICT_MERGE_REG', op) ; op += 1
 def_op('DICT_UPDATE_REG', op) ; op += 1
-def_op('LOAD_METHOD_REG', op) ; op += 1
-def_op('CALL_METHOD_REG', op) ; op += 1
 
 assert op <= 256, op
 

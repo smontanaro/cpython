@@ -1,10 +1,10 @@
 
-import unittest
-
 from rattlesnake.converter import InstructionSetConverter
 from rattlesnake import util
 
 from . import InstructionTest, get_opcodes
+
+_A_GLOBAL = 42
 
 class BlockTest(InstructionTest):
     def test_short_block(self):
@@ -95,3 +95,11 @@ class BlockTest(InstructionTest):
     def test_util_encode(self):
         self.assertEqual(util.encode_oparg((1, 24, 2)), 71682)
         self.assertEqual(util.encode_oparg(()), 0)
+
+    def test_set_global(self):
+        def set_global():
+            global _A_GLOBAL
+            _A_GLOBAL = 42
+            return _A_GLOBAL
+        (pyvm, rvm) = self.function_helper(set_global)
+        self.assertEqual(pyvm(), rvm())

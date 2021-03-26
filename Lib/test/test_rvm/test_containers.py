@@ -1,7 +1,8 @@
 
+import dis
+import sys
+import types
 import unittest
-
-from rattlesnake.converter import InstructionSetConverter
 
 from . import InstructionTest
 

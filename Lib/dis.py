@@ -355,6 +355,12 @@ def _get_regcmp_info(arg):
            cmp_op[arg & 0xff], f"%r{arg >> 8 & 0xff}"]
     return arg, " ".join(tup)
 
+def _get_regis_info(arg, binop):
+    """Register is/is not helper"""
+    tup = [f"%r{arg >> 24}", "<-", f"%r{arg >> 16 & 0xff}",
+           binop, f"%r{arg >> 8 & 0xff}"]
+    return arg, " ".join(tup)
+
 def _get_regjc_info(arg):
     """Register conditional jump instruction helper"""
     argrepr = f"to {arg >> 8}, %r{arg & 0xff}"
@@ -426,6 +432,9 @@ def _get_instructions_bytes(code, varnames=None, names=None, constants=None,
                 elif op in hasregdss:
                     binop = BINOPS.get(op, "OP")
                     argval, argrepr = _get_regdss_info(arg, binop)
+                elif op in hasregis:
+                    binop = "is not" if (arg & 0xf) else "is"
+                    argval, argrepr = _get_regis_info(arg, binop)
                 elif op in hasregds:
                     argval, argrepr = _get_regds_info(arg)
                 elif op in hasregs:

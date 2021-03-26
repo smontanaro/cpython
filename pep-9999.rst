@@ -741,18 +741,25 @@ Implementing a New Opcode
 
 A few steps are required to implement a new RVM opcode.
 
-- Add a simple test case to ``Lib/test/test_rattlesnake.py``.
+- Add a simple test case to the desired module in
+  ``Lib/test/test_rvm/``.
 
 - Add a relevant ``def_op`` call to Lib/opcode.py.  Note that the PyVM
-  instructions have all been compressed to the low end.  There are no
-  more gaps.  Generally, you will want to add to the end so as not to
-  disturb the opcode numbers for existing instructions.  Still, if it
-  makes sense to add it in the middle, you'll just have a bit more
-  work later (tedious, not life-threatening).  You might also need
-  some auxiliary calls (e.g., ``hasregds``).  That's mostly for pretty
-  display by ``dis``. You'll figure that out when you need it...
+  instructions have all been compressed to the low end of the range.
+  There are no more gaps.  Generally, you will want to add to the end
+  so as not to disturb the opcode numbers for existing instructions.
+  Still, if it makes sense to add it in the middle, you'll just have a
+  bit more work later (tedious, not life-threatening).  You might also
+  need some auxiliary calls (e.g., ``hasregds``).  That's mostly for
+  pretty display by ``dis``. You'll figure that out when you need
+  it...
 
-- Add a corresponding switch case to ``Python/ceval_reg.h``.
+- Add a corresponding switch case to ``Python/ceval_reg.h``.  For now,
+  it can just ``goto error;``.
+
+- Add a corresponding switch case to ``Python/compile.c:stack_effect``
+  at the end. All the ``*_REG`` opcodes currently have a stack effect
+  of 0.
 
 - Assuming you already have a working interpreter, run:
 
@@ -761,115 +768,114 @@ A few steps are required to implement a new RVM opcode.
 Example
 -------
 
-Let's add the framework for a ``CALL_METHOD_REG`` opcode. First, the test case::
+Let's add the framework for a ``IS_OP_REG`` opcode. First, the test
+case, which we add to ``Lib/test/test_rvm/test_binop.py``::
 
-    def test_callmeth(self):
-        class X:
-            def meth1(self, a):
-                return self.meth2(a)
-            def meth2(self, a):
-                return a
-        x = X()
-        (pyvm, rvm) = self.function_helper(x.meth1)
-        self.assertEqual(pyvm(4), rvm(4))
+    def test_is(self):
+        def is_(a, b):
+            return a is b
+        (pyvm, rvm) = self.function_helper(is_)
+        self.assertEqual(pyvm(5, 70), rvm(5, 70))
+        self.assertEqual(pyvm(None, None), rvm(None, None))
 
-Verify that calling x.meth1 exercises ``CALL_METHOD``::
+Since ``IS_OP`` also handles the ``is not`` syntax, we add a similar
+case for that::
 
-    >>> dis.dis(X.meth1)
-      4           0 LOAD_FAST                       0 (self)
-                  2 LOAD_METHOD                     0 (meth2)
-                  4 LOAD_FAST                       1 (a)
-                  6 CALL_METHOD                     1
-                  8 RETURN_VALUE
-    >>> dis.dis(X.meth2)
-      6           0 LOAD_FAST                       1 (a)
-                  2 RETURN_VALUE
+    def test_is_not(self):
+        def is_not(a, b):
+            return a is not b
+        (pyvm, rvm) = self.function_helper(is_not)
+        self.assertEqual(pyvm(5, 70), rvm(5, 70))
+        self.assertEqual(pyvm(None, None), rvm(None, None))
 
-Whoops! It also exercises ``LOAD_METHOD``. We need to implement
-``LOAD_METHOD_REG`` as well.
+Verify that calling ``is_`` exercises ``IS_OP``::
 
-Add two ``def_op`` calls to the end of Lib/opcode.py::
+    >>> dis.dis(is_)
+      3           0 LOAD_FAST                       0 (a)
+                  2 LOAD_FAST                       1 (b)
+                  4 IS_OP                           0
+                  6 RETURN_VALUE
 
-    def_op('LOAD_METHOD_REG', op) ; op += 1
-    def_op('CALL_METHOD_REG', op) ; op += 1
+Add a ``def_op`` call to the end of Lib/opcode.py::
+
+    def_op('IS_OP_REG', op) ; op += 1
 
 Extend the switch statement in ``Python/compile.c:stack_effect`` (this
 enumeration of each ``*_REG`` instruction needs to change - I just
 haven't gotten around to it)::
 
-    case LOAD_METHOD_REG:
-    case CALL_METHOD_REG:
+    case IS_OP_REG:
 
-Next, stub out the relevant cases in ``ceval_reg.h``::
+Next, stub out the relevant cases in ``ceval_reg.h``.  In this case,
+the ``IS_OP`` implementation is nearly identical to the ``COMPARE_OP``
+implementation, so the ``IS_OP_REG`` case is fairly straightforward::
 
-    case TARGET(LOAD_METHOD_REG): {
-        /* not yet implemented */
-        goto error;
+    case TARGET(IS_OP_REG): {
+        int dst = REGARG4(oparg);
+        int src1 = REGARG3(oparg);
+        int src2 = REGARG2(oparg);
+        int flag = REGARG1(oparg);
+        PyObject *left = GETLOCAL(src1);
+        PyObject *right = GETLOCAL(src2);
+        int res = (left == right)^flag;
+        PyObject *b = res ? Py_True : Py_False;
+        Py_INCREF(b);
+        SETLOCAL(dst, b);
         DISPATCH();
     }
 
-    case TARGET(CALL_METHOD_REG): {
-        /* not yet implemented */
-        goto error;
-        DISPATCH();
-    }
-
-Run ``make regen-all``.  Chicken-and-egg means you will often have to
+Run ``make regen-all``.  Chicken-and-egg means you will sometimes have to
 run it twice. Now run ``make``.  Finally, check to see that our test
 case is exercised and fails::
 
-    % ./python -E Lib/test/regrtest.py test_rattlesnake
+    % ./python -E Lib/test/regrtest.py test_rvm
     ...
-    test test_rattlesnake failed -- Traceback (most recent call last):
-      File "/home/skip/src/python/rvm/Lib/test/test_rattlesnake.py", line 75, in test_callmeth
-        (pyvm, rvm) = self.function_helper(x.meth1)
-      File "/home/skip/src/python/rvm/Lib/test/test_rattlesnake.py", line 544, in function_helper
+    test test_rvm failed -- Traceback (most recent call last):
+      File "/home/skip/src/python/rvm/Lib/test/test_rvm/test_binop.py", line 23, in test_is
+        (pyvm, rvm) = self.function_helper(is_)
+      File "/home/skip/src/python/rvm/Lib/test/test_rvm/__init__.py", line 30, in function_helper
         isc.gen_rvm()
       File "/home/skip/src/python/rvm/Lib/rattlesnake/converter.py", line 200, in gen_rvm
         pyvm.gen_rvm(rvm)
       File "/home/skip/src/python/rvm/Lib/rattlesnake/blocks.py", line 86, in gen_rvm
         convert = DISPATCH[pyvm_inst.opcode]
-    KeyError: 119
+    KeyError: 91
 
-This fails because we haven't implemented the relevant converters yet.
+This fails because we haven't implemented the relevant converter yet.
 To get farther, we need to add the relevant functions in
-``Lib/rattlesnake``, probably in ``function.py``.
+``Lib/rattlesnake``, in ``compare.py``. ``IS_OP`` is *almost* a binary
+operator, but it serves to handle both ``is`` and ``is not``, so takes
+a flag (0 or 1) generated by the bytecode compiler.
 
 Converters for each instruction consist of a function which mimics the
 stack activity of the instruction being converted and a subclass of
-Instruction which the function instantiates and returns.  Here's a
-quick sketch for ``LOAD_METHOD`` (first cut - probably still needs
-some tweaks)::
+Instruction which the function instantiates and returns.  Here's what
+the ``IS_OP`` converter looks like::
 
-    def load_method(self, instr, block):
+    def is_(self, instr, block):
         oparg = instr.opargs[0] # All PyVM opcodes have a single oparg
-        obj = self.top()
-        return LoadMethodInstruction(opcode.opmap['LOAD_METHOD_REG'],
-                                     block, dest=obj, name1=obj)
-    DISPATCH[opcode.opmap['LOAD_METHOD']] = load_method
+        # 0 or 1, generated by the compiler.
+        flag = oparg
+        src2 = self.pop()
+        src1 = self.pop()
+        dst = self.push()
+        return IsOpInstruction(opcode.opmap['IS_OP_REG'],
+                               block,
+                               dest=dst, source1=src1,
+                               source2=src2, flag=flag)
+    DISPATCH[opcode.opmap['IS_OP']] = is_
 
-    class LoadMethodInstruction(Instruction):
-        "LOAD_METHOD_REG."
+    class IsOpInstruction(Instruction):
+        "Specialized behavior for IS_OP_REG."
         def __init__(self, op, block, **kwargs):
-            self.populate(("dest", "name1"), kwargs)
+            self.populate(("dest", "source1", "source2", "flag"), kwargs)
             super().__init__(op, block, **kwargs)
 
         @property
         def opargs(self):
-            return (self.dest, self.name1)
+            return (self.dest, self.source1, self.source2, self.flag)
 
-As noted in ``Python/ceval.c``, ``LOAD_METHOD`` and ``CALL_METHOD``
-are a pair.  The former does some work to decide if the method is
-bound or not, while the latter takes one of two different paths
-depending on the outcome of that decision.  (This extra logic is
-probably why I didn't tackle these at the same time as
-``CALL_FUNCTION`` and friends. Also, the stack diagrams in the
-comments look like they require more brain power to understand than
-I'm generally equipped with...)  Note that the extra logic in the
-``(LOAD|CALL)_METHOD`` instructions means more test cases will be
-required.
-
-Lather, rinse, repeat.
+Running the unit test should succeed now.
 
 
 References

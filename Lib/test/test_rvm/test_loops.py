@@ -1,8 +1,4 @@
 
-import unittest
-
-from rattlesnake.converter import InstructionSetConverter
-
 from . import InstructionTest
 
 class BlockTest(InstructionTest):

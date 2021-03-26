@@ -1,6 +1,4 @@
 
-import unittest
-
 from . import InstructionTest
 
 class BinOpTest(InstructionTest):
@@ -16,6 +14,20 @@ class BinOpTest(InstructionTest):
             return a & b
         (pyvm, rvm) = self.function_helper(and_)
         self.assertEqual(pyvm(5, 70), rvm(5, 70))
+
+    def test_is(self):
+        def is_(a, b):
+            return a is b
+        (pyvm, rvm) = self.function_helper(is_)
+        self.assertEqual(pyvm(5, 70), rvm(5, 70))
+        self.assertEqual(pyvm(None, None), rvm(None, None))
+
+    def test_is_not(self):
+        def is_not(a, b):
+            return a is not b
+        (pyvm, rvm) = self.function_helper(is_not)
+        self.assertEqual(pyvm(5, 70), rvm(5, 70))
+        self.assertEqual(pyvm(None, None), rvm(None, None))
 
     def test_floor_divide(self):
         def floor_divide(a, b):
@@ -208,8 +220,8 @@ class Matrix:
             new_matrix.append([])
             for j in range(len(self.matrix[0])):
                 col = other.column(j)
-                new_matrix[-1].append(sum(e1 * e2 for (e1, e2) in
-                                          zip(row, col)))
+                new_matrix[i].append(sum(e1 * e2 for (e1, e2) in
+                                         zip(row, col)))
         return Matrix(new_matrix)
 
     def column(self, i):

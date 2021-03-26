@@ -155,44 +155,43 @@ extern "C" {
 #define STORE_FAST_REG          143
 #define STORE_GLOBAL_REG        144
 #define COMPARE_OP_REG          145
-#define CONTAINS_OP_REG         146
-#define JUMP_IF_FALSE_REG       147
-#define JUMP_IF_TRUE_REG        148
-#define UNARY_INVERT_REG        149
-#define UNARY_NEGATIVE_REG      150
-#define UNARY_NOT_REG           151
-#define UNARY_POSITIVE_REG      152
-#define BUILD_TUPLE_REG         153
-#define BUILD_MAP_REG           154
-#define BUILD_LIST_REG          155
-#define LIST_EXTEND_REG         156
-#define CALL_FUNCTION_REG       157
-#define CALL_FUNCTION_KW_REG    158
-#define CALL_FUNCTION_EX_REG    159
-#define INPLACE_ADD_REG         160
-#define INPLACE_AND_REG         161
-#define INPLACE_FLOOR_DIVIDE_REG 162
-#define INPLACE_LSHIFT_REG      163
-#define INPLACE_MATRIX_MULTIPLY_REG 164
-#define INPLACE_MODULO_REG      165
-#define INPLACE_MULTIPLY_REG    166
-#define INPLACE_OR_REG          167
-#define INPLACE_POWER_REG       168
-#define INPLACE_RSHIFT_REG      169
-#define INPLACE_SUBTRACT_REG    170
-#define INPLACE_TRUE_DIVIDE_REG 171
-#define INPLACE_XOR_REG         172
-#define LOAD_ATTR_REG           173
-#define STORE_ATTR_REG          174
-#define DELETE_ATTR_REG         175
-#define GET_ITER_REG            176
-#define FOR_ITER_REG            177
-#define IMPORT_NAME_REG         178
-#define BUILD_SET_REG           179
-#define DICT_MERGE_REG          180
-#define DICT_UPDATE_REG         181
-#define LOAD_METHOD_REG         182
-#define CALL_METHOD_REG         183
+#define IS_OP_REG               146
+#define CONTAINS_OP_REG         147
+#define JUMP_IF_FALSE_REG       148
+#define JUMP_IF_TRUE_REG        149
+#define UNARY_INVERT_REG        150
+#define UNARY_NEGATIVE_REG      151
+#define UNARY_NOT_REG           152
+#define UNARY_POSITIVE_REG      153
+#define BUILD_TUPLE_REG         154
+#define BUILD_MAP_REG           155
+#define BUILD_LIST_REG          156
+#define LIST_EXTEND_REG         157
+#define CALL_FUNCTION_REG       158
+#define CALL_FUNCTION_KW_REG    159
+#define CALL_FUNCTION_EX_REG    160
+#define INPLACE_ADD_REG         161
+#define INPLACE_AND_REG         162
+#define INPLACE_FLOOR_DIVIDE_REG 163
+#define INPLACE_LSHIFT_REG      164
+#define INPLACE_MATRIX_MULTIPLY_REG 165
+#define INPLACE_MODULO_REG      166
+#define INPLACE_MULTIPLY_REG    167
+#define INPLACE_OR_REG          168
+#define INPLACE_POWER_REG       169
+#define INPLACE_RSHIFT_REG      170
+#define INPLACE_SUBTRACT_REG    171
+#define INPLACE_TRUE_DIVIDE_REG 172
+#define INPLACE_XOR_REG         173
+#define LOAD_ATTR_REG           174
+#define STORE_ATTR_REG          175
+#define DELETE_ATTR_REG         176
+#define GET_ITER_REG            177
+#define FOR_ITER_REG            178
+#define IMPORT_NAME_REG         179
+#define BUILD_SET_REG           180
+#define DICT_MERGE_REG          181
+#define DICT_UPDATE_REG         182
 #ifdef NEED_OPCODE_JUMP_TABLES
 static uint32_t _PyOpcode_RelativeJump[8] = {
     0U,
@@ -200,7 +199,7 @@ static uint32_t _PyOpcode_RelativeJump[8] = {
     1074790416U,
     528384U,
     0U,
-    131072U,
+    262144U,
     0U,
     0U,
 };
@@ -210,7 +209,7 @@ static uint32_t _PyOpcode_Jump[8] = {
     1676673040U,
     528384U,
     0U,
-    131072U,
+    262144U,
     0U,
     0U,
 };

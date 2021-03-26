@@ -1,6 +1,4 @@
 
-import unittest
-
 from . import InstructionTest
 
 class UnaryOpTest(InstructionTest):

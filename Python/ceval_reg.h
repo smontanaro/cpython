@@ -369,6 +369,20 @@
             DISPATCH();
         }
 
+        case TARGET(IS_OP_REG): {
+            int dst = REGARG4(oparg);
+            int src1 = REGARG3(oparg);
+            int src2 = REGARG2(oparg);
+            int flag = REGARG1(oparg);
+            PyObject *left = GETLOCAL(src1);
+            PyObject *right = GETLOCAL(src2);
+            int res = (left == right)^flag;
+            PyObject *b = res ? Py_True : Py_False;
+            Py_INCREF(b);
+            SETLOCAL(dst, b);
+            DISPATCH();
+        }
+
         case TARGET(CONTAINS_OP_REG): {
             int dst = REGARG4(oparg);
             int src1 = REGARG3(oparg);
@@ -555,18 +569,6 @@
                 goto error;
             }
             Py_DECREF(none_val);
-            DISPATCH();
-        }
-
-        case TARGET(LOAD_METHOD_REG): {
-            /* not yet implemented */
-            goto error;
-            DISPATCH();
-        }
-
-        case TARGET(CALL_METHOD_REG): {
-            /* not yet implemented */
-            goto error;
             DISPATCH();
         }
 
