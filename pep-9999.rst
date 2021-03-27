@@ -720,6 +720,20 @@ To Do
 
 Lots and lots.  Here are a few:
 
+- There are reference leaks. See the current crop::
+
+    ./python -E Lib/test/regrtest.py --list-cases test_rvm \
+        | sed -e 's/.*[.]//' \
+        | sort -u \
+        | while read testcase ; do
+            rm -f refleaks.out
+            ./python Tools/scripts/run_tests.py -R 3:5:refleaks.out \
+                     -m $testcase test_rvm > test.out 2>&1
+            if [ -s refleaks.out ] ; then
+                echo "$testcase leaks"
+            fi
+    done
+
 - Getting the various ``YIELD`` instructions working.  I stalled on
   the intimate relationship between Objects/genobject.c and the PyVM
   stack.
