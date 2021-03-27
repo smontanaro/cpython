@@ -309,18 +309,31 @@ def_op('LIST_EXTEND_REG', op) ; op += 1
 def_op('CALL_FUNCTION_REG', op) ; op += 1
 def_op('CALL_FUNCTION_KW_REG', op) ; op += 1
 def_op('CALL_FUNCTION_EX_REG', op) ; op += 1
+hasregdss.append(op)
 def_op('INPLACE_ADD_REG', op) ; op += 1
+hasregdss.append(op)
 def_op('INPLACE_AND_REG', op) ; op += 1
+hasregdss.append(op)
 def_op('INPLACE_FLOOR_DIVIDE_REG', op) ; op += 1
+hasregdss.append(op)
 def_op('INPLACE_LSHIFT_REG', op) ; op += 1
+hasregdss.append(op)
 def_op('INPLACE_MATRIX_MULTIPLY_REG', op) ; op += 1
+hasregdss.append(op)
 def_op('INPLACE_MODULO_REG', op) ; op += 1
+hasregdss.append(op)
 def_op('INPLACE_MULTIPLY_REG', op) ; op += 1
+hasregdss.append(op)
 def_op('INPLACE_OR_REG', op) ; op += 1
+hasregdss.append(op)
 def_op('INPLACE_POWER_REG', op) ; op += 1
+hasregdss.append(op)
 def_op('INPLACE_RSHIFT_REG', op) ; op += 1
+hasregdss.append(op)
 def_op('INPLACE_SUBTRACT_REG', op) ; op += 1
+hasregdss.append(op)
 def_op('INPLACE_TRUE_DIVIDE_REG', op) ; op += 1
+hasregdss.append(op)
 def_op('INPLACE_XOR_REG', op) ; op += 1
 hasregdsa.append(op)
 def_op('LOAD_ATTR_REG', op) ; op += 1
