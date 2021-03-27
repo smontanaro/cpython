@@ -73,8 +73,6 @@ No Change Needed
     DUP_TOP_TWO
     EXTENDED_ARG
     NOP
-    POP_JUMP_IF_FALSE
-    POP_JUMP_IF_TRUE
     POP_TOP
     ROT_FOUR
     ROT_THREE
