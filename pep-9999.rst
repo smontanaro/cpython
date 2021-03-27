@@ -197,6 +197,49 @@ implementation.  Its compiler has three backends, JVM, JavaScript and
 MoarVM [#moar]_.
 
 
+Project Phases
+==============
+
+Phase 1 - Virtual Machine Implementation
+----------------------------------------
+
+The primary goal of the first phase is to implement the virtual
+machine itself.  To that end, the PyVM opcodes will be translated to
+equivalent RVM opcodes.  Unit tests will be as small as possible to
+test a given opcode or small group of related opcodes.  During this
+phase, PyVM and RVM will both be active.  Direct measured performance
+is not a significant consideration.  The project is currently still in
+this phase.
+
+
+Phase 2 - Opcode Generation From AST
+------------------------------------
+
+Once the virtual machine is complete and passes all basic tests,
+attention will turn to generating RVM opcodes directly from the
+abstract syntax tree.  Both sets of opcodes may well still be
+available, so code generation will probably be controlled by a command
+line flag.  If PyVM and RVM output is still desired, a separate output
+file extension (``.pyr``?) will allow the two versions to coexist on
+disk.
+
+
+Phase 3 - Optimization
+----------------------
+
+TBD, but any number of tasks might fit here:
+
+* Expansion of opcode width from two bytes to four.
+
+* register allocation
+
+* peephole optimization
+
+* elimination of unnecessary loads and stores
+
+* migration of code object constants into the frame object
+
+
 Basic Example
 =============
 
@@ -225,28 +268,21 @@ operate on them in place?
 The register virtual machine (RVM) changes that.  It converts PyVM
 opcodes to a new three-address virtual machine.  In its initial form,
 it generates code very similar to the existing compiler for the above
-function::
+function. Note that the local variables ``a`` and ``b`` sit at the low
+end of the register file and are thus addressed here as ``%r0`` and
+``%r1``::
 
-     0 EXTENDED_ARG         2
-     2 LOAD_FAST_REG      512
-     4 EXTENDED_ARG         3
-     6 LOAD_FAST_REG      769
-     8 EXTENDED_ARG         2
-    10 EXTENDED_ARG       514
-    12 BINARY_ADD_REG  131587
-    14 RETURN_VALUE_REG     2
+    0  EXTENDED_ARG                    2
+    2  LOAD_FAST_REG                 512 (%r2 <- %r0)
+    4  EXTENDED_ARG                    3
+    6  LOAD_FAST_REG                 769 (%r3 <- %r1)
+    8  EXTENDED_ARG                    2
+    10 EXTENDED_ARG                  514
+    12 BINARY_ADD_REG             131587 (%r2 <- %r2 + %r3)
+    14 RETURN_VALUE_REG                2 (%r2)
 
-That's a bit difficult to read, so I will decode the arguments to the
-load, add and return opcodes::
-
-     0 EXTENDED_ARG                 2
-     2 LOAD_FAST_REG           %r2, a
-     4 EXTENDED_ARG                 3
-     6 LOAD_FAST_REG           %r3, b
-     8 EXTENDED_ARG                 2
-    10 EXTENDED_ARG               514
-    12 BINARY_ADD_REG   %r2, %r2, %r3
-    14 RETURN_VALUE_REG           %r2
+(This is ``dis.dis`` output.  Things could be tweaked to retain the
+local variable names.)
 
 The ``LOAD_FAST_REG`` opcode works just like the current ``LOAD_FAST``
 opcode but copies the values to a register instead of the top-of-stack
@@ -259,7 +295,7 @@ the value in ``%r2``.
 
 This doesn't seem any more efficient than the current VM instructions,
 and in fact, it isn't.  In addition, it uses more memory than the
-stack version (14 bytes vs 6) because registers must be explicitly
+stack version (16 bytes vs 8) because registers must be explicitly
 addressed.  However, RVM takes advantage of an interesting property of
 Python frame objects, namely that the space allocated for local
 variables and the stack space are adjacent (or nearly so)::
@@ -275,37 +311,31 @@ variables and the stack space are adjacent (or nearly so)::
     } PyFrameObject;
 
 The _frame declaration was extracted from the 1.5.2 frame object
-struct definition.  Python 3.9, the current base version for
-Rattlesnake, is slightly different, but we can still make the local
-variables and stack/register adjacent.)
+struct definition.  Python 3.10, the current base version for this
+project, is slightly different, but we can still make the local
+variables and stack/register adjacent, though it's possible that won't
+be necessary.
 
-If we treat the local variable array and the temporary operand stack
-as a contiguous array, in many instances we can operate on the values
-they contain without first copying values onto the stack.  In fact, we
-will consider the variables a and b to reside in registers ``%r0`` and
-``%r1``.  We can thus optimize out the load operations.  First, we
-propagate ``a`` and ``b`` through the code where we read ``%r2`` and
-``%r3``.  (In what follows, I elide the ``EXTENDED_ARG`` opcodes, but
-they are really still there where required.)::
+Since ``a`` and ``b`` are already in registers, they can be addressed
+directly without first needing to be loaded into registers::
 
-     2 LOAD_FAST_REG      %r2, a
-     6 LOAD_FAST_REG      %r3, b
-    12 BINARY_ADD_REG     %r2, a, b
-    14 RETURN_VALUE_REG   %r2
+    0 EXTENDED_ARG                    2
+    2 EXTENDED_ARG                  512
+    4 BINARY_ADD_REG             131073 (%r2 <- %r0 + %r1)
+    6 RETURN_VALUE_REG                2 (%r2)
 
-Note that we only propagate references to ``a`` until some other
-opcode overwrites ``%r2``.  Accordingly, we don't replace ``%r2`` with
-a in either the ``BINARY_ADD_REG`` or ``RETURN_VALUE_REG`` opcodes.
+In the initial translation, ``%r0`` was copied to ``%r2``.  We only
+replace references to ``%r2`` with ``%r0`` until some other opcode
+writes to ``%r2``.  Accordingly, we don't replace ``%r2`` with ``%r0``
+in either the ``BINARY_ADD_REG`` or ``RETURN_VALUE_REG`` opcodes.
 
-Since ``%r2`` and ``%r3`` are no longer used as source operands before
-``%r2`` is written by ``BINARY_ADD_REG``, the load ops which populated
-them are no longer necessary and can be deleted::
-
-    12 BAR      %r2, a, b
-    14 RVR      %r2
-
-The end result is a reduced instruction count, less memory usage, and a
-faster virtual machine.
+Register instructions are generally wider than 16 bits, so
+``EXTENDED_ARG`` must be used frequently to construct the full
+``oparg`` needed by most instructions.  This suggests that expanding
+the opcode width from two bytes to four bytes might well be a
+profitable optimization.  Constructing the full ``oparg`` necessary
+for execution of the ``BINARY_ADD_REG`` instruction requires six
+bytes.  It would all fit in a single quadword instruction, however.
 
 
 Implementation
