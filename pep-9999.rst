@@ -720,28 +720,38 @@ To Do
 
 Lots and lots.  Here are a few:
 
-- There are reference leaks. See the current crop::
+- There are currently plenty of reference leaks. See the current
+  crop::
 
     ./python -E Lib/test/regrtest.py --list-cases test_rvm \
         | sed -e 's/.*[.]//' \
         | sort -u \
         | while read testcase ; do
-            rm -f refleaks.out
-            ./python Tools/scripts/run_tests.py -R 3:5:refleaks.out \
+            cat /dev/null > refleaks.out
+            ./python Tools/scripts/run_tests.py -v -R 3:5:refleaks.out \
                      -m $testcase test_rvm > test.out 2>&1
-            if [ -s refleaks.out ] ; then
+            skipped=$(grep skipped test.out | wc -l)
+            if [ $skipped -gt 0 ] ; then
+                echo "$testcase skipped"
+            elif [ -s refleaks.out ] ; then
                 echo "$testcase leaks"
+            else
+                echo "$testcase clean"
             fi
     done
 
-- Getting the various ``YIELD`` instructions working.  I stalled on
-  the intimate relationship between Objects/genobject.c and the PyVM
-  stack.
+- Getting the various ``YIELD`` instructions working.  The initial
+  effort stalled on the intimate relationship between
+  ``Objects/genobject.c`` and the PyVM stack.  Perhaps if stack
+  functionality is retained to support function calling and collection
+  building, maybe this obstruction can be finessed.  Otherwise an
+  internal API seems the best way to connect the two parts of the
+  system.
 
 - Finish off the ``CALL_FUNCTION*`` opcodes.
 
-- Async this-n-that.  I have zero experience with that, even as a
-  Python programmer.
+- Async this-n-that.  The author has zero experience with that, even
+  as a Python programmer.
 
 - Implementing some of the more complex language constructs mentioned
   above.  The challenge is that many of them require the successful
@@ -845,8 +855,8 @@ Add a ``def_op`` call to the end of Lib/opcode.py::
     def_op('IS_OP_REG', op) ; op += 1
 
 Extend the switch statement in ``Python/compile.c:stack_effect`` (this
-enumeration of each ``*_REG`` instruction needs to change - I just
-haven't gotten around to it)::
+enumeration of each ``*_REG`` instruction needs to change - just
+hasn't been done yet)::
 
     case IS_OP_REG:
 
