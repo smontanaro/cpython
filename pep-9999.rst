@@ -179,7 +179,7 @@ Victor Stinner
 --------------
 
 In 2012, Victor Stinner implemented a nearly complete system
-[#regstin].  Though noy incorporated into the Python codebase, it
+[#optstin]_.  Though not incorporated into the Python codebase, it
 demonstrated a significant performance improvement and was very close
 to a complete system.
 
@@ -341,93 +341,95 @@ bytes.  It would all fit in a single quadword instruction, however.
 Implementation
 ==============
 
-The "correct" approach would be to generate RVM instructions directly
-from the AST.  Alas, the author had no experience with it and decided
-to fall back to naive bytecode translation from PyVM to RVM with later
-optimization.  That provides fewer optimization opportunities
-initially, but allows all the translation to be done using a separate
-Python module.  It should provide enough data to decide if the general
-idea is workable.  Aside from allowing quicker experimentation, it
-also makes the development more accessible to Python developers
-without much experience with the CPython implementation.  If the
-approach proves worthwhile, developers with more experience in the
-current Python internals can push that part of the system forward.
-Consider the current approach an attempt at producing a "minimum
-viable product," to use a business buzz phrase.
+The "correct" approach is to generate RVM instructions directly from
+the AST.  Alas, the author had no experience with it and decided to
+fall back to naive bytecode translation from PyVM to RVM with later
+optimization.  Since the focus of the first phase is the virtual
+machine, this allows a more incremental approach.  This approach
+should provide enough data to decide if the general idea is workable.
+Aside from allowing quicker experimentation, it also makes the
+development more accessible to Python developers without much
+experience with the CPython implementation.  If the approach seems
+worthwhile, developers with more experience in the current Python
+internals can push on to Phase 2 while Phase 1 is still active.
 
 Obviously, some work in the C code base is required.  This is mostly
 confined to two files:
 
 - ``Python/ceval.c`` - Each new instruction must be implemented, but
-  Python/ceval.c provides an excellent set of templates in the form of
-  the current PyVM instructions.  For the most part, the semantics of
-  an RVM instruction are the same as the corresponding PyVM
-  instruction.  The main difference between pairs of related
-  instructions is how they fetch their data and store their results.
+  Python/ceval.c provides an excellent set of instruction templates in
+  the form of the current PyVM instructions.  For the most part, the
+  semantics of an RVM instruction are the same as the corresponding
+  PyVM instruction.  The main difference between pairs of instructions
+  in the two VMs is how they fetch their data and store their
+  results.  To minimize the probability of merge conflicts, new RVM
+  instructions are added to ``Python/ceval_reg.h``.
 
 - ``Objects/frameobject.c`` - Most of this work has been done already,
   but more could be done.  The primary work necessary was
   reorganization of the ``f_localsplus`` array so local variables and
-  the PyVM stack space were adjacent.  As Stinner noted though
-  [#regstin]_, adding a copy of the code object's constants to the
-  frame object is also a performance win.  This is suggested by the
-  opcode frequencies table.  ``LOAD_CONST`` is the second most
-  frequently executed instruction.
-
-
-Reference Counts
-----------------
-
-While the same memory is used for the stack (PyVM) and registers
-(RVM), their semantics are different.  When used as a stack, that
-memory is completely transparent to reference counts.  As objects are
-pushed on and popped from the stack, the responsibility of maintaining
-reference counts lies with the individual instructions.  At the end of
-normal function execution, the stack will have dwindled away to
-nothing, meaning no reference counts need to be decremented.
-
-Such is not the case when that memory is used for registers.  At the
-end of function execution, any number of them might still be active
-and require decrement of their reference counts.  In the current
-implementation, this happens at the end of
-``_PyEval_EvalFrameDefault``.  Since the pattern of use of the
-register space can differ from one call of a function to the next and
-frame objects are reused where possible, the registers are cleared
-using ``Py_CLEAR`` (effectively ``Py_XDECREF`` followed by zeroing out
-the memory location), not just ``Py_XDECREF``'d.
+  the PyVM stack space were adjacent.  (This might not be strictly
+  necessary, depending on the semantics of the cell/free slots.)  As
+  Victor Stinner noted [#optstin]_, adding a copy of the code object's
+  constants to the frame object is also a performance win.  This is
+  suggested by the opcode frequencies table.  ``LOAD_CONST`` is the
+  second most frequently executed instruction.
 
 
 Object Lifetime
-'''''''''''''''
+---------------
 
-Closely related to reference counts is the notion of object lifetime.
 When an object's reference count drops to zero, CPython's semantics
-mean it will be reclaimed immediately.  What happens if an object is
-created and completely used early during the execution of a
-long-running function but its reference count doesn't drop to zero
-until the end of the function?  Consider this (silly) function::
+mean it will be reclaimed immediately.  There is currently a slight
+difference between PyVM and RVM about when object reference counts are
+decremented, as demonstrated by this (silly) function::
 
-    def long_running():
+    def silly():
         x = [1] * int(10e7)
         y = [2] * int(10e7)
         z = (x + y) * 3
-        char = z[99]
-        result = do_something_long_running(char)
+        return z[99]
+
+Consider just the expression ``(x + y) * 3``.  In PyVM, the generated
+bytecode is::
+
+    28 LOAD_FAST               0 (x)
+    30 LOAD_FAST               1 (y)
+    32 BINARY_ADD
+    34 LOAD_CONST              4 (3)
+    36 BINARY_MULTIPLY
+    38 STORE_FAST              2 (z)
+
+At the end of the ``BINARY_MULTIPLY`` execution, the reference count
+of the object holding the value of evaluation of ``(x + y) * 3`` is
+decremented.  In RVM, that decrement doesn't happen until the register
+containing the reference is reclaimed at the end of the function.  (If
+the register is reused within the function it will be decremented
+before then.)  The RVM code (ignoring ``EXTENDED_ARG``) is::
+
+    64 BINARY_ADD_REG             196609 (%r3 <- x + y)
+    68 LOAD_CONST_REG               1028 (%r4 <- 3)
+    74 BINARY_MULTIPLY_REG        197380 (%r3 <- %r3 * %r4)
+    78 STORE_FAST_REG                515 (z <- %r3)
+
+A reference to the object representing ``(x + y) * 3`` lives on in
+register ``%r3`` until the function returns.  In the RVM scheme, the
+potential lifetime of the object is just a bit longer.  It doesn't
+really matter in this case, as ``z`` in ``%r2`` also holds a
+reference, so the object's reference count can't drop to zero until
+the register named by ``z`` is reclaimed.  The longer lifetime in this
+example probably makes little difference, but it's easy to construct
+an example where it lives much longer than in PyVM::
+
+    def silly2():
+        x = [1] * int(10e7)
+        y = [2] * int(10e7)
+        result = painfully_long_calculation(((x + y) * 3)[99])
         return result
 
-In PyVM, the memory for ``x`` and ``y`` would be reclaimed after being
-added together. RVM currently only reclaims them at the end of the
-function, when the reference counts of all registers are
-``Py_XDECREF``'d.  This will need to change.
-
-Currently, RVM clears registers at the end of frame execution.
-Instead, registers should be cleared upon last reference.  All three
-large lists currently stick around until function return, but are
-unused after extracting the single character which is used.  For that
-length of time, a large amount of memory is consumed unnecessarily.
-The comments above indicate where registers holding x, y and z should
-be cleared.  Victor Stinner's implementation [#regstin] does this
-correctly.
+Victor solved this by introducing a ``CLEAR_REG`` instruction which is
+inserted by his translator at appropriate points to decrement
+reference counts in temporary registers at the appropriate times.
 
 
 Backwards Compatibility
@@ -932,73 +934,6 @@ the ``IS_OP`` converter looks like::
 Running the unit test should succeed now.
 
 
-References
-==========
-
-.. [#asthylt] Merge ast-branch to head, Hylton
-   (https://github.com/python/cpython/commit/3e0055f8c65c407e74ce476b8e2b1fb889723514)
-
-.. [#callsokol] Discussion on Python-Ideas mailing list
-   (https://mail.python.org/archives/list/python-ideas@python.org/message/VXJ6MEX5EXHXUNB45ODP4VT2KUDAYNTE/)
-
-.. [#dynlemb] Reordering opcodes (PEP 203 Augmented Assignment), Lemburg
-   (https://mail.python.org/pipermail/python-dev/2000-July/007609.html)
-
-.. [#dynmont] Getting Rid of Data Movement Instructions, Montanaro
-   (https://mail.python.org/pipermail/python-list/2001-August/070944.html)
-
-.. [#instpage] Profiling CPython at Instagram, Page
-   (https://instagram-engineering.com/profiling-cpython-at-instagram-89d4cbeeb898)
-
-.. [#maurowordcode] Beyond Bytecode: a Wordcode-based Python
-   (http://repository.root-me.org/Programmation/Python/EN%20-%20Beyond%20python%20bytecode.pdf)
-
-.. [#moar] MoarVM
-   (https://moarvm.org/)
-
-.. [#parrot] Parrot
-   (http://www.parrot.org/)
-
-.. [#peephett] Improve code generation Hettinger, et al
-   (https://github.com/python/cpython/commit/f6f575ae6fc4b58f8735b6aebaa422d48bedcef4)
-
-.. [#peepmont] A Peephole Optimizer for Python, Montanaro
-   (https://web.archive.org/web/20010414044328/https://www.foretec.com/python/workshops/1998-11/proceedings/papers/montanaro/montanaro.html)
-
-.. [#puffin] Puffin GitHub Repository
-   (https://github.com/lucian1900/puffin)
-
-.. [#pynie] Pynie Dev Team
-   (https://launchpad.net/~pynie-dev)
-
-.. [#raku] Raku Programming Language
-   (https://raku.org/)
-
-.. [#regmont] Register fork of CPython, Montanaro
-   (https://github.com/smontanaro/cpython/tree/register)
-
-.. [#regstin] My registervm fork (2012), Stinner
-   (https://mail.python.org/archives/list/registervm@python.org/thread/X72OYMPH2HLTY4SIGVPKSTIRWL2XFY7G/)
-
-.. [#pep-590] Vectorcall: a fast calling protocol for CPython
-   (https://www.python.org/dev/peps/pep-0590/)
-
-.. [#predpitr] Faster opcode dispatch on gcc, Pitrou
-   (https://bugs.python.org/issue4753)
-
-.. [#vmshowdown] Virtual Machine Showdown: Stack Versus Registers
-   (https://www.usenix.org/legacy/events/vee05/full_papers/p153-yunhe.pdf)
-
-.. [#winterbottom] The design of the Inferno virtual machine
-   (http://www.vitanuova.com/inferno/papers/hotchips.pdf)
-
-.. [#wordcode] Wordcode
-   (https://stupidpythonideas.blogspot.com/search?q=wordcode)
-
-.. [#rumedwordcode] ceval: use Wordcode, 16-bit bytecode
-   (https://bugs.python.org/issue26647)
-
-
 Appendices
 ==========
 
@@ -1447,6 +1382,76 @@ largest potential for short name collisions.
    +-----------+----------------------------------------------------------------------+
    | YV        | YIELD_VALUE                                                          |
    +-----------+----------------------------------------------------------------------+
+
+
+References
+==========
+
+.. [#asthylt] Merge ast-branch to head, Hylton
+   (https://github.com/python/cpython/commit/3e0055f8c65c407e74ce476b8e2b1fb889723514)
+
+.. [#callsokol] Discussion on Python-Ideas mailing list
+   (https://mail.python.org/archives/list/python-ideas@python.org/message/VXJ6MEX5EXHXUNB45ODP4VT2KUDAYNTE/)
+
+.. [#dynlemb] Reordering opcodes (PEP 203 Augmented Assignment), Lemburg
+   (https://mail.python.org/pipermail/python-dev/2000-July/007609.html)
+
+.. [#dynmont] Getting Rid of Data Movement Instructions, Montanaro
+   (https://mail.python.org/pipermail/python-list/2001-August/070944.html)
+
+.. [#instpage] Profiling CPython at Instagram, Page
+   (https://instagram-engineering.com/profiling-cpython-at-instagram-89d4cbeeb898)
+
+.. [#maurowordcode] Beyond Bytecode: a Wordcode-based Python
+   (http://repository.root-me.org/Programmation/Python/EN%20-%20Beyond%20python%20bytecode.pdf)
+
+.. [#moar] MoarVM
+   (https://moarvm.org/)
+
+.. [#optstin] Register-based Virtual Machine for Python
+   (https://faster-cpython.readthedocs.io/registervm.html)
+
+.. [#parrot] Parrot
+   (http://www.parrot.org/)
+
+.. [#peephett] Improve code generation Hettinger, et al
+   (https://github.com/python/cpython/commit/f6f575ae6fc4b58f8735b6aebaa422d48bedcef4)
+
+.. [#peepmont] A Peephole Optimizer for Python, Montanaro
+   (https://web.archive.org/web/20010414044328/https://www.foretec.com/python/workshops/1998-11/proceedings/papers/montanaro/montanaro.html)
+
+.. [#puffin] Puffin GitHub Repository
+   (https://github.com/lucian1900/puffin)
+
+.. [#pynie] Pynie Dev Team
+   (https://launchpad.net/~pynie-dev)
+
+.. [#raku] Raku Programming Language
+   (https://raku.org/)
+
+.. [#regmont] Register fork of CPython, Montanaro
+   (https://github.com/smontanaro/cpython/tree/register)
+
+.. [#regstin] My registervm fork (2012), Stinner
+   (https://mail.python.org/archives/list/registervm@python.org/thread/X72OYMPH2HLTY4SIGVPKSTIRWL2XFY7G/)
+
+.. [#pep-590] Vectorcall: a fast calling protocol for CPython
+   (https://www.python.org/dev/peps/pep-0590/)
+
+.. [#predpitr] Faster opcode dispatch on gcc, Pitrou
+   (https://bugs.python.org/issue4753)
+
+.. [#vmshowdown] Virtual Machine Showdown: Stack Versus Registers
+   (https://www.usenix.org/legacy/events/vee05/full_papers/p153-yunhe.pdf)
+
+.. [#winterbottom] The design of the Inferno virtual machine
+   (http://www.vitanuova.com/inferno/papers/hotchips.pdf)
+
+.. [#wordcode] Wordcode
+   (https://stupidpythonideas.blogspot.com/search?q=wordcode)
+
+.. [#rumedwordcode] ceval: use Wordcode, 16-bit bytecode
+   (https://bugs.python.org/issue26647)
 
 
 Copyright
