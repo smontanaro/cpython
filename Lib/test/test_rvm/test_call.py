@@ -4,6 +4,12 @@ import unittest
 from . import InstructionTest
 
 class CallTest(InstructionTest):
+    def test_return(self):
+        def return_():
+            return
+        (pyvm, rvm) = self.function_helper(return_)
+        self.assertEqual(pyvm(), rvm())
+
     def test_callfunc(self):
         def callfunc():
             return [bin(2796202), list(enumerate("1234", 2))]
