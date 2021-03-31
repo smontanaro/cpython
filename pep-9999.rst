@@ -722,8 +722,9 @@ To Do
 
 Lots and lots.  Here are a few:
 
-- There are currently plenty of reference leaks. See the current
-  crop::
+- At the moment (Mar 31, 2021) all tests which were leaking are no
+  longer.  Still, more leaks are bound to turn up.  Check on leakage
+  with something like this::
 
     ./python -E Lib/test/regrtest.py --list-cases test_rvm \
         | sed -e 's/.*[.]//' \
