@@ -487,7 +487,6 @@
                 goto error;
             while (--len >= 0) {
                 PyObject *item = GETLOCAL(dst+len);
-                Py_INCREF(item);
                 if (err == 0)
                     err = PySet_Add(set, item);
             }
