@@ -563,7 +563,7 @@ frame_dealloc(PyFrameObject *f)
 {
     PyObject **p;
     int i;
-    Py_ssize_t ncells, nfreevars;
+    Py_ssize_t ncells, nfreevars, nslots;
 
      if (_PyObject_GC_IS_TRACKED(f)) {
         _PyObject_GC_UNTRACK(f);
@@ -586,7 +586,10 @@ frame_dealloc(PyFrameObject *f)
 
     /* Free stack */
     p = f->f_valuestack;
-    for (int i = 0; i < f->f_stackdepth; i++, p++) {
+    nslots = (f->f_code->co_flags & CO_REGISTER)
+        ? f->f_code->co_stacksize
+        : f->f_stackdepth;
+    for (int i = 0; i < nslots ; i++, p++) {
         /* CLEAR instead of just XDECREF to make sure if these
            slots are ever treated as registers we don't
            accidentally over-DECREF. */
