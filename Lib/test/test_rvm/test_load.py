@@ -18,6 +18,5 @@ class LoadStoreTest(InstructionTest):
         def load_const():
             return 5
         (pyvm, rvm) = self.function_helper(load_const)
-        print(5, sys.getrefcount(5))
         result = rvm()
-        print(5, sys.getrefcount(5))
+        self.assertEqual(pyvm(), rvm())
