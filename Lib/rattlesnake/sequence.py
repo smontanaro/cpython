@@ -21,6 +21,7 @@ DISPATCH[opcode.opmap['BUILD_TUPLE']] = build_sequence
 DISPATCH[opcode.opmap['BUILD_LIST']] = build_sequence
 DISPATCH[opcode.opmap['BUILD_MAP']] = build_sequence
 DISPATCH[opcode.opmap['BUILD_SET']] = build_sequence
+DISPATCH[opcode.opmap['BUILD_STRING']] = build_sequence
 
 def extend_sequence(self, instr, block):
     op = instr.opcode

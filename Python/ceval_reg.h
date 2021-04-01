@@ -494,6 +494,23 @@
             DISPATCH();
         }
 
+        case TARGET(BUILD_STRING_REG): {
+            /* registers go from src to src+len */
+            int dst = REGARG2(oparg);
+            int len = REGARG1(oparg);
+            PyObject *str;
+            PyObject *empty = PyUnicode_New(0, 0);
+            if (empty == NULL) {
+                goto error;
+            }
+            str = _PyUnicode_JoinArray(empty, &GETLOCAL(dst), len);
+            Py_DECREF(empty);
+            if (str == NULL)
+                goto error;
+            SETLOCAL(dst, str);
+            DISPATCH();
+        }
+
         case TARGET(BUILD_TUPLE_REG): {
             /* registers go from src to src+len */
             int dst = REGARG2(oparg);

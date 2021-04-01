@@ -192,6 +192,7 @@ extern "C" {
 #define BUILD_SET_REG           180
 #define DICT_MERGE_REG          181
 #define DICT_UPDATE_REG         182
+#define BUILD_STRING_REG        183
 #ifdef NEED_OPCODE_JUMP_TABLES
 static uint32_t _PyOpcode_RelativeJump[8] = {
     0U,

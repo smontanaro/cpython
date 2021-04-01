@@ -1175,6 +1175,7 @@ stack_effect(int opcode, int oparg, int jump)
         case BUILD_LIST_REG:
         case BUILD_MAP_REG:
         case BUILD_SET_REG:
+        case BUILD_STRING_REG:
         case BUILD_TUPLE_REG:
         case CALL_FUNCTION_EX_REG:
         case CALL_FUNCTION_KW_REG:

@@ -73,3 +73,9 @@ class BlockTest(InstructionTest):
             return {}
         (pyvm, rvm) = self.function_helper(build_empty_dict)
         self.assertEqual(pyvm(), rvm())
+
+    def test_build_string(self):
+        def build_string():
+            return f""
+        (pyvm, rvm) = self.function_helper(build_string)
+        self.assertEqual(pyvm(), rvm())
