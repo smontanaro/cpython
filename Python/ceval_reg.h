@@ -215,6 +215,28 @@
             DISPATCH();
         }
 
+        case TARGET(RAISE_VARARGS_REG): {
+            PyObject *cause = NULL, *exc = NULL;
+            switch (REGARG1(oparg)) {
+            case 2:
+                cause = GETLOCAL(REGARG3(oparg)); /* cause */
+                /* fall through */
+            case 1:
+                exc = GETLOCAL(REGARG2(oparg)); /* exc */
+                /* fall through */
+            case 0:
+                if (do_raise(tstate, exc, cause)) {
+                    goto exception_unwind;
+                }
+                break;
+            default:
+                _PyErr_SetString(tstate, PyExc_SystemError,
+                                 "bad RAISE_VARARGS oparg");
+                break;
+            }
+            goto error;
+        }
+
         case TARGET(RETURN_VALUE_REG): {
             retval = GETLOCAL(oparg);
             /* GETLOCAL(oparg) will be blindly decref'd when registers

@@ -83,8 +83,9 @@ class Instruction:
         "Generate wordcode."
         code = []
         for arg in self.opargs[:-1]:
-            code.append(self.EXT_ARG_OPCODE)
-            code.append(arg)
+            if arg is not None:
+                code.append(self.EXT_ARG_OPCODE)
+                code.append(arg)
         code.append(self.opcode)
         code.append(self.opargs[-1])
         return bytes(code)

@@ -7,6 +7,7 @@ DISPATCH = {}
 from . import attributes
 from . import binary
 from . import compare
+from . import control
 from . import data
 from . import forloop
 from . import format

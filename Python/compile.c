@@ -1210,6 +1210,7 @@ stack_effect(int opcode, int oparg, int jump)
         case LOAD_CONST_REG:
         case LOAD_FAST_REG:
         case LOAD_GLOBAL_REG:
+        case RAISE_VARARGS_REG:
         case RETURN_VALUE_REG:
         case STORE_ATTR_REG:
         case STORE_FAST_REG:
