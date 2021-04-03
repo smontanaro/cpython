@@ -25,6 +25,7 @@ FORMAT_VALUE_CONVERTERS = (
 )
 MAKE_FUNCTION = opmap['MAKE_FUNCTION']
 MAKE_FUNCTION_FLAGS = ('defaults', 'kwdefaults', 'annotations', 'closure')
+FORMAT_VALUE_REG = opmap['FORMAT_VALUE_REG']
 
 BINOPS = {
     opmap["BINARY_ADD_REG"]: '+',
@@ -460,6 +461,28 @@ def _get_instructions_bytes(code, varnames=None, names=None, constants=None,
                     argval, argrepr = _get_regdsa_info(arg, names)
                 elif op in hasregdas:
                     argval, argrepr = _get_regdas_info(arg, names)
+                elif op == FORMAT_VALUE_REG:
+                    FVC_MASK = 0b11
+                    FVS_MASK = 0b100
+                    FVS_HAVE_SPEC = 0b100
+                    LOW8_MASK = 0xff
+                    arg0 = arg & LOW8_MASK
+                    arg1 = (arg >> 8) & LOW8_MASK
+                    arg2 = (arg >> 16) & LOW8_MASK
+                    arg3 = arg >> 24
+                    converter = FORMAT_VALUE_CONVERTERS[arg0 & FVC_MASK][1]
+                    have_spec = arg0 & FVS_MASK & FVS_HAVE_SPEC
+                    print("args:", (arg0, arg1, arg2, arg3),
+                          "FVC mask:", arg0 & FVC_MASK,
+                          "FVS mask:", arg0 & FVS_MASK,
+                          "converter:", converter, "have spec:", have_spec)
+                    if have_spec:
+                        argrepr = f"%r{arg3} <- fmt({{%r{arg2}:%r{arg1})}}"
+                    elif converter:
+                        argrepr = f"%r{arg3} <- {converter}(%r{arg2})"
+                    else:
+                        argrepr = f"%r{arg1}"
+                    argval = arg
                 else:
                     argval, argrepr = _get_reg_info(arg)
             elif op in hasconst:

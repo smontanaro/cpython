@@ -348,6 +348,7 @@ hasregss.append(op)
 def_op('DICT_MERGE_REG', op) ; op += 1
 def_op('DICT_UPDATE_REG', op) ; op += 1
 def_op('BUILD_STRING_REG', op) ; op += 1
+def_op('FORMAT_VALUE_REG', op) ; op += 1
 
 assert op <= 256, op
 

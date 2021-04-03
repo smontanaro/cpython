@@ -1186,6 +1186,7 @@ stack_effect(int opcode, int oparg, int jump)
         case DICT_MERGE_REG:
         case DICT_UPDATE_REG:
         case FOR_ITER_REG:
+        case FORMAT_VALUE_REG:
         case GET_ITER_REG:
         case IMPORT_NAME_REG:
         case INPLACE_ADD_REG:

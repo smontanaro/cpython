@@ -9,6 +9,7 @@ from . import binary
 from . import compare
 from . import data
 from . import forloop
+from . import format
 from . import function
 from . import inplace
 from . import jump

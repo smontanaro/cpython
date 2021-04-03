@@ -183,7 +183,7 @@ static char *opcode_map[256] = {
     "DICT_MERGE_REG",
     "DICT_UPDATE_REG",
     "BUILD_STRING_REG",
-    "unknown",
+    "FORMAT_VALUE_REG",
     "unknown",
     "unknown",
     "unknown",

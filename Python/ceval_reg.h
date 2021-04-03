@@ -985,6 +985,69 @@
             DISPATCH();
         }
 
+        case TARGET(FORMAT_VALUE_REG): {
+            /* Handles f-string value formatting. */
+            PyObject *result;
+            PyObject *fmt_spec;
+            PyObject *value;
+            PyObject *(*conv_fn)(PyObject *);
+            int dst;
+            int which_conversion = REGARG1(oparg) & FVC_MASK;
+            int have_fmt_spec = (REGARG1(oparg) & FVS_MASK) == FVS_HAVE_SPEC;
+
+            if (have_fmt_spec) {
+                fmt_spec = GETLOCAL(REGARG2(oparg));
+            }
+            else {
+                fmt_spec = NULL;
+            }
+            value = GETLOCAL(REGARG3(oparg));
+            dst = REGARG4(oparg);
+
+            /* See if any conversion is specified. */
+            switch (which_conversion) {
+            case FVC_NONE:  conv_fn = NULL;           break;
+            case FVC_STR:   conv_fn = PyObject_Str;   break;
+            case FVC_REPR:  conv_fn = PyObject_Repr;  break;
+            case FVC_ASCII: conv_fn = PyObject_ASCII; break;
+            default:
+                _PyErr_Format(tstate, PyExc_SystemError,
+                              "unexpected conversion flag %d",
+                              which_conversion);
+                goto error;
+            }
+
+            /* If there's a conversion function, call it and replace
+               value with that result. Otherwise, just use value,
+               without conversion. */
+            if (conv_fn != NULL) {
+                result = conv_fn(value);
+                if (result == NULL) {
+                    goto error;
+                }
+                value = result;
+            }
+
+            /* If value is a unicode object, and there's no fmt_spec,
+               then we know the result of format(value) is value
+               itself. In that case, skip calling format(). I plan to
+               move this optimization in to PyObject_Format()
+               itself. */
+            if (PyUnicode_CheckExact(value) && fmt_spec == NULL) {
+                /* Do nothing, just transfer ownership to result. */
+                result = value;
+            } else {
+                /* Actually call format(). */
+                result = PyObject_Format(value, fmt_spec);
+                if (result == NULL) {
+                    goto error;
+                }
+            }
+
+            SETLOCAL(dst, result);
+            DISPATCH();
+        }
+
 
         /* case TARGET(YIELD_VALUE_REG): { */
         /*     int src = REGARG1(oparg); */

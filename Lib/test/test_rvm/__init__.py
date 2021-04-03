@@ -18,13 +18,13 @@ class InstructionTest(unittest.TestCase):
     def function_helper(self, func, propagate=True, verbose=False):
         pyvm_code = func.__code__
 
-        # just for symmetry with construction of rvm below...
-        def pyvm(*args):
-            return args
-        pyvm.__code__ = pyvm_code
+        # # just for symmetry with construction of rvm below...
+        # def pyvm(a):
+        #     return args
+        # pyvm.__code__ = pyvm_code
         if verbose:
             print(file=sys.stderr)
-            dis.dis(pyvm, file=sys.stderr)
+            dis.dis(func, file=sys.stderr)
 
         isc = InstructionSetConverter(pyvm_code)
         isc.gen_rvm()
@@ -41,14 +41,14 @@ class InstructionTest(unittest.TestCase):
             return args
         rvm_replace_code(rvm, pyvm_code, isc)
 
-        self.assertEqual(pyvm.__code__.co_flags & util.CO_REGISTER, 0)
+        self.assertEqual(func.__code__.co_flags & util.CO_REGISTER, 0)
         self.assertEqual(rvm.__code__.co_flags & util.CO_REGISTER,
                          util.CO_REGISTER)
 
         if verbose:
             print(file=sys.stderr)
             dis.dis(rvm, file=sys.stderr)
-        return (pyvm, rvm)
+        return (func, rvm)
 
     def test_src_dst(self):
         lfr = opcode.opmap['LOAD_FAST_REG']
