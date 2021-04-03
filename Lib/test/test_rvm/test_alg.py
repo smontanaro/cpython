@@ -5,7 +5,7 @@ import unittest
 from . import InstructionTest
 
 class AlgTest(InstructionTest):
-    @unittest.skip('RAISE_VARARGS not yet implemented')
+    @unittest.skip('LOAD_DEREF_REG not yet implemented.')
     def test_fib(self):
         def fib(n):
             if n < 0:
