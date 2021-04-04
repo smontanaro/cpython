@@ -185,7 +185,7 @@ static void *opcode_targets[256] = {
     &&TARGET_BUILD_STRING_REG,
     &&TARGET_FORMAT_VALUE_REG,
     &&TARGET_RAISE_VARARGS_REG,
-    &&_unknown_opcode,
+    &&TARGET_LOAD_DEREF_REG,
     &&_unknown_opcode,
     &&_unknown_opcode,
     &&_unknown_opcode,

@@ -1070,6 +1070,17 @@
             DISPATCH();
         }
 
+        case TARGET(LOAD_DEREF_REG): {
+            PyObject *cell = freevars[REGARG1(oparg)];
+            PyObject *value = PyCell_GET(cell);
+            if (value == NULL) {
+                format_exc_unbound(tstate, co, oparg);
+                goto error;
+            }
+            Py_INCREF(value);
+            SETLOCAL(REGARG2(oparg), value);
+            DISPATCH();
+        }
 
         /* case TARGET(YIELD_VALUE_REG): { */
         /*     int src = REGARG1(oparg); */

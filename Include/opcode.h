@@ -195,6 +195,7 @@ extern "C" {
 #define BUILD_STRING_REG        183
 #define FORMAT_VALUE_REG        184
 #define RAISE_VARARGS_REG       185
+#define LOAD_DEREF_REG          186
 #ifdef NEED_OPCODE_JUMP_TABLES
 static uint32_t _PyOpcode_RelativeJump[8] = {
     0U,

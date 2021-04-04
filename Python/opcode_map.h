@@ -185,7 +185,7 @@ static char *opcode_map[256] = {
     "BUILD_STRING_REG",
     "FORMAT_VALUE_REG",
     "RAISE_VARARGS_REG",
-    "unknown",
+    "LOAD_DEREF_REG",
     "unknown",
     "unknown",
     "unknown",

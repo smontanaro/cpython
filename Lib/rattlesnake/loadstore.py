@@ -26,7 +26,7 @@ def load_const(self, instr, block):
     #print("instr:", instr)
     op = instr.opcode
     oparg = instr.opargs[0] # All PyVM opcodes have a single oparg
-    src = oparg         # offset into localsplus
+    src = oparg             # offset into localsplus
     try:
         dst = self.push()
     except StackSizeException:
@@ -37,10 +37,10 @@ def load_const(self, instr, block):
                                 dest=dst, name1=src)
 DISPATCH[opcode.opmap['LOAD_CONST']] = load_const
 
-def load_global(self, instr, block):
+def load_named(self, instr, block):
     op = instr.opcode
     oparg = instr.opargs[0] # All PyVM opcodes have a single oparg
-    src = oparg         # offset into global names tuple
+    src = oparg             # offset into names tuple or freevars array
     try:
         dst = self.push()
     except StackSizeException:
@@ -49,7 +49,8 @@ def load_global(self, instr, block):
     opname = f"{opcode.opname[op]}_REG"
     return LoadGlobalInstruction(opcode.opmap[opname], block,
                                  dest=dst, name1=src)
-DISPATCH[opcode.opmap['LOAD_GLOBAL']] = load_global
+DISPATCH[opcode.opmap['LOAD_GLOBAL']] = load_named
+DISPATCH[opcode.opmap['LOAD_DEREF']] = load_named
 
 def store_fast(self, instr, block):
     "stores of various kinds"
@@ -71,6 +72,7 @@ def store_global(self, instr, block):
     return StoreGlobalInstruction(opcode.opmap[opname], block,
                                   name1=name1, source1=src)
 DISPATCH[opcode.opmap['STORE_GLOBAL']] = store_global
+
 
 class LoadFastInstruction(Instruction):
     "Specialized behavior for fast loads."
