@@ -102,7 +102,9 @@ class Instruction:
 
     @staticmethod
     def dumpcounts():
-        if not Instruction.dump_at_end:
+        # If nothing was counted, assume test_rvm wasn't run at all.
+        total = sum(Instruction.counters.values())
+        if not Instruction.dump_at_end or not total:
             return
         header = False
         for nm in sorted(Instruction.counters):
@@ -111,7 +113,9 @@ class Instruction:
                 if not header:
                     print("Untested _REG instructions:")
                     header = True
-                print(nm)
+                print(nm, end=" ")
+        if header:
+            print()
 
 class PyVMInstruction(Instruction):
     "For basic PyVM instructions."
