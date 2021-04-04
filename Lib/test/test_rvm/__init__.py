@@ -107,7 +107,7 @@ def get_opcodes(blocks):
     return ops
 
 def rvm_replace_code(func, pyvm_code, isc):
-    "Modify func using PyVM bits from pyvm_code & RVM bits from."
+    "Modify func using PyVM bits from pyvm_code & RVM bits from isc."
     rvm_flags = pyvm_code.co_flags | util.CO_REGISTER
     rvm_code = pyvm_code.replace(co_code=bytes(isc),
                                  co_linetable=isc.get_lnotab(),
