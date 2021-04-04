@@ -25,7 +25,7 @@ class Instruction:
     EXT_ARG_OPCODE = opcode.opmap["EXTENDED_ARG"]
 
     counters = {}               # count what we convert
-    dump_at_end = False
+    dump_at_end = True
 
     def __init__(self, op, block, **kwargs):
         self.opcode = op
