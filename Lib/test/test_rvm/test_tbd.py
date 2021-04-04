@@ -61,9 +61,10 @@ class TBDTest(InstructionTest):
         self.assertEqual(pyvm("abcd", 1, 2, 3, k1=0, k2=1),
                          rvm("abcd", 1, 2, 3, k1=0, k2=1))
 
-    @unittest.skip('FORMAT_VALUE_REG not yet implemented')
-    def test_fstring(self):
-        def fstring(a, b):
-            return f"{a} -> {b}"
-        (pyvm, rvm) = self.function_helper(fstring)
-        self.assertEqual(pyvm("abcd", 1234), rvm("abcd", 1234))
+    @unittest.skip("STORE_DEREF and LOAD_CLOSURE aren't yet implemented, nor is inner() translated")
+    def test_deref(self):
+        def outer(a):
+            loc = a
+            def inner():
+                return loc
+            return inner()
