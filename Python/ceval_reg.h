@@ -1058,6 +1058,11 @@
             if (PyUnicode_CheckExact(value) && fmt_spec == NULL) {
                 /* Do nothing, just transfer ownership to result. */
                 result = value;
+                /* Need to increment reference count here, as in the
+                   simplest case object references wind up in two
+                   registers, both of which will be DECREF'd at
+                   function exit. */
+                Py_INCREF(result);
             } else {
                 /* Actually call format(). */
                 result = PyObject_Format(value, fmt_spec);
