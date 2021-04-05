@@ -481,7 +481,7 @@ def _get_instructions_bytes(code, varnames=None, names=None, constants=None,
                     elif converter:
                         argrepr = f"%r{arg3} <- {converter}(%r{arg2})"
                     else:
-                        argrepr = f"%r{arg1}"
+                        argrepr = f"%r{arg3} <- fmt(%r{arg1})"
                     argval = arg
                 else:
                     argval, argrepr = _get_reg_info(arg)
