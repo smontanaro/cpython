@@ -472,10 +472,10 @@ def _get_instructions_bytes(code, varnames=None, names=None, constants=None,
                     arg3 = arg >> 24
                     converter = FORMAT_VALUE_CONVERTERS[arg0 & FVC_MASK][1]
                     have_spec = arg0 & FVS_MASK & FVS_HAVE_SPEC
-                    print("args:", (arg0, arg1, arg2, arg3),
-                          "FVC mask:", arg0 & FVC_MASK,
-                          "FVS mask:", arg0 & FVS_MASK,
-                          "converter:", converter, "have spec:", have_spec)
+                    # print("args:", (arg0, arg1, arg2, arg3),
+                    #       "FVC mask:", arg0 & FVC_MASK,
+                    #       "FVS mask:", arg0 & FVS_MASK,
+                    #       "converter:", converter, "have spec:", have_spec)
                     if have_spec:
                         argrepr = f"%r{arg3} <- fmt({{%r{arg2}:%r{arg1})}}"
                     elif converter:
