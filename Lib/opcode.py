@@ -207,6 +207,7 @@ def_op('STORE_FAST', op) ; op += 1       # Local variable number
 haslocal.append(op)
 def_op('DELETE_FAST', op) ; op += 1      # Local variable number
 
+def_op('GEN_START', op) ; op += 1
 def_op('RAISE_VARARGS', op) ; op += 1    # Number of raise arguments (1, 2, or 3)
 def_op('CALL_FUNCTION', op) ; op += 1    # #args
 def_op('MAKE_FUNCTION', op) ; op += 1    # Flags

@@ -1,4 +1,6 @@
 
+import opcode
+
 from rattlesnake.converter import InstructionSetConverter
 from rattlesnake import util
 
@@ -18,7 +20,12 @@ class BlockTest(InstructionTest):
         self.assertEqual(len(isc.blocks["RVM"]), 1)
         self.assertEqual(get_opcodes(isc.blocks["RVM"]),
                          [
-                             [142, 142, 125, 139],
+                             [
+                                 opcode.opmap["LOAD_FAST_REG"],
+                                 opcode.opmap["LOAD_FAST_REG"],
+                                 opcode.opmap["BINARY_ADD_REG"],
+                                 opcode.opmap["RETURN_VALUE_REG"],
+                             ]
                          ])
         self.assertEqual(isc.blocks["RVM"][0].codelen(), 16)
         isc.forward_propagate_fast_loads()
@@ -26,7 +33,10 @@ class BlockTest(InstructionTest):
         self.assertEqual(isc.blocks["RVM"][0].codelen(), 8)
         self.assertEqual(get_opcodes(isc.blocks["RVM"]),
                          [
-                             [125, 139],
+                             [
+                                 opcode.opmap["BINARY_ADD_REG"],
+                                 opcode.opmap["RETURN_VALUE_REG"],
+                             ]
                          ])
 
     def test_long_block(self):
