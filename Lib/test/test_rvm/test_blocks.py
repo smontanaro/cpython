@@ -1,5 +1,6 @@
 
 import opcode
+import unittest
 
 from rattlesnake.converter import InstructionSetConverter
 from rattlesnake import util
@@ -39,6 +40,7 @@ class BlockTest(InstructionTest):
                              ]
                          ])
 
+    #@unittest.skip("broken")
     def test_long_block(self):
         def long_block(s, b):
             global _A_GLOBAL
