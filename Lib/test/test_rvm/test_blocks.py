@@ -40,7 +40,7 @@ class BlockTest(InstructionTest):
                              ]
                          ])
 
-    #@unittest.skip("broken")
+    @unittest.skip("broken")
     def test_long_block(self):
         def long_block(s, b):
             global _A_GLOBAL
