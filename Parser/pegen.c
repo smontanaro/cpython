@@ -625,6 +625,64 @@ growable_comment_array_deallocate(growable_comment_array *arr) {
     PyMem_Free(arr->items);
 }
 
+static int
+initialize_token(Parser *p, Token *token, const char *start, const char *end, int token_type) {
+    assert(token != NULL);
+
+    token->type = (token_type == NAME) ? _get_keyword_or_name_type(p, start, (int)(end - start)) : token_type;
+    token->bytes = PyBytes_FromStringAndSize(start, end - start);
+    if (token->bytes == NULL) {
+        return -1;
+    }
+
+    if (_PyArena_AddPyObject(p->arena, token->bytes) < 0) {
+        Py_DECREF(token->bytes);
+        return -1;
+    }
+
+    const char *line_start = token_type == STRING ? p->tok->multi_line_start : p->tok->line_start;
+    int lineno = token_type == STRING ? p->tok->first_lineno : p->tok->lineno;
+    int end_lineno = p->tok->lineno;
+
+    int col_offset = (start != NULL && start >= line_start) ? (int)(start - line_start) : -1;
+    int end_col_offset = (end != NULL && end >= p->tok->line_start) ? (int)(end - p->tok->line_start) : -1;
+
+    token->lineno = p->starting_lineno + lineno;
+    token->col_offset = p->tok->lineno == 1 ? p->starting_col_offset + col_offset : col_offset;
+    token->end_lineno = p->starting_lineno + end_lineno;
+    token->end_col_offset = p->tok->lineno == 1 ? p->starting_col_offset + end_col_offset : end_col_offset;
+
+    p->fill += 1;
+
+    if (token_type == ERRORTOKEN && p->tok->done == E_DECODE) {
+        return raise_decode_error(p);
+    }
+
+    return (token_type == ERRORTOKEN ? tokenizer_error(p) : 0);
+}
+
+static int
+_resize_tokens_array(Parser *p) {
+    int newsize = p->size * 2;
+    Token **new_tokens = PyMem_Realloc(p->tokens, newsize * sizeof(Token *));
+    if (new_tokens == NULL) {
+        PyErr_NoMemory();
+        return -1;
+    }
+    p->tokens = new_tokens;
+
+    for (int i = p->size; i < newsize; i++) {
+        p->tokens[i] = PyMem_Calloc(1, sizeof(Token));
+        if (p->tokens[i] == NULL) {
+            p->size = i; // Needed, in order to cleanup correctly after parser fails
+            PyErr_NoMemory();
+            return -1;
+        }
+    }
+    p->size = newsize;
+    return 0;
+}
+
 int
 _PyPegen_fill_token(Parser *p)
 {
@@ -650,7 +708,8 @@ _PyPegen_fill_token(Parser *p)
         type = PyTokenizer_Get(p->tok, &start, &end);
     }
 
-    if (type == ENDMARKER && p->start_rule == Py_single_input && p->parsing_started) {
+    // If we have reached the end and we are in single input mode we need to insert a newline and reset the parsing
+    if (p->start_rule == Py_single_input && type == ENDMARKER && p->parsing_started) {
         type = NEWLINE; /* Add an extra newline */
         p->parsing_started = 0;
 
@@ -663,68 +722,17 @@ _PyPegen_fill_token(Parser *p)
         p->parsing_started = 1;
     }
 
-    if (p->fill == p->size) {
-        int newsize = p->size * 2;
-        Token **new_tokens = PyMem_Realloc(p->tokens, newsize * sizeof(Token *));
-        if (new_tokens == NULL) {
-            PyErr_NoMemory();
-            return -1;
-        }
-        p->tokens = new_tokens;
-
-        for (int i = p->size; i < newsize; i++) {
-            p->tokens[i] = PyMem_Malloc(sizeof(Token));
-            if (p->tokens[i] == NULL) {
-                p->size = i; // Needed, in order to cleanup correctly after parser fails
-                PyErr_NoMemory();
-                return -1;
-            }
-            memset(p->tokens[i], '\0', sizeof(Token));
-        }
-        p->size = newsize;
+    // Check if we are at the limit of the token array capacity and resize if needed
+    if ((p->fill == p->size) && (_resize_tokens_array(p) != 0)) {
+        return -1;
     }
 
     Token *t = p->tokens[p->fill];
-    t->type = (type == NAME) ? _get_keyword_or_name_type(p, start, (int)(end - start)) : type;
-    t->bytes = PyBytes_FromStringAndSize(start, end - start);
-    if (t->bytes == NULL) {
-        return -1;
-    }
-    if (_PyArena_AddPyObject(p->arena, t->bytes) < 0) {
-        Py_DECREF(t->bytes);
-        return -1;
-    }
-
-    int lineno = type == STRING ? p->tok->first_lineno : p->tok->lineno;
-    const char *line_start = type == STRING ? p->tok->multi_line_start : p->tok->line_start;
-    int end_lineno = p->tok->lineno;
-    int col_offset = -1;
-    int end_col_offset = -1;
-    if (start != NULL && start >= line_start) {
-        col_offset = (int)(start - line_start);
-    }
-    if (end != NULL && end >= p->tok->line_start) {
-        end_col_offset = (int)(end - p->tok->line_start);
-    }
-
-    t->lineno = p->starting_lineno + lineno;
-    t->col_offset = p->tok->lineno == 1 ? p->starting_col_offset + col_offset : col_offset;
-    t->end_lineno = p->starting_lineno + end_lineno;
-    t->end_col_offset = p->tok->lineno == 1 ? p->starting_col_offset + end_col_offset : end_col_offset;
-
-    p->fill += 1;
-
-    if (type == ERRORTOKEN) {
-        if (p->tok->done == E_DECODE) {
-            return raise_decode_error(p);
-        }
-        return tokenizer_error(p);
-
-    }
-
-    return 0;
+    return initialize_token(p, t, start, end, type);
 }
 
+
+#if defined(Py_DEBUG)
 // Instrumentation to count the effectiveness of memoization.
 // The array counts the number of tokens skipped by memoization,
 // indexed by type.
@@ -761,6 +769,7 @@ _PyPegen_get_memo_statistics()
     }
     return ret;
 }
+#endif
 
 int  // bool
 _PyPegen_is_memoized(Parser *p, int type, void *pres)
@@ -776,6 +785,7 @@ _PyPegen_is_memoized(Parser *p, int type, void *pres)
 
     for (Memo *m = t->memo; m != NULL; m = m->next) {
         if (m->type == type) {
+#if defined(PY_DEBUG)
             if (0 <= type && type < NSTATISTICS) {
                 long count = m->mark - p->mark;
                 // A memoized negative result counts for one.
@@ -784,6 +794,7 @@ _PyPegen_is_memoized(Parser *p, int type, void *pres)
                 }
                 memo_statistics[type] += count;
             }
+#endif
             p->mark = m->mark;
             *(void **)(pres) = m->node;
             return 1;
@@ -1544,8 +1555,8 @@ _PyPegen_seq_count_dots(asdl_seq *seq)
 
 /* Creates an alias with '*' as the identifier name */
 alias_ty
-_PyPegen_alias_for_star(Parser *p)
-{
+_PyPegen_alias_for_star(Parser *p, int lineno, int col_offset, int end_lineno,
+                        int end_col_offset, PyArena *arena) {
     PyObject *str = PyUnicode_InternFromString("*");
     if (!str) {
         return NULL;
@@ -1554,7 +1565,7 @@ _PyPegen_alias_for_star(Parser *p)
         Py_DECREF(str);
         return NULL;
     }
-    return _PyAST_alias(str, NULL, p->arena);
+    return _PyAST_alias(str, NULL, lineno, col_offset, end_lineno, end_col_offset, arena);
 }
 
 /* Creates a new asdl_seq* with the identifiers of all the names in seq */
@@ -2286,9 +2297,9 @@ _PyPegen_get_invalid_target(expr_ty e, TARGETS_TYPE targets_type)
     }
 
 #define VISIT_CONTAINER(CONTAINER, TYPE) do { \
-        Py_ssize_t len = asdl_seq_LEN(CONTAINER->v.TYPE.elts);\
+        Py_ssize_t len = asdl_seq_LEN((CONTAINER)->v.TYPE.elts);\
         for (Py_ssize_t i = 0; i < len; i++) {\
-            expr_ty other = asdl_seq_GET(CONTAINER->v.TYPE.elts, i);\
+            expr_ty other = asdl_seq_GET((CONTAINER)->v.TYPE.elts, i);\
             expr_ty child = _PyPegen_get_invalid_target(other, targets_type);\
             if (child != NULL) {\
                 return child;\
