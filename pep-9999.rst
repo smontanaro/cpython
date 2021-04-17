@@ -15,12 +15,12 @@ Abstract
 ========
 
 This PEP proposes the addition of register-based instructions to the
-existing Python virtual machine, with the intent that they eventually
-replace the existing stack-based opcodes.  Though both sets of
-instructions are active in this effort, that is largely to make
-initial testing easier.  As currently implemented, only one set of
-opcodes or the other will be used within any one function.  (A few
-instructions are used by both.)  Considering that, the current
+existing Python virtual machine, to explore the possibility that
+virtual machine performance can be improved by reducing data movement.
+Though both sets of instructions are active during this process, that
+is largely to make initial testing easier.  As currently implemented,
+only one set of opcodes or the other will be used within any function.
+(A few instructions are used by both.)  Considering that, the current
 stack-based opcodes are referred to below as the Python Virtual
 Machine ("PyVM") and the new register-based opcodes are referred to as
 the Register Virtual Machine ("RVM").
@@ -63,10 +63,10 @@ where in the comments, "L" indicates a load into the virtual machine
 and "S" a store from the virtual machine to memory.  So, to implement
 the ``push a`` instruction, the value associated with the name ``a``
 is loaded into the virtual machine, then pushed onto the stack (which
-we assume is implemented in memory).  The result is four instruction
-dispatches, five loads, four stores and one add.  Contrast that with
-the execution of an add operation in a three-address register
-machine::
+we assume is implemented in memory, so is a store).  The result is
+four instruction dispatches, five loads, four stores and one add.
+Contrast that with the execution of an add operation in a
+three-address register machine::
 
     add a,b,c   # LLS
 
@@ -75,7 +75,7 @@ then store the result into the memory location associated with ``c``.
 The result is one instruction dispatch, two loads, one add and one
 store.  While the add opcode is going to be larger in the register VM
 (since it must specify all operands), the total amount of work done
-(instruction fetch and decode, movement between memory and the
+(instruction dispatch and decode, movement between memory and the
 machine) is significantly reduced.
 
 Of course, in a virtual machine all data access is in memory (modulo
@@ -84,6 +84,14 @@ data residence in hardware registers), so it's a little bit of a lie
 to talk about moving data into the machine or out to memory.  Still,
 the extra data movement in the stack VM is real.
 
+The cost of opcode dispatch, loads and stores must be balanced against
+the cost of the actual operation, an add in the example above.
+Assuming a, b and c are all local to the function, the cost of data
+movement onto the stack might be quite small, since the stack and
+local variables are very close in memory, possibly within the same
+cache line.  Python's existing opcode prediction logic also improves
+opcode dispatch over a naive implementation (think Python as of
+1.5.2).
 
 Python's Stack Machine
 ----------------------
@@ -113,7 +121,7 @@ pure stack opcodes (``LOAD_FAST``, ``STORE_FAST``, ``POP_TOP``,
 instructions.  They are low-cost instructions (compared with
 ``CALL_FUNCTION`` for example), but still eat up time and space in the
 virtual machine, making it less efficient than it might be.  (The
-pcomplete table of opcode frequencies is in `Opcode Frequencies`_.)
+complete table of opcode frequencies is in `Opcode Frequencies`_.)
 
 Consider the layout of the data section of a Frame object::
 
