@@ -8,6 +8,7 @@ import os
 import re
 import sys
 import sysconfig
+import warnings
 from glob import glob, escape
 import _osx_support
 
@@ -30,14 +31,19 @@ except ImportError:
     SUBPROCESS_BOOTSTRAP = True
 
 
-from distutils import log
-from distutils.command.build_ext import build_ext
-from distutils.command.build_scripts import build_scripts
-from distutils.command.install import install
-from distutils.command.install_lib import install_lib
-from distutils.core import Extension, setup
-from distutils.errors import CCompilerError, DistutilsError
-from distutils.spawn import find_executable
+with warnings.catch_warnings():
+    # bpo-41282 (PEP 632) deprecated distutils but setup.py still uses it
+    warnings.filterwarnings("ignore", "The distutils package is deprecated",
+                            DeprecationWarning)
+
+    from distutils import log
+    from distutils.command.build_ext import build_ext
+    from distutils.command.build_scripts import build_scripts
+    from distutils.command.install import install
+    from distutils.command.install_lib import install_lib
+    from distutils.core import Extension, setup
+    from distutils.errors import CCompilerError, DistutilsError
+    from distutils.spawn import find_executable
 
 
 # Compile extensions used to test Python?
@@ -545,10 +551,7 @@ class PyBuildExt(build_ext):
                for l in (self.missing, self.failed, self.failed_on_import)):
             print()
             print("Could not build the ssl module!")
-            print("Python requires an OpenSSL 1.0.2 or 1.1 compatible "
-                  "libssl with X509_VERIFY_PARAM_set1_host().")
-            print("LibreSSL 2.6.4 and earlier do not provide the necessary "
-                  "APIs, https://github.com/libressl-portable/portable/issues/381")
+            print("Python requires a OpenSSL 1.1.1 or newer")
             if sysconfig.get_config_var("OPENSSL_LDFLAGS"):
                 print("Custom linker flags may require --with-openssl-rpath=auto")
             print()
@@ -2425,14 +2428,6 @@ class PyBuildExt(build_ext):
             self.missing.extend(['_ssl', '_hashlib'])
             return None, None
 
-        # OpenSSL 1.0.2 uses Kerberos for KRB5 ciphers
-        krb5_h = find_file(
-            'krb5.h', self.inc_dirs,
-            ['/usr/kerberos/include']
-        )
-        if krb5_h:
-            ssl_incs.extend(krb5_h)
-
         if openssl_rpath == 'auto':
             runtime_library_dirs = openssl_libdirs[:]
         elif not openssl_rpath:
@@ -2462,24 +2457,14 @@ class PyBuildExt(build_ext):
             # don't link OpenSSL shared libraries.
             openssl_extension_kwargs["libraries"] = []
 
-        if config_vars.get("HAVE_X509_VERIFY_PARAM_SET1_HOST"):
-            self.add(
-                Extension(
-                    '_ssl',
-                    ['_ssl.c'],
-                    depends=[
-                        'socketmodule.h',
-                        '_ssl/debughelpers.c',
-                        '_ssl_data.h',
-                        '_ssl_data_111.h',
-                        '_ssl_data_300.h',
-                    ],
-                    **openssl_extension_kwargs
-                )
+        self.add(
+            Extension(
+                '_ssl',
+                ['_ssl.c'],
+                depends=['socketmodule.h', '_ssl/debughelpers.c', '_ssl.h'],
+                **openssl_extension_kwargs
             )
-        else:
-            self.missing.append('_ssl')
-
+        )
         self.add(
             Extension(
                 '_hashlib',

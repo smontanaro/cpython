@@ -53,10 +53,11 @@ def _is_sunder(name):
 def _is_private(cls_name, name):
     # do not use `re` as `re` imports `enum`
     pattern = '_%s__' % (cls_name, )
+    pat_len = len(pattern)
     if (
-            len(name) >= 5
+            len(name) > pat_len
             and name.startswith(pattern)
-            and name[len(pattern)] != '_'
+            and name[pat_len:pat_len+1] != ['_']
             and (name[-1] != '_' or name[-2] != '_')
         ):
         return True
@@ -310,7 +311,7 @@ class _EnumDict(dict):
             pass
         elif _is_sunder(key):
             if key not in (
-                    '_order_', '_create_pseudo_member_',
+                    '_order_',
                     '_generate_next_value_', '_missing_', '_ignore_',
                     '_iter_member_', '_iter_member_by_value_', '_iter_member_by_def_',
                     ):
@@ -919,25 +920,30 @@ class Enum(metaclass=EnumType):
         except Exception as e:
             exc = e
             result = None
-        if isinstance(result, cls):
-            return result
-        elif (
-                Flag is not None and issubclass(cls, Flag)
-                and cls._boundary_ is EJECT and isinstance(result, int)
-            ):
-            return result
-        else:
-            ve_exc = ValueError("%r is not a valid %s" % (value, cls.__qualname__))
-            if result is None and exc is None:
-                raise ve_exc
-            elif exc is None:
-                exc = TypeError(
-                        'error in %s._missing_: returned %r instead of None or a valid member'
-                        % (cls.__name__, result)
-                        )
-            if not isinstance(exc, ValueError):
-                exc.__context__ = ve_exc
-            raise exc
+        try:
+            if isinstance(result, cls):
+                return result
+            elif (
+                    Flag is not None and issubclass(cls, Flag)
+                    and cls._boundary_ is EJECT and isinstance(result, int)
+                ):
+                return result
+            else:
+                ve_exc = ValueError("%r is not a valid %s" % (value, cls.__qualname__))
+                if result is None and exc is None:
+                    raise ve_exc
+                elif exc is None:
+                    exc = TypeError(
+                            'error in %s._missing_: returned %r instead of None or a valid member'
+                            % (cls.__name__, result)
+                            )
+                if not isinstance(exc, ValueError):
+                    exc.__context__ = ve_exc
+                raise exc
+        finally:
+            # ensure all variables that could hold an exception are destroyed
+            exc = None
+            ve_exc = None
 
     def _generate_next_value_(name, start, count, last_values):
         """
@@ -1126,7 +1132,9 @@ class Flag(Enum, boundary=STRICT):
     @classmethod
     def _missing_(cls, value):
         """
-        Create a composite member iff value contains only members.
+        Create a composite member containing all canonical members present in `value`.
+
+        If non-member values are present, result depends on `_boundary_` setting.
         """
         if not isinstance(value, int):
             raise ValueError(

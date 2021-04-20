@@ -7,6 +7,7 @@ _PyPegen_parse(Parser *p)
     // Initialize keywords
     p->keywords = reserved_keywords;
     p->n_keyword_lists = n_keyword_lists;
+    p->soft_keywords = soft_keywords;
 
     // Run parser
     void *result = NULL;
@@ -163,17 +164,20 @@ dotted_name[expr_ty]:
     | NAME
 
 if_stmt[stmt_ty]:
-    | 'if' a=named_expression &&':' b=block c=elif_stmt {
+    | 'if' a=named_expression ':' b=block c=elif_stmt {
         _PyAST_If(a, b, CHECK(asdl_stmt_seq*, _PyPegen_singleton_seq(p, c)), EXTRA) }
-    | 'if' a=named_expression &&':' b=block c=[else_block] { _PyAST_If(a, b, c, EXTRA) }
+    | 'if' a=named_expression ':' b=block c=[else_block] { _PyAST_If(a, b, c, EXTRA) }
+    | invalid_if_stmt
 elif_stmt[stmt_ty]:
-    | 'elif' a=named_expression &&':' b=block c=elif_stmt {
+    | 'elif' a=named_expression ':' b=block c=elif_stmt {
         _PyAST_If(a, b, CHECK(asdl_stmt_seq*, _PyPegen_singleton_seq(p, c)), EXTRA) }
-    | 'elif' a=named_expression &&':' b=block c=[else_block] { _PyAST_If(a, b, c, EXTRA) }
+    | 'elif' a=named_expression ':' b=block c=[else_block] { _PyAST_If(a, b, c, EXTRA) }
+    | invalid_elif_stmt
 else_block[asdl_stmt_seq*]: 'else' &&':' b=block { b }
 
 while_stmt[stmt_ty]:
-    | 'while' a=named_expression &&':' b=block c=[else_block] { _PyAST_While(a, b, c, EXTRA) }
+    | 'while' a=named_expression ':' b=block c=[else_block] { _PyAST_While(a, b, c, EXTRA) }
+    | invalid_while_stmt
 
 for_stmt[stmt_ty]:
     | 'for' t=star_targets 'in' ~ ex=star_expressions &&':' tc=[TYPE_COMMENT] b=block el=[else_block] {
@@ -438,10 +442,15 @@ star_named_expressions[asdl_expr_seq*]: a[asdl_expr_seq*]=','.star_named_express
 star_named_expression[expr_ty]:
     | '*' a=bitwise_or { _PyAST_Starred(a, Load, EXTRA) }
     | named_expression
+
 named_expression[expr_ty]:
     | a=NAME ':=' ~ b=expression { _PyAST_NamedExpr(CHECK(expr_ty, _PyPegen_set_expr_context(p, a, Store)), b, EXTRA) }
-    | expression !':='
     | invalid_named_expression
+    | expression !':='
+
+direct_named_expression[expr_ty]:
+    | a=NAME ':=' ~ b=expression { _PyAST_NamedExpr(CHECK(expr_ty, _PyPegen_set_expr_context(p, a, Store)), b, EXTRA) }
+    | expression !':='
 
 annotated_rhs[expr_ty]: yield_expr | star_expressions
 
@@ -451,6 +460,7 @@ expressions[expr_ty]:
     | a=expression ',' { _PyAST_Tuple(CHECK(asdl_expr_seq*, _PyPegen_singleton_seq(p, a)), Load, EXTRA) }
     | expression
 expression[expr_ty] (memo):
+    | invalid_expression
     | a=disjunction 'if' b=disjunction 'else' c=expression { _PyAST_IfExp(b, a, c, EXTRA) }
     | disjunction
     | lambdef
@@ -630,7 +640,7 @@ group[expr_ty]:
     | '(' a=(yield_expr | named_expression) ')' { a }
     | invalid_group
 genexp[expr_ty]:
-    | '(' a=named_expression b=for_if_clauses ')' { _PyAST_GeneratorExp(a, b, EXTRA) }
+    | '(' a=direct_named_expression b=for_if_clauses ')' { _PyAST_GeneratorExp(a, b, EXTRA) }
     | invalid_comprehension
 set[expr_ty]: '{' a=star_named_expressions '}' { _PyAST_Set(a, EXTRA) }
 setcomp[expr_ty]:
@@ -642,6 +652,8 @@ dict[expr_ty]:
             CHECK(asdl_expr_seq*, _PyPegen_get_keys(p, a)),
             CHECK(asdl_expr_seq*, _PyPegen_get_values(p, a)),
             EXTRA) }
+    | '{' invalid_double_starred_kvpairs '}'
+
 dictcomp[expr_ty]:
     | '{' a=kvpair b=for_if_clauses '}' { _PyAST_DictComp(a->key, a->value, b, EXTRA) }
     | invalid_dict_comprehension
@@ -667,7 +679,7 @@ arguments[expr_ty] (memo):
     | a=args [','] &')' { a }
     | invalid_arguments
 args[expr_ty]:
-    | a[asdl_expr_seq*]=','.(starred_expression | named_expression !'=')+ b=[',' k=kwargs {k}] { _PyPegen_collect_call_seqs(p, a, b, EXTRA) }
+    | a[asdl_expr_seq*]=','.(starred_expression | direct_named_expression !'=')+ b=[',' k=kwargs {k}] { _PyPegen_collect_call_seqs(p, a, b, EXTRA) }
     | a=kwargs { _PyAST_Call(_PyPegen_dummy_name(p),
                           CHECK_NULL_ALLOWED(asdl_expr_seq*, _PyPegen_seq_extract_starred_exprs(p, a)),
                           CHECK_NULL_ALLOWED(asdl_keyword_seq*, _PyPegen_seq_delete_starred_exprs(p, a)),
@@ -768,10 +780,23 @@ invalid_kwarg:
     | expression a='=' {
         RAISE_SYNTAX_ERROR_KNOWN_LOCATION(
             a, "expression cannot contain assignment, perhaps you meant \"==\"?") }
+
+invalid_expression:
+    # !(NAME STRING) is not matched so we don't show this error with some invalid string prefixes like: kf"dsfsdf"
+    # Soft keywords need to also be ignored because they can be parsed as NAME NAME
+    | !(NAME STRING | SOFT_KEYWORD) a=disjunction expression {
+        RAISE_ERROR_KNOWN_LOCATION(p, PyExc_SyntaxError, a->lineno, a->end_col_offset - 1, "invalid syntax. Perhaps you forgot a comma?") }
+
 invalid_named_expression:
     | a=expression ':=' expression {
         RAISE_SYNTAX_ERROR_KNOWN_LOCATION(
             a, "cannot use assignment expressions with %s", _PyPegen_get_expr_name(a)) }
+    | a=NAME b='=' bitwise_or !('='|':='|',') {
+        RAISE_SYNTAX_ERROR_KNOWN_LOCATION(b, "invalid syntax. Maybe you meant '==' or ':=' instead of '='?") }
+    | !(list|tuple|genexp|'True'|'None'|'False') a=bitwise_or b='=' bitwise_or !('='|':='|',') {
+        RAISE_SYNTAX_ERROR_KNOWN_LOCATION(b, "cannot assign to %s here. Maybe you meant '==' instead of '='?",
+                                          _PyPegen_get_expr_name(a)) }
+
 invalid_assignment:
     | a=invalid_ann_assign_target ':' expression {
         RAISE_SYNTAX_ERROR_KNOWN_LOCATION(
@@ -841,9 +866,9 @@ invalid_for_target:
 
 invalid_group:
     | '(' a=starred_expression ')' {
-        RAISE_SYNTAX_ERROR_KNOWN_LOCATION(a, "can't use starred expression here") }
+        RAISE_SYNTAX_ERROR_KNOWN_LOCATION(a, "cannot use starred expression here") }
     | '(' a='**' expression ')' {
-        RAISE_SYNTAX_ERROR_KNOWN_LOCATION(a, "can't use double starred expression here") }
+        RAISE_SYNTAX_ERROR_KNOWN_LOCATION(a, "cannot use double starred expression here") }
 invalid_import_from_targets:
     | import_from_as_names ',' {
         RAISE_SYNTAX_ERROR("trailing comma not allowed without surrounding parentheses") }
@@ -860,6 +885,21 @@ invalid_except_block:
 
 invalid_match_stmt:
     | "match" subject_expr !':' { CHECK_VERSION(void*, 10, "Pattern matching is", RAISE_SYNTAX_ERROR("expected ':'") ) }
-
 invalid_case_block:
     | "case" patterns guard? !':' { RAISE_SYNTAX_ERROR("expected ':'") }
+invalid_if_stmt:
+    | 'if' named_expression NEWLINE { RAISE_SYNTAX_ERROR("expected ':'") }
+invalid_elif_stmt:
+    | 'elif' named_expression NEWLINE { RAISE_SYNTAX_ERROR("expected ':'") }
+invalid_while_stmt:
+    | 'while' named_expression NEWLINE { RAISE_SYNTAX_ERROR("expected ':'") }
+
+invalid_double_starred_kvpairs:
+    | ','.double_starred_kvpair+ ',' invalid_kvpair
+    | expression ':' a='*' bitwise_or { RAISE_SYNTAX_ERROR_KNOWN_LOCATION(a, "cannot use a starred expression in a dictionary value") }
+    | expression a=':' &('}'|',') { RAISE_SYNTAX_ERROR_KNOWN_LOCATION(a, "expression expected after dictionary key and ':'") }
+invalid_kvpair:
+    | a=expression !(':') {
+        RAISE_ERROR_KNOWN_LOCATION(p, PyExc_SyntaxError, a->lineno, a->end_col_offset - 1, "':' expected after dictionary key") }
+    | expression ':' a='*' bitwise_or { RAISE_SYNTAX_ERROR_KNOWN_LOCATION(a, "cannot use a starred expression in a dictionary value") }
+    | expression a=':' {RAISE_SYNTAX_ERROR_KNOWN_LOCATION(a, "expression expected after dictionary key and ':'") }

@@ -1932,6 +1932,38 @@ class TestEnum(unittest.TestCase):
         else:
             raise Exception('Exception not raised.')
 
+    def test_missing_exceptions_reset(self):
+        import weakref
+        #
+        class TestEnum(enum.Enum):
+            VAL1 = 'val1'
+            VAL2 = 'val2'
+        #
+        class Class1:
+            def __init__(self):
+                # Gracefully handle an exception of our own making
+                try:
+                    raise ValueError()
+                except ValueError:
+                    pass
+        #
+        class Class2:
+            def __init__(self):
+                # Gracefully handle an exception of Enum's making
+                try:
+                    TestEnum('invalid_value')
+                except ValueError:
+                    pass
+        # No strong refs here so these are free to die.
+        class_1_ref = weakref.ref(Class1())
+        class_2_ref = weakref.ref(Class2())
+        #
+        # The exception raised by Enum creates a reference loop and thus
+        # Class2 instances will stick around until the next gargage collection
+        # cycle, unlike Class1.
+        self.assertIs(class_1_ref(), None)
+        self.assertIs(class_2_ref(), None)
+
     def test_multiple_mixin(self):
         class MaxMixin:
             @classproperty
@@ -3363,6 +3395,31 @@ class TestUnique(unittest.TestCase):
             triple = 3
             value = 4
 
+class TestHelpers(unittest.TestCase):
+
+    sunder_names = '_bad_', '_good_', '_what_ho_'
+    dunder_names = '__mal__', '__bien__', '__que_que__'
+    private_names = '_MyEnum__private', '_MyEnum__still_private'
+    private_and_sunder_names = '_MyEnum__private_', '_MyEnum__also_private_'
+    random_names = 'okay', '_semi_private', '_weird__', '_MyEnum__'
+
+    def test_sunder(self):
+        for name in self.sunder_names + self.private_and_sunder_names:
+            self.assertTrue(enum._is_sunder(name), '%r is a not sunder name?' % name)
+        for name in self.dunder_names + self.private_names + self.random_names:
+            self.assertFalse(enum._is_sunder(name), '%r is a sunder name?' % name)
+
+    def test_dunder(self):
+        for name in self.dunder_names:
+            self.assertTrue(enum._is_dunder(name), '%r is a not dunder name?' % name)
+        for name in self.sunder_names + self.private_names + self.private_and_sunder_names + self.random_names:
+            self.assertFalse(enum._is_dunder(name), '%r is a dunder name?' % name)
+
+    def test_is_private(self):
+        for name in self.private_names + self.private_and_sunder_names:
+            self.assertTrue(enum._is_private('MyEnum', name), '%r is a not private name?')
+        for name in self.sunder_names + self.dunder_names + self.random_names:
+            self.assertFalse(enum._is_private('MyEnum', name), '%r is a private name?')
 
 class TestEnumTypeSubclassing(unittest.TestCase):
     pass
