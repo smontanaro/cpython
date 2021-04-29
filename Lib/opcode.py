@@ -9,7 +9,7 @@ __all__ = ["cmp_op", "hasconst", "hasname", "hasjrel", "hasjabs",
            "HAVE_ARGUMENT", "EXTENDED_ARG", "hasnargs", "HAVE_REGISTERS",
            "hasregs", "hasregds", "hasregdss", "hasregdn", "hasregdc",
            "hasregjc", "hasregns", "hasregdsa", "hasregdas", "hasregss",
-           "hasregis",]
+           "hasregis", "hascont",]
 
 # It's a chicken-and-egg I'm afraid:
 # We're imported before _opcode's made.
@@ -75,6 +75,7 @@ hasregdc = []                   # Dst <- Const
 hasregjc = []                   # Jump(Const)
 hasregdsa = []                  # Dst <- Src.Attr
 hasregdas = []                  # Dst.Attr <- Src
+hascont = []                    # Dst <- Src "in|not in" Src
 
 opmap = {}
 opname = ['<%r>' % (op,) for op in range(256)]
@@ -294,6 +295,7 @@ hascompare.append(op)
 def_op('COMPARE_OP_REG', op) ; op += 1
 hasregis.append(op)
 def_op('IS_OP_REG', op) ; op += 1
+hascont.append(op)
 def_op('CONTAINS_OP_REG', op) ; op += 1
 hasregjc.append(op)
 def_op('JUMP_IF_FALSE_REG', op) ; op += 1

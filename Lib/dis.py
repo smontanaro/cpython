@@ -380,6 +380,15 @@ def _get_regjc_info(arg):
     argrepr = f"to {arg >> 8}, %r{arg & 0xff}"
     return arg, argrepr
 
+def _get_cont_info(arg):
+    """Register contains instruction helper"""
+    op = "not in" if (arg & 0xff) else "in"
+    src2 = (arg >> 8) & 0xff
+    src1 = (arg >> 16) & 0xff
+    dst = (arg >> 24) & 0xff
+    argrepr = f"%r{dst} <- %r{src1} {op} %r{src2}"
+    return arg, argrepr
+
 def _get_const_info(const_index, const_list):
     """Helper to get optional details about const references
 
@@ -461,6 +470,8 @@ def _get_instructions_bytes(code, varnames=None, names=None, constants=None,
                     argval, argrepr = _get_regdsa_info(arg, names)
                 elif op in hasregdas:
                     argval, argrepr = _get_regdas_info(arg, names)
+                elif op in hascont:
+                    argval, argrepr = _get_cont_info(arg)
                 elif op == FORMAT_VALUE_REG:
                     FVC_MASK = 0b11
                     FVS_MASK = 0b100
