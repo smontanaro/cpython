@@ -72,16 +72,16 @@ extern "C" {
 #define POP_BLOCK                62
 #define POP_EXCEPT               63
 #define HAVE_ARGUMENT            64
-#define RERAISE                  64
-#define STORE_NAME               65
-#define DELETE_NAME              66
-#define UNPACK_SEQUENCE          67
-#define FOR_ITER                 68
-#define UNPACK_EX                69
-#define STORE_ATTR               70
-#define DELETE_ATTR              71
-#define STORE_GLOBAL             72
-#define DELETE_GLOBAL            73
+#define STORE_NAME               64
+#define DELETE_NAME              65
+#define UNPACK_SEQUENCE          66
+#define FOR_ITER                 67
+#define UNPACK_EX                68
+#define STORE_ATTR               69
+#define DELETE_ATTR              70
+#define STORE_GLOBAL             71
+#define DELETE_GLOBAL            72
+#define ROT_N                    73
 #define LOAD_CONST               74
 #define LOAD_NAME                75
 #define BUILD_TUPLE              76
@@ -101,120 +101,121 @@ extern "C" {
 #define LOAD_GLOBAL              90
 #define IS_OP                    91
 #define CONTAINS_OP              92
-#define JUMP_IF_NOT_EXC_MATCH    93
-#define SETUP_FINALLY            94
-#define LOAD_FAST                95
-#define STORE_FAST               96
-#define DELETE_FAST              97
-#define GEN_START                98
-#define RAISE_VARARGS            99
-#define CALL_FUNCTION           100
-#define MAKE_FUNCTION           101
-#define BUILD_SLICE             102
-#define LOAD_CLOSURE            103
-#define LOAD_DEREF              104
-#define STORE_DEREF             105
-#define DELETE_DEREF            106
-#define CALL_FUNCTION_KW        107
-#define CALL_FUNCTION_EX        108
-#define SETUP_WITH              109
-#define EXTENDED_ARG            110
-#define LIST_APPEND             111
-#define SET_ADD                 112
-#define MAP_ADD                 113
-#define LOAD_CLASSDEREF         114
-#define MATCH_CLASS             115
-#define SETUP_ASYNC_WITH        116
-#define FORMAT_VALUE            117
-#define BUILD_CONST_KEY_MAP     118
-#define BUILD_STRING            119
-#define LOAD_METHOD             120
-#define CALL_METHOD             121
-#define LIST_EXTEND             122
-#define SET_UPDATE              123
-#define DICT_MERGE              124
-#define DICT_UPDATE             125
-#define HAVE_REGISTERS          126
-#define BINARY_ADD_REG          126
-#define BINARY_AND_REG          127
-#define BINARY_FLOOR_DIVIDE_REG 128
-#define BINARY_LSHIFT_REG       129
-#define BINARY_MATRIX_MULTIPLY_REG 130
-#define BINARY_MODULO_REG       131
-#define BINARY_MULTIPLY_REG     132
-#define BINARY_OR_REG           133
-#define BINARY_POWER_REG        134
-#define BINARY_RSHIFT_REG       135
-#define BINARY_SUBSCR_REG       136
-#define BINARY_SUBTRACT_REG     137
-#define BINARY_TRUE_DIVIDE_REG  138
-#define BINARY_XOR_REG          139
-#define RETURN_VALUE_REG        140
-#define LOAD_CONST_REG          141
-#define LOAD_GLOBAL_REG         142
-#define LOAD_FAST_REG           143
-#define STORE_FAST_REG          144
-#define STORE_GLOBAL_REG        145
-#define COMPARE_OP_REG          146
-#define IS_OP_REG               147
-#define CONTAINS_OP_REG         148
-#define JUMP_IF_FALSE_REG       149
-#define JUMP_IF_TRUE_REG        150
-#define UNARY_INVERT_REG        151
-#define UNARY_NEGATIVE_REG      152
-#define UNARY_NOT_REG           153
-#define UNARY_POSITIVE_REG      154
-#define BUILD_TUPLE_REG         155
-#define BUILD_MAP_REG           156
-#define BUILD_LIST_REG          157
-#define LIST_EXTEND_REG         158
-#define CALL_FUNCTION_REG       159
-#define CALL_FUNCTION_KW_REG    160
-#define CALL_FUNCTION_EX_REG    161
-#define INPLACE_ADD_REG         162
-#define INPLACE_AND_REG         163
-#define INPLACE_FLOOR_DIVIDE_REG 164
-#define INPLACE_LSHIFT_REG      165
-#define INPLACE_MATRIX_MULTIPLY_REG 166
-#define INPLACE_MODULO_REG      167
-#define INPLACE_MULTIPLY_REG    168
-#define INPLACE_OR_REG          169
-#define INPLACE_POWER_REG       170
-#define INPLACE_RSHIFT_REG      171
-#define INPLACE_SUBTRACT_REG    172
-#define INPLACE_TRUE_DIVIDE_REG 173
-#define INPLACE_XOR_REG         174
-#define LOAD_ATTR_REG           175
-#define STORE_ATTR_REG          176
-#define DELETE_ATTR_REG         177
-#define GET_ITER_REG            178
-#define FOR_ITER_REG            179
-#define IMPORT_NAME_REG         180
-#define BUILD_SET_REG           181
-#define DICT_MERGE_REG          182
-#define DICT_UPDATE_REG         183
-#define BUILD_STRING_REG        184
-#define FORMAT_VALUE_REG        185
-#define RAISE_VARARGS_REG       186
-#define LOAD_DEREF_REG          187
+#define RERAISE                  93
+#define JUMP_IF_NOT_EXC_MATCH    94
+#define SETUP_FINALLY            95
+#define LOAD_FAST                96
+#define STORE_FAST               97
+#define DELETE_FAST              98
+#define GEN_START                99
+#define RAISE_VARARGS           100
+#define CALL_FUNCTION           101
+#define MAKE_FUNCTION           102
+#define BUILD_SLICE             103
+#define LOAD_CLOSURE            104
+#define LOAD_DEREF              105
+#define STORE_DEREF             106
+#define DELETE_DEREF            107
+#define CALL_FUNCTION_KW        108
+#define CALL_FUNCTION_EX        109
+#define SETUP_WITH              110
+#define EXTENDED_ARG            111
+#define LIST_APPEND             112
+#define SET_ADD                 113
+#define MAP_ADD                 114
+#define LOAD_CLASSDEREF         115
+#define MATCH_CLASS             116
+#define SETUP_ASYNC_WITH        117
+#define FORMAT_VALUE            118
+#define BUILD_CONST_KEY_MAP     119
+#define BUILD_STRING            120
+#define LOAD_METHOD             121
+#define CALL_METHOD             122
+#define LIST_EXTEND             123
+#define SET_UPDATE              124
+#define DICT_MERGE              125
+#define DICT_UPDATE             126
+#define HAVE_REGISTERS          127
+#define BINARY_ADD_REG          127
+#define BINARY_AND_REG          128
+#define BINARY_FLOOR_DIVIDE_REG 129
+#define BINARY_LSHIFT_REG       130
+#define BINARY_MATRIX_MULTIPLY_REG 131
+#define BINARY_MODULO_REG       132
+#define BINARY_MULTIPLY_REG     133
+#define BINARY_OR_REG           134
+#define BINARY_POWER_REG        135
+#define BINARY_RSHIFT_REG       136
+#define BINARY_SUBSCR_REG       137
+#define BINARY_SUBTRACT_REG     138
+#define BINARY_TRUE_DIVIDE_REG  139
+#define BINARY_XOR_REG          140
+#define RETURN_VALUE_REG        141
+#define LOAD_CONST_REG          142
+#define LOAD_GLOBAL_REG         143
+#define LOAD_FAST_REG           144
+#define STORE_FAST_REG          145
+#define STORE_GLOBAL_REG        146
+#define COMPARE_OP_REG          147
+#define IS_OP_REG               148
+#define CONTAINS_OP_REG         149
+#define JUMP_IF_FALSE_REG       150
+#define JUMP_IF_TRUE_REG        151
+#define UNARY_INVERT_REG        152
+#define UNARY_NEGATIVE_REG      153
+#define UNARY_NOT_REG           154
+#define UNARY_POSITIVE_REG      155
+#define BUILD_TUPLE_REG         156
+#define BUILD_MAP_REG           157
+#define BUILD_LIST_REG          158
+#define LIST_EXTEND_REG         159
+#define CALL_FUNCTION_REG       160
+#define CALL_FUNCTION_KW_REG    161
+#define CALL_FUNCTION_EX_REG    162
+#define INPLACE_ADD_REG         163
+#define INPLACE_AND_REG         164
+#define INPLACE_FLOOR_DIVIDE_REG 165
+#define INPLACE_LSHIFT_REG      166
+#define INPLACE_MATRIX_MULTIPLY_REG 167
+#define INPLACE_MODULO_REG      168
+#define INPLACE_MULTIPLY_REG    169
+#define INPLACE_OR_REG          170
+#define INPLACE_POWER_REG       171
+#define INPLACE_RSHIFT_REG      172
+#define INPLACE_SUBTRACT_REG    173
+#define INPLACE_TRUE_DIVIDE_REG 174
+#define INPLACE_XOR_REG         175
+#define LOAD_ATTR_REG           176
+#define STORE_ATTR_REG          177
+#define DELETE_ATTR_REG         178
+#define GET_ITER_REG            179
+#define FOR_ITER_REG            180
+#define IMPORT_NAME_REG         181
+#define BUILD_SET_REG           182
+#define DICT_MERGE_REG          183
+#define DICT_UPDATE_REG         184
+#define BUILD_STRING_REG        185
+#define FORMAT_VALUE_REG        186
+#define RAISE_VARARGS_REG       187
+#define LOAD_DEREF_REG          188
 #ifdef NEED_OPCODE_JUMP_TABLES
 static uint32_t _PyOpcode_RelativeJump[8] = {
     0U,
     0U,
-    1074790416U,
-    1056768U,
+    2148532232U,
+    2113536U,
     0U,
-    524288U,
+    1048576U,
     0U,
     0U,
 };
 static uint32_t _PyOpcode_Jump[8] = {
     0U,
     0U,
-    1676673040U,
-    1056768U,
+    3287285768U,
+    2113536U,
     0U,
-    524288U,
+    1048576U,
     0U,
     0U,
 };

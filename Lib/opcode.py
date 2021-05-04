@@ -168,7 +168,6 @@ def_op('POP_EXCEPT', op) ; op += 1
 
 HAVE_ARGUMENT = op              # Opcodes from here have an argument:
 
-def_op('RERAISE', op) ; op += 1
 name_op('STORE_NAME', op) ; op += 1       # Index in name list
 name_op('DELETE_NAME', op) ; op += 1      # ""
 def_op('UNPACK_SEQUENCE', op) ; op += 1   # Number of tuple items
@@ -178,6 +177,7 @@ name_op('STORE_ATTR', op) ; op += 1       # Index in name list
 name_op('DELETE_ATTR', op) ; op += 1      # ""
 name_op('STORE_GLOBAL', op) ; op += 1     # ""
 name_op('DELETE_GLOBAL', op) ; op += 1    # ""
+def_op('ROT_N', op) ; op += 1
 hasconst.append(op)
 def_op('LOAD_CONST', op) ; op += 1       # Index in const list
 name_op('LOAD_NAME', op) ; op += 1       # Index in name list
@@ -199,6 +199,7 @@ jabs_op('POP_JUMP_IF_TRUE', op) ; op += 1     # ""
 name_op('LOAD_GLOBAL', op) ; op += 1     # Index in name list
 def_op('IS_OP', op) ; op += 1
 def_op('CONTAINS_OP', op) ; op += 1
+def_op('RERAISE', op) ; op += 1
 jabs_op('JUMP_IF_NOT_EXC_MATCH', op) ; op += 1
 jrel_op('SETUP_FINALLY', op) ; op += 1   # Distance to target address
 haslocal.append(op)
@@ -208,7 +209,7 @@ def_op('STORE_FAST', op) ; op += 1       # Local variable number
 haslocal.append(op)
 def_op('DELETE_FAST', op) ; op += 1      # Local variable number
 
-def_op('GEN_START', op) ; op += 1
+def_op('GEN_START', op) ; op += 1        # Kind of generator/coroutine
 def_op('RAISE_VARARGS', op) ; op += 1    # Number of raise arguments (1, 2, or 3)
 def_op('CALL_FUNCTION', op) ; op += 1    # #args
 def_op('MAKE_FUNCTION', op) ; op += 1    # Flags
