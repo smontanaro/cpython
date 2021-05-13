@@ -238,7 +238,7 @@ have been incorporated. Some of the most notable ones:
 
     (Contributed by Pablo Galindo in :issue:`43822`)
 
-* Exception groups without parentheses:
+* Multiple Exception types without parentheses:
 
     .. code-block:: python
 
@@ -248,7 +248,7 @@ have been incorporated. Some of the most notable ones:
           File "<stdin>", line 3
             except NotEnoughScienceError, NotEnoughResourcesError:
                    ^
-        SyntaxError: exception group must be parenthesized
+        SyntaxError: multiple exception types must be parenthesized
 
     (Contributed by Pablo Galindo in :issue:`43149`)
 
@@ -812,6 +812,16 @@ Other Language Changes
   :ref:`annotations-howto`.
   (Contributed by Larry Hastings in :issue:`43901`.)
 
+* Annotations consist of ``yield``, ``yield from``, ``await`` or named expressions
+  are now forbidden under ``from __future__ import annotations`` due to their side
+  effects.
+  (Contributed by Batuhan Taskaya in :issue:`42725`.)
+
+* Usage of unbound variables, ``super()`` and other expressions that might
+  alter the processing of symbol table as annotations are now rendered
+  effectless under ``from __future__ import annotations``.
+  (Contributed by Batuhan Taskaya in :issue:`42725`.)
+
 New Modules
 ===========
 
@@ -1093,6 +1103,11 @@ Add :meth:`Path.hardlink_to <pathlib.Path.hardlink_to>` method that
 supersedes :meth:`~pathlib.Path.link_to`. The new method has the same argument
 order as :meth:`~pathlib.Path.symlink_to`.
 (Contributed by Barney Gale in :issue:`39950`.)
+
+:meth:`pathlib.Path.stat` and :meth:`~pathlib.Path.chmod` now accept a
+*follow_symlinks* keyword-only argument for consistency with corresponding
+functions in the :mod:`os` module.
+(Contributed by Barney Gale in :issue:`39906`.)
 
 platform
 --------
