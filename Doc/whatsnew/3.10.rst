@@ -1030,6 +1030,12 @@ Terry Jan Reedy in :issue:`37892`.)
 We expect to backport these shell changes to a future 3.9 maintenance
 release.
 
+Highlight the new :ref:`soft keywords <soft-keywords>` :keyword:`match`,
+:keyword:`case <match>`, and :keyword:`_ <wildcard-patterns>` in
+pattern-matching statements. However, this highlighting is not perfect
+and will be incorrect in some rare cases, including some ``_``-s in
+``case`` patterns.  (Contributed by Tal Einat in bpo-44010.)
+
 importlib.metadata
 ------------------
 
@@ -1330,6 +1336,13 @@ separator key, with ``&`` as the default.  This change also affects
 functions internally.  For more details, please see their respective
 documentation.
 (Contributed by Adam Goldschmidt, Senthil Kumaran and Ken Jin in :issue:`42967`.)
+
+The presence of newline or tab characters in parts of a URL allows for some
+forms of attacks. Following the WHATWG specification that updates :rfc:`3986`,
+ASCII newline ``\n``, ``\r`` and tab ``\t`` characters are stripped from the
+URL by the parser in :mod:`urllib.parse` preventing such attacks. The removal
+characters are controlled by a new module level variable
+``urllib.parse._UNSAFE_URL_BYTES_TO_REMOVE``. (See :issue:`43882`)
 
 xml
 ---
