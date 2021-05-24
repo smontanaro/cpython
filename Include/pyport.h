@@ -183,10 +183,10 @@ typedef int Py_ssize_clean_t;
 
 #if defined(_MSC_VER)
 #  if defined(PY_LOCAL_AGGRESSIVE)
-   /* enable more aggressive optimization for MSVC */
-   /* active in both release and debug builds - see bpo-43271 */
-#  pragma optimize("gt", on)
-#endif
+     /* enable more aggressive optimization for MSVC */
+     /* active in both release and debug builds - see bpo-43271 */
+#    pragma optimize("gt", on)
+#  endif
    /* ignore warnings if the compiler decides not to inline a function */
 #  pragma warning(disable: 4710)
    /* fastest possible local call under MSVC */
