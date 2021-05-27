@@ -15,7 +15,7 @@ from rattlesnake.loadstore import LoadFastInstruction
 instructions.Instruction.dump_at_end = False
 
 class InstructionTest(unittest.TestCase):
-    def function_helper(self, func, propagate=True, verbose=False):
+    def function_helper(self, func, propagate=False, verbose=False):
         pyvm_code = func.__code__
 
         # # just for symmetry with construction of rvm below...
