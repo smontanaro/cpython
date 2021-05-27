@@ -28,7 +28,6 @@ class JumpTest(InstructionTest):
         self.assertEqual(pyvm(False), rvm(False))
         self.assertEqual(pyvm(True), rvm(True))
 
-    @unittest.skip("broken")
     def test_simple_branch_function(self):
         def branch_func(a):
             if a > 4:
