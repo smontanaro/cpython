@@ -40,7 +40,6 @@ class BlockTest(InstructionTest):
                              ]
                          ])
 
-    #@unittest.skip("broken")
     def test_long_block(self):
         def long_block(s, b):
             global _A_GLOBAL
@@ -82,10 +81,9 @@ class BlockTest(InstructionTest):
                 return s
             _A_GLOBAL -= 1
             return b - 1
-        for prop in (True, False):
-            (pyvm, rvm) = self.function_helper(long_block, propagate=prop)
-            self.assertEqual(pyvm(7, 3), rvm(7, 3))
-            self.assertEqual(pyvm(3, 7), rvm(3, 7))
+        (pyvm, rvm) = self.function_helper(long_block, propagate=False)
+        self.assertEqual(pyvm(7, 3), rvm(7, 3))
+        self.assertEqual(pyvm(3, 7), rvm(3, 7))
 
     def test_util_LineNumberDict(self):
         lno_dict = util.LineNumberDict(get_opcodes.__code__)
