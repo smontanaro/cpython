@@ -42,9 +42,9 @@ row_clear(pysqlite_Row *self)
 static int
 row_traverse(pysqlite_Row *self, visitproc visit, void *arg)
 {
+    Py_VISIT(Py_TYPE(self));
     Py_VISIT(self->data);
     Py_VISIT(self->description);
-    Py_VISIT(Py_TYPE(self));
     return 0;
 }
 
@@ -254,7 +254,8 @@ static PyType_Slot row_slots[] = {
 static PyType_Spec row_spec = {
     .name = MODULE_NAME ".Row",
     .basicsize = sizeof(pysqlite_Row),
-    .flags = Py_TPFLAGS_DEFAULT | Py_TPFLAGS_BASETYPE | Py_TPFLAGS_HAVE_GC,
+    .flags = (Py_TPFLAGS_DEFAULT | Py_TPFLAGS_BASETYPE |
+              Py_TPFLAGS_HAVE_GC | Py_TPFLAGS_IMMUTABLETYPE),
     .slots = row_slots,
 };
 

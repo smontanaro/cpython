@@ -4829,6 +4829,10 @@ check_pyobject_forbidden_bytes_is_freed(PyObject *self, PyObject *Py_UNUSED(args
 static PyObject*
 check_pyobject_freed_is_freed(PyObject *self, PyObject *Py_UNUSED(args))
 {
+    /* This test would fail if run with the address sanitizer */
+#ifdef _Py_ADDRESS_SANITIZER
+    Py_RETURN_NONE;
+#else
     PyObject *op = _PyObject_CallNoArg((PyObject *)&PyBaseObject_Type);
     if (op == NULL) {
         return NULL;
@@ -4838,6 +4842,7 @@ check_pyobject_freed_is_freed(PyObject *self, PyObject *Py_UNUSED(args))
     Py_SET_REFCNT(op, 1);
     /* object memory is freed! */
     return test_pyobject_is_freed("check_pyobject_freed_is_freed", op);
+#endif
 }
 
 
@@ -6595,6 +6600,13 @@ heapctype_init(PyObject *self, PyObject *args, PyObject *kwargs)
     return 0;
 }
 
+static int
+heapgcctype_traverse(HeapCTypeObject *self, visitproc visit, void *arg)
+{
+    Py_VISIT(Py_TYPE(self));
+    return 0;
+}
+
 static void
 heapgcctype_dealloc(HeapCTypeObject *self)
 {
@@ -6608,6 +6620,7 @@ static PyType_Slot HeapGcCType_slots[] = {
     {Py_tp_init, heapctype_init},
     {Py_tp_members, heapctype_members},
     {Py_tp_dealloc, heapgcctype_dealloc},
+    {Py_tp_traverse, heapgcctype_traverse},
     {Py_tp_doc, (char*)heapgctype__doc__},
     {0, 0},
 };

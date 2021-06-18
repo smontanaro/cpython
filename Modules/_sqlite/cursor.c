@@ -84,43 +84,44 @@ pysqlite_cursor_init_impl(pysqlite_Cursor *self,
 static int
 cursor_traverse(pysqlite_Cursor *self, visitproc visit, void *arg)
 {
-    Py_VISIT(self->connection);
-    Py_VISIT(self->row_cast_map);
-    Py_VISIT(self->row_factory);
-    Py_VISIT(self->next_row);
     Py_VISIT(Py_TYPE(self));
+    Py_VISIT(self->connection);
+    Py_VISIT(self->description);
+    Py_VISIT(self->row_cast_map);
+    Py_VISIT(self->lastrowid);
+    Py_VISIT(self->row_factory);
+    Py_VISIT(self->statement);
+    Py_VISIT(self->next_row);
     return 0;
 }
 
 static int
 cursor_clear(pysqlite_Cursor *self)
 {
-    /* Reset the statement if the user has not closed the cursor */
+    Py_CLEAR(self->connection);
+    Py_CLEAR(self->description);
+    Py_CLEAR(self->row_cast_map);
+    Py_CLEAR(self->lastrowid);
+    Py_CLEAR(self->row_factory);
     if (self->statement) {
+        /* Reset the statement if the user has not closed the cursor */
         pysqlite_statement_reset(self->statement);
         Py_CLEAR(self->statement);
     }
-
-    Py_CLEAR(self->connection);
-    Py_CLEAR(self->row_cast_map);
-    Py_CLEAR(self->description);
-    Py_CLEAR(self->lastrowid);
-    Py_CLEAR(self->row_factory);
     Py_CLEAR(self->next_row);
-
-    if (self->in_weakreflist != NULL) {
-        PyObject_ClearWeakRefs((PyObject*)self);
-    }
 
     return 0;
 }
 
 static void
-cursor_dealloc(PyObject *self)
+cursor_dealloc(pysqlite_Cursor *self)
 {
     PyTypeObject *tp = Py_TYPE(self);
     PyObject_GC_UnTrack(self);
-    tp->tp_clear(self);
+    if (self->in_weakreflist != NULL) {
+        PyObject_ClearWeakRefs((PyObject*)self);
+    }
+    tp->tp_clear((PyObject *)self);
     tp->tp_free(self);
     Py_DECREF(tp);
 }
@@ -506,13 +507,8 @@ _pysqlite_query_execute(pysqlite_Cursor* self, int multiple, PyObject* operation
 
     if (self->statement->in_use) {
         Py_SETREF(self->statement,
-                  PyObject_GC_New(pysqlite_Statement, pysqlite_StatementType));
-        if (!self->statement) {
-            goto error;
-        }
-        rc = pysqlite_statement_create(self->statement, self->connection, operation);
-        if (rc != SQLITE_OK) {
-            Py_CLEAR(self->statement);
+                  pysqlite_statement_create(self->connection, operation));
+        if (self->statement == NULL) {
             goto error;
         }
     }
@@ -1040,7 +1036,8 @@ static PyType_Slot cursor_slots[] = {
 static PyType_Spec cursor_spec = {
     .name = MODULE_NAME ".Cursor",
     .basicsize = sizeof(pysqlite_Cursor),
-    .flags = Py_TPFLAGS_DEFAULT | Py_TPFLAGS_BASETYPE | Py_TPFLAGS_HAVE_GC,
+    .flags = (Py_TPFLAGS_DEFAULT | Py_TPFLAGS_BASETYPE |
+              Py_TPFLAGS_HAVE_GC | Py_TPFLAGS_IMMUTABLETYPE),
     .slots = cursor_slots,
 };
 
