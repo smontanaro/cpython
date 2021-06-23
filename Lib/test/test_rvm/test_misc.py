@@ -3,8 +3,8 @@
 import opcode
 import unittest
 
-from rattlesnake.loadstore import LoadFastInstruction
-from rattlesnake import instructions
+from rvm.loadstore import LoadFastInstruction
+from rvm import instructions
 
 from . import InstructionTest
 

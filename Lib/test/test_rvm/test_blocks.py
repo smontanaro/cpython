@@ -2,8 +2,8 @@
 import opcode
 import unittest
 
-from rattlesnake.converter import InstructionSetConverter
-from rattlesnake import util
+from rvm.converter import InstructionSetConverter
+from rvm import util
 
 from . import InstructionTest, get_opcodes
 

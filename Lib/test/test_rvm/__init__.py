@@ -7,8 +7,8 @@ import sys
 from test.support import load_package_tests
 import unittest
 
-from rattlesnake.converter import InstructionSetConverter
-from rattlesnake import instructions, util
+from rvm.converter import InstructionSetConverter
+from rvm import instructions, util
 
 
 instructions.Instruction.dump_at_end = False
