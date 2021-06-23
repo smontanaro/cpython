@@ -1,0 +1,46 @@
+define print_opargs
+  p $arg0
+  p/x oparg
+  p (oparg >> 24)
+  p (oparg >> 16) & 0xff
+  p (oparg >> 8) & 0xff
+  p oparg & 0xff
+  p *fastlocals@4
+  py-locals
+  py-list
+end
+
+define print_opargs_jump
+  p $arg0
+  p/x oparg
+  p (oparg >> 16) & 0xff | (oparg >> 8) & 0xff
+  p oparg & 0xff
+  p *fastlocals@4
+  py-locals
+  py-list
+end
+
+break ceval_reg.h:_PyEval_EvalFrameDefault:TARGET_CONTAINS_OP_REG
+  commands
+    print_opargs "CONTAINS_OP_REG"
+  end
+break ceval_reg.h:_PyEval_EvalFrameDefault:TARGET_JUMP_IF_FALSE_REG
+  commands
+    print_opargs_jump "JUMP_IF_FALSE_REG"
+  end
+break ceval_reg.h:_PyEval_EvalFrameDefault:TARGET_JUMP_IF_TRUE_REG
+  commands
+    print_opargs_jump "JUMP_IF_TRUE_REG"
+  end
+# break ceval_reg.h:_PyEval_EvalFrameDefault:TARGET_LOAD_FAST_REG
+#   commands
+#     print_opargs "LOAD_FAST_REG"
+#   end
+# break ceval_reg.h:_PyEval_EvalFrameDefault:TARGET_COMPARE_OP_REG
+#   commands
+#     print_opargs "COMPARE_OP_REG"
+#   end
+# break ceval_reg.h:_PyEval_EvalFrameDefault:TARGET_LOAD_GLOBAL_REG
+#   commands
+#     print_opargs "LOAD_GLOBAL_REG"
+#   end
