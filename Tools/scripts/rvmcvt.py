@@ -55,8 +55,7 @@ execution, asserting that co_nlocals + co_stacksize <= 127.)
 import dis
 import sys
 
-# TBD... will change at some point
-from rattlesnake.converter import InstructionSetConverter
+from rvm.converter import InstructionSetConverter
 
 __version__ = "0.0"
 
