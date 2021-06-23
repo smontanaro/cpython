@@ -9,7 +9,6 @@ import unittest
 
 from rattlesnake.converter import InstructionSetConverter
 from rattlesnake import instructions, util
-from rattlesnake.loadstore import LoadFastInstruction
 
 
 instructions.Instruction.dump_at_end = False

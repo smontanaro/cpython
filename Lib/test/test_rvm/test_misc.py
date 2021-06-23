@@ -1,6 +1,10 @@
 """Tests which (so far) don't fit anywhere else."""
 
+import opcode
 import unittest
+
+from rattlesnake.loadstore import LoadFastInstruction
+from rattlesnake import instructions
 
 from . import InstructionTest
 
