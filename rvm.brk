@@ -32,6 +32,14 @@ break ceval_reg.h:_PyEval_EvalFrameDefault:TARGET_JUMP_IF_TRUE_REG
   commands
     print_opargs_jump "JUMP_IF_TRUE_REG"
   end
+break ceval_reg.h:_PyEval_EvalFrameDefault:TARGET_RETURN_VALUE_REG
+  commands
+    print_opargs "RETURN_VALUE_REG"
+  end
+break ceval_reg.h:_PyEval_EvalFrameDefault:TARGET_LOAD_CONST_REG
+  commands
+    print_opargs "LOAD_CONST_REG"
+  end
 # break ceval_reg.h:_PyEval_EvalFrameDefault:TARGET_LOAD_FAST_REG
 #   commands
 #     print_opargs "LOAD_FAST_REG"
