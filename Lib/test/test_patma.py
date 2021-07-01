@@ -35,32 +35,60 @@ class TestInheritance(unittest.TestCase):
             pass
         class S4(collections.UserList, dict, C):
             pass
-        class M1(collections.UserDict, collections.abc.Sequence):
+        self.assertEqual(self.check_sequence_then_mapping(S1()), "seq")
+        self.assertEqual(self.check_sequence_then_mapping(S2()), "seq")
+        self.assertEqual(self.check_sequence_then_mapping(S3()), "seq")
+        self.assertEqual(self.check_sequence_then_mapping(S4()), "seq")
+        self.assertEqual(self.check_mapping_then_sequence(S1()), "seq")
+        self.assertEqual(self.check_mapping_then_sequence(S2()), "seq")
+        self.assertEqual(self.check_mapping_then_sequence(S3()), "seq")
+        self.assertEqual(self.check_mapping_then_sequence(S4()), "seq")
+
+    def test_late_registration_mapping(self):
+        class Parent:
             pass
-        class M2(C, collections.UserDict, collections.abc.Sequence):
+        class ChildPre(Parent):
             pass
-        class M3(collections.UserDict, C, list):
+        class GrandchildPre(ChildPre):
             pass
-        class M4(dict, collections.abc.Sequence, C):
+        collections.abc.Mapping.register(Parent)
+        class ChildPost(Parent):
             pass
-        def f(x):
-            match x:
-                case []:
-                    return "seq"
-                case {}:
-                    return "map"
-        def g(x):
-            match x:
-                case {}:
-                    return "map"
-                case []:
-                    return "seq"
-        for Seq in (S1, S2, S3, S4):
-            self.assertEqual(f(Seq()), "seq")
-            self.assertEqual(g(Seq()), "seq")
-        for Map in (M1, M2, M3, M4):
-            self.assertEqual(f(Map()), "map")
-            self.assertEqual(g(Map()), "map")
+        class GrandchildPost(ChildPost):
+            pass
+        self.assertEqual(self.check_sequence_then_mapping(Parent()), "map")
+        self.assertEqual(self.check_sequence_then_mapping(ChildPre()), "map")
+        self.assertEqual(self.check_sequence_then_mapping(GrandchildPre()), "map")
+        self.assertEqual(self.check_sequence_then_mapping(ChildPost()), "map")
+        self.assertEqual(self.check_sequence_then_mapping(GrandchildPost()), "map")
+        self.assertEqual(self.check_mapping_then_sequence(Parent()), "map")
+        self.assertEqual(self.check_mapping_then_sequence(ChildPre()), "map")
+        self.assertEqual(self.check_mapping_then_sequence(GrandchildPre()), "map")
+        self.assertEqual(self.check_mapping_then_sequence(ChildPost()), "map")
+        self.assertEqual(self.check_mapping_then_sequence(GrandchildPost()), "map")
+
+    def test_late_registration_sequence(self):
+        class Parent:
+            pass
+        class ChildPre(Parent):
+            pass
+        class GrandchildPre(ChildPre):
+            pass
+        collections.abc.Sequence.register(Parent)
+        class ChildPost(Parent):
+            pass
+        class GrandchildPost(ChildPost):
+            pass
+        self.assertEqual(self.check_sequence_then_mapping(Parent()), "seq")
+        self.assertEqual(self.check_sequence_then_mapping(ChildPre()), "seq")
+        self.assertEqual(self.check_sequence_then_mapping(GrandchildPre()), "seq")
+        self.assertEqual(self.check_sequence_then_mapping(ChildPost()), "seq")
+        self.assertEqual(self.check_sequence_then_mapping(GrandchildPost()), "seq")
+        self.assertEqual(self.check_mapping_then_sequence(Parent()), "seq")
+        self.assertEqual(self.check_mapping_then_sequence(ChildPre()), "seq")
+        self.assertEqual(self.check_mapping_then_sequence(GrandchildPre()), "seq")
+        self.assertEqual(self.check_mapping_then_sequence(ChildPost()), "seq")
+        self.assertEqual(self.check_mapping_then_sequence(GrandchildPost()), "seq")
 
 
 class TestPatma(unittest.TestCase):
@@ -2531,51 +2559,55 @@ class TestPatma(unittest.TestCase):
     def test_patma_246(self):
         def f(x):
             match x:
-                case ((a, b, c, d, e, f, g, h, i, 9) |
-                      (h, g, i, a, b, d, e, c, f, 10) |
-                      (g, b, a, c, d, -5, e, h, i, f) |
-                      (-1, d, f, b, g, e, i, a, h, c)):
+                case Class(y):
+                    z = 0
+        self.assertIs(y, None)
+        self.assertIs(z, None)
+
+    def test_accepts_positional_subpatterns_1(self):
+        x = range(10)
+        y = None
+        with self.assertRaises(TypeError):
+            match x:
+                case range(10):
+                    y = 0
+        self.assertEqual(x, range(10))
+        self.assertIs(y, None)
+
+    def test_got_multiple_subpatterns_for_attribute_0(self):
+        class Class:
+            __match_args__ = ("a", "a")
+            a = None
+        x = Class()
+        w = y = z = None
+        with self.assertRaises(TypeError):
+            match x:
+                case Class(y, z):
                     w = 0
-            out = locals()
-            del out["x"]
-            return out
-        alts = [
-            dict(a=0, b=1, c=2, d=3, e=4, f=5, g=6, h=7, i=8, w=0),
-            dict(h=1, g=2, i=3, a=4, b=5, d=6, e=7, c=8, f=9, w=0),
-            dict(g=0, b=-1, a=-2, c=-3, d=-4, e=-6, h=-7, i=-8, f=-9, w=0),
-            dict(d=-2, f=-3, b=-4, g=-5, e=-6, i=-7, a=-8, h=-9, c=-10, w=0),
-            dict(),
-        ]
-        self.assertEqual(f(range(10)), alts[0])
-        self.assertEqual(f(range(1, 11)), alts[1])
-        self.assertEqual(f(range(0, -10, -1)), alts[2])
-        self.assertEqual(f(range(-1, -11, -1)), alts[3])
-        self.assertEqual(f(range(10, 20)), alts[4])
+        self.assertIs(w, None)
+        self.assertIs(y, None)
+        self.assertIs(z, None)
 
     def test_patma_247(self):
         def f(x):
             match x:
-                case [y, (a, b, c, d, e, f, g, h, i, 9) |
-                         (h, g, i, a, b, d, e, c, f, 10) |
-                         (g, b, a, c, d, -5, e, h, i, f) |
-                         (-1, d, f, b, g, e, i, a, h, c), z]:
+                case Class(y, a=z):
                     w = 0
-            out = locals()
-            del out["x"]
-            return out
-        alts = [
-            dict(a=0, b=1, c=2, d=3, e=4, f=5, g=6, h=7, i=8, w=0, y=False, z=True),
-            dict(h=1, g=2, i=3, a=4, b=5, d=6, e=7, c=8, f=9, w=0, y=False, z=True),
-            dict(g=0, b=-1, a=-2, c=-3, d=-4, e=-6, h=-7, i=-8, f=-9, w=0, y=False, z=True),
-            dict(d=-2, f=-3, b=-4, g=-5, e=-6, i=-7, a=-8, h=-9, c=-10, w=0, y=False, z=True),
-            dict(),
-        ]
-        self.assertEqual(f((False, range(10), True)), alts[0])
-        self.assertEqual(f((False, range(1, 11), True)), alts[1])
-        self.assertEqual(f((False, range(0, -10, -1), True)), alts[2])
-        self.assertEqual(f((False, range(-1, -11, -1), True)), alts[3])
-        self.assertEqual(f((False, range(10, 20), True)), alts[4])
+        self.assertIs(w, None)
+        self.assertIs(y, None)
+        self.assertIs(z, None)
 
+    def test_match_args_elements_must_be_strings(self):
+        class Class:
+            __match_args__ = (None,)
+        x = Class()
+        y = z = None
+        with self.assertRaises(TypeError):
+            match x:
+                case Class(y):
+                    z = 0
+        self.assertIs(y, None)
+        self.assertIs(z, None)
 
 class TestSyntaxErrors(unittest.TestCase):
 
