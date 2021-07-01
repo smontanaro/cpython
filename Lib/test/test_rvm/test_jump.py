@@ -9,7 +9,7 @@ class JumpTest(InstructionTest):
             if a:
                 return 42
             return 41
-        (pyvm, rvm) = self.function_helper(jump_if_false)
+        (pyvm, rvm) = self.function_helper(jump_if_false, verbose=True)
         self.assertEqual(pyvm(7), rvm(7))
         self.assertEqual(pyvm(0), rvm(0))
         self.assertEqual(pyvm(()), rvm(()))
@@ -21,7 +21,7 @@ class JumpTest(InstructionTest):
             if not a:
                 return 42
             return 43
-        (pyvm, rvm) = self.function_helper(jump_if_true)
+        (pyvm, rvm) = self.function_helper(jump_if_true, verbose=True)
         self.assertEqual(pyvm(7), rvm(7))
         self.assertEqual(pyvm(0), rvm(0))
         self.assertEqual(pyvm(()), rvm(()))
@@ -36,7 +36,7 @@ class JumpTest(InstructionTest):
                 return a
             b = a + 4
             return b
-        (pyvm, rvm) = self.function_helper(branch_func)
+        (pyvm, rvm) = self.function_helper(branch_func, verbose=True)
         self.assertEqual(pyvm(7), rvm(7))
         self.assertEqual(pyvm(1), rvm(1))
         self.assertEqual(pyvm(0), rvm(0))
