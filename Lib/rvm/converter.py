@@ -466,9 +466,11 @@ class InstructionSetConverter:
                 start = end
         last_line = 0
         tab = []
+        last_byte = 0
         for (start, end, line) in lnotab:
             #print("lnotab:", (start, end, line))
-            delta = end - start
+            delta = end - last_byte
+            last_byte = end
             offset = line - last_line
             while delta > 255:
                 tab.extend((255, 0))
@@ -486,5 +488,6 @@ class InstructionSetConverter:
             #print("tab:", tab[-2:])
             last_line = line
         tab.append(255)
-        #print("tab:", tab[-1])
+        #print("tab:", tab)
+        #print("lnotab:", lnotab)
         return bytes(tab)
