@@ -30,11 +30,10 @@ class Block:
                 blocks = self.parent.blocks[self.block_type]
                 prev_block = blocks[self.block_number - 1]
                 assert self.block_type == prev_block.block_type
-                # pylint: disable=protected-access
                 self._address = prev_block.address + prev_block.codelen()
                 self.parent.mark_dirty(self.block_number + 1)
-        assert self._address %2 == 0, (self.block_number, self.codelen(),
-                                       self._address)
+        assert self._address >= 0, (self.block_number, self.codelen(),
+                                    self._address)
         return self._address
 
     @address.setter

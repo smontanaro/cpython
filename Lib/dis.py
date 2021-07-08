@@ -377,7 +377,7 @@ def _get_regis_info(arg, binop):
 
 def _get_regjc_info(arg):
     """Register conditional jump instruction helper"""
-    argrepr = f"to {arg >> 8}, %r{arg & 0xff}"
+    argrepr = f"to {2 * arg >> 8}, %r{arg & 0xff}"
     return arg, argrepr
 
 def _get_cont_info(arg):

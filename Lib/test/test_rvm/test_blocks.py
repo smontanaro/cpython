@@ -17,7 +17,7 @@ class BlockTest(InstructionTest):
         isc = InstructionSetConverter(pyvm_code)
         isc.gen_rvm()
         self.assertEqual(len(isc.blocks["PyVM"]), 1)
-        self.assertEqual(isc.blocks["PyVM"][0].codelen(), 8)
+        self.assertEqual(isc.blocks["PyVM"][0].codelen(), 4)
         self.assertEqual(len(isc.blocks["RVM"]), 1)
         self.assertEqual(get_opcodes(isc.blocks["RVM"]),
                          [
@@ -28,10 +28,10 @@ class BlockTest(InstructionTest):
                                  opcode.opmap["RETURN_VALUE_REG"],
                              ]
                          ])
-        self.assertEqual(isc.blocks["RVM"][0].codelen(), 16)
+        self.assertEqual(isc.blocks["RVM"][0].codelen(), 8)
         isc.forward_propagate_fast_loads()
         isc.delete_nops()
-        self.assertEqual(isc.blocks["RVM"][0].codelen(), 8)
+        self.assertEqual(isc.blocks["RVM"][0].codelen(), 4)
         self.assertEqual(get_opcodes(isc.blocks["RVM"]),
                          [
                              [

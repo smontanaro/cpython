@@ -60,7 +60,7 @@ class Instruction:
         # byte. If we have more than zero or one arg, we use
         # EXTENDED_ARG instructions to carry the other args, each
         # again two bytes.
-        return 2 + 2 * len(self.opargs[1:])
+        return 1 + len(self.opargs[1:])
 
     def __str__(self):
         me = self.__dict__.copy()
