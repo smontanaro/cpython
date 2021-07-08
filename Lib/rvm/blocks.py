@@ -19,6 +19,7 @@ class Block:
         "useful summary"
         return (f"Block <{self.block_type}:{self.block_number}:{self.address}"
                 f":{self.codelen()}:{len(self.instructions)}>")
+    __repr__ = __str__
 
     @property
     def address(self):
