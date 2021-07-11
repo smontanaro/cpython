@@ -4,7 +4,7 @@ import opcode
 
 from . import DISPATCH
 from .instructions import Instruction
-from .util import decode_oparg
+from .util import decode_oparg, EXT_ARG_OPCODE
 
 def pop_jump(self, instr, block):
     "Jumps of various kinds"
@@ -116,9 +116,9 @@ class JumpIfInstruction(JumpInstruction):
         opargs = self.opargs
         if len(opargs) == 2:
             opargs = (0,) + opargs
-        code.append(self.EXT_ARG_OPCODE)
+        code.append(EXT_ARG_OPCODE)
         code.append(opargs[0])
-        code.append(self.EXT_ARG_OPCODE)
+        code.append(EXT_ARG_OPCODE)
         code.append(opargs[1])
         code.append(self.opcode)
         code.append(opargs[2])
@@ -156,7 +156,7 @@ class JumpAbsInstruction(JumpInstruction):
         opargs = self.opargs
         while len(opargs) < 2:
             opargs = (0,) + opargs
-        code.append(self.EXT_ARG_OPCODE)
+        code.append(EXT_ARG_OPCODE)
         code.append(opargs[0])
         code.append(self.opcode)
         code.append(opargs[1])

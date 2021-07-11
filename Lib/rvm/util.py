@@ -1,6 +1,10 @@
 "miscellaneous"
 
 import dis as _dis
+import opcode
+
+EXT_ARG_OPCODE = opcode.opmap["EXTENDED_ARG"]
+NOP_OPCODE = opcode.opmap['NOP']
 
 CO_REGISTER = None
 for _val in _dis.COMPILER_FLAG_NAMES:

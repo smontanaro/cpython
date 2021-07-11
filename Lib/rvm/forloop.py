@@ -5,6 +5,7 @@ import opcode
 from . import DISPATCH
 from .instructions import Instruction
 from .jump import JumpIfInstruction
+from .util import EXT_ARG_OPCODE
 
 def for_iter(self, instr, block):
     op = instr.opcode
@@ -60,11 +61,11 @@ class ForIterInstruction(JumpIfInstruction):
         opargs = self.opargs
         while len(opargs) < 4:
             opargs = (0,) + opargs
-        code.append(self.EXT_ARG_OPCODE)
+        code.append(EXT_ARG_OPCODE)
         code.append(opargs[0])
-        code.append(self.EXT_ARG_OPCODE)
+        code.append(EXT_ARG_OPCODE)
         code.append(opargs[1])
-        code.append(self.EXT_ARG_OPCODE)
+        code.append(EXT_ARG_OPCODE)
         code.append(opargs[2])
         code.append(self.opcode)
         code.append(opargs[3])

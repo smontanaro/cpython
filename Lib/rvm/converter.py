@@ -11,6 +11,8 @@ from .function import CallInstruction
 from .loadstore import LoadFastInstruction, StoreFastInstruction
 from .sequence import BuildSeqInstruction
 
+from .util import NOP_OPCODE, EXT_ARG_OPCODE
+
 class InstructionSetConverter:
     """Convert stack-based VM code into register-oriented VM code.
 
@@ -20,9 +22,6 @@ class InstructionSetConverter:
     stack-based opcodes selects the appropriate routine.
 
     """
-
-    NOP_OPCODE = opcode.opmap['NOP']
-    EXT_ARG_OPCODE = opcode.opmap["EXTENDED_ARG"]
 
     def __init__(self, codeobj):
         """input must be a code object."""
@@ -58,7 +57,7 @@ class InstructionSetConverter:
         for i in range(0, n, 2):
             op, oparg = code[i:i+2]
             carry_oparg = carry_oparg << 8 | oparg
-            if op == self.EXT_ARG_OPCODE:
+            if op == EXT_ARG_OPCODE:
                 continue
             oparg, carry_oparg = carry_oparg, 0
             if op in opcode.hasjrel:
@@ -111,7 +110,7 @@ class InstructionSetConverter:
             #print(">>>", op, opcode.opname[op], oparg)
             # Elide EXTENDED_ARG opcodes, constructing the effective
             # oparg as we go.
-            if op == self.EXT_ARG_OPCODE:
+            if op == EXT_ARG_OPCODE:
                 ext_oparg = ext_oparg << 8 | oparg
             else:
                 oparg = ext_oparg << 8 | oparg
@@ -280,7 +279,7 @@ class InstructionSetConverter:
         prop_dict = {}
         dirty = None
         for block in self.blocks["RVM"]:
-            nop = NOPInstruction(self.NOP_OPCODE, block)
+            nop = NOPInstruction(NOP_OPCODE, block)
             for (i, instr) in enumerate(block):
                 # Check for possible mappings in this instruction,
                 # even if it is a load/store which might be replaced

@@ -14,6 +14,8 @@ import atexit
 import opcode
 import sys
 
+from .util import EXT_ARG_OPCODE
+
 class Instruction:
     """Represent an instruction in either PyVM or RVM.
 
@@ -21,8 +23,6 @@ class Instruction:
     makeup varies by Instruction subclass.
 
     """
-
-    EXT_ARG_OPCODE = opcode.opmap["EXTENDED_ARG"]
 
     counters = {}               # count what we convert
     dump_at_end = True
@@ -84,7 +84,7 @@ class Instruction:
         code = []
         for arg in self.opargs[:-1]:
             if arg is not None:
-                code.append(self.EXT_ARG_OPCODE)
+                code.append(EXT_ARG_OPCODE)
                 code.append(arg)
         code.append(self.opcode)
         code.append(self.opargs[-1])
