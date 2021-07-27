@@ -84,6 +84,7 @@ class LoadFastInstruction(Instruction):
 
     @property
     def opargs(self):
+        #print(f">> {self.name}.opargs:", (self.dest, self.source1))
         return (self.dest, self.source1)
 
 # SFI and LFI are really the same instruction. We distinguish only to
