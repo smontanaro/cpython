@@ -54,13 +54,41 @@ class Instruction:
         """
         return self._opargs
 
+    def _non_zero_opargs(self):
+        # self.opargs[0] is part of the instruction, so doesn't count.
+        # The elements of self.opargs[1:] count, ignoring leading
+        # zeroes.
+        opargs = self.opargs#[1:]
+        while opargs and opargs[0] == 0:
+            opargs = opargs[1:]
+        print(f">> {self.name}.non-zero opargs:", opargs)
+        return opargs
+
+    def _n_extarg(self):
+        "Compute how many EXTENDED_ARG opcodes are necessary."
+        return len(self._non_zero_opargs())
+
+    def _ext_arg_instructions(self):
+        "Return list of required EXT_ARG instructions."
+        opargs = self._non_zero_opargs()
+        ext_arg_instrs = []
+        for arg in opargs:
+            inst = ExtArgInstruction(EXT_ARG_OPCODE, block=self.block,
+                                     opargs=(arg,))
+            inst.line_number = self.line_number
+            ext_arg_instrs.append(inst)
+        return ext_arg_instrs
+
     def __len__(self):
-        "Compute byte length of instruction."
+        "Compute instructions required to implement self."
         # In wordcode, an instruction is op, arg, each taking one
         # byte. If we have more than zero or one arg, we use
         # EXTENDED_ARG instructions to carry the other args, each
-        # again two bytes.
-        return 1 + len(self.opargs[1:])
+        # again two bytes.  With Python 3.10, jump offsets became
+        # denominated in instructions instead of bytes, so all we
+        # count are the number of instructions, not their total
+        # length.
+        return 1 + self._n_extarg()
 
     def __str__(self):
         me = self.__dict__.copy()
@@ -125,8 +153,13 @@ class PyVMInstruction(Instruction):
         super().__init__(op, block, **kwargs)
         self._opargs = opargs
 
+class ExtArgInstruction(PyVMInstruction):
+    "Simple, reused from PyVM."
+    pass
+
 class NOPInstruction(Instruction):
     "nop"
+    pass
 
 for nm in opcode.opname:
     if "_REG" in nm:
