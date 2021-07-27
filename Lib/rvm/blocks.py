@@ -66,6 +66,11 @@ class Block:
         assert isinstance(instr, Instruction), instr
         self.instructions.append(instr)
 
+    def extend(self, instrs):
+        for instr in instrs:
+            assert isinstance(instr, Instruction), instr
+            self.instructions.append(instr)
+
     def __setitem__(self, i, instruction):
         self.instructions[i] = instruction
 
@@ -93,9 +98,11 @@ class Block:
                 # co_stacksize.  We are done with this block.
                 break
             rvm_inst.line_number = pyvm_inst.line_number
+            ext_arg_instrs = rvm_inst._ext_arg_instructions()
+            #print(">> eainst:", ext_arg_instrs)
+            rvm_block.extend([rvm_inst] + ext_arg_instrs)
             rvm_inst.index = len(rvm_block)
             #print(">>", rvm_inst)
-            rvm_block.append(rvm_inst)
 
     def mark_dirty(self):
         "This block is dirty. Implicitly, so is everything downstream."
