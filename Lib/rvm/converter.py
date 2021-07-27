@@ -176,6 +176,7 @@ class InstructionSetConverter:
 
     def peek(self, n):
         """return n'th readable slot in the stack without decrement."""
+        #print(">> peek:", self.stacklevel - n)
         if self.stacklevel - n < self.nlocals:
             raise StackSizeException(
                 f"Peek read past bottom of locals!"
@@ -432,7 +433,9 @@ class InstructionSetConverter:
     def display_blocks(self, blocks):
         "debug"
         print("globals:", self.globals)
-        print("locals:", self.locals)
+        low_regs = range(0, len(self.locals))
+        print("locals:",
+              list((x, f"%r{n}") for (x, n) in zip(self.locals, low_regs)))
         print("constants:", self.constants)
         print("code len:", sum(block.codelen() for block in blocks))
         print("first lineno:", self.codeobj.co_firstlineno)
