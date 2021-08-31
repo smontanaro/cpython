@@ -15,6 +15,7 @@
    installing/index.rst
    howto/index.rst
    faq/index.rst
+   stability-docs/index.rst
    glossary.rst
 
    about.rst

@@ -125,34 +125,7 @@ find packages of interest to you.
 How does the Python version numbering scheme work?
 --------------------------------------------------
 
-Python versions are numbered A.B.C or A.B.  A is the major version number -- it
-is only incremented for really major changes in the language.  B is the minor
-version number, incremented for less earth-shattering changes.  C is the
-micro-level -- it is incremented for each bugfix release.  See :pep:`6` for more
-information about bugfix releases.
-
-Not all releases are bugfix releases.  In the run-up to a new major release, a
-series of development releases are made, denoted as alpha, beta, or release
-candidate.  Alphas are early releases in which interfaces aren't yet finalized;
-it's not unexpected to see an interface change between two alpha releases.
-Betas are more stable, preserving existing interfaces but possibly adding new
-modules, and release candidates are frozen, making no changes except as needed
-to fix critical bugs.
-
-Alpha, beta and release candidate versions have an additional suffix.  The
-suffix for an alpha version is "aN" for some small number N, the suffix for a
-beta version is "bN" for some small number N, and the suffix for a release
-candidate version is "rcN" for some small number N.  In other words, all versions
-labeled 2.0aN precede the versions labeled 2.0bN, which precede versions labeled
-2.0rcN, and *those* precede 2.0.
-
-You may also find version numbers with a "+" suffix, e.g. "2.2+".  These are
-unreleased versions, built directly from the CPython development repository.  In
-practice, after a final minor release is made, the version is incremented to the
-next minor version, which becomes the "a0" version, e.g. "2.4a0".
-
-See also the documentation for :data:`sys.version`, :data:`sys.hexversion`, and
-:data:`sys.version_info`.
+See :ref:`python-versioning`.
 
 
 How do I obtain a copy of the Python source?
@@ -218,10 +191,8 @@ can be found at https://www.python.org/community/lists/.
 How do I get a beta test version of Python?
 -------------------------------------------
 
-Alpha and beta releases are available from https://www.python.org/downloads/.  All
-releases are announced on the comp.lang.python and comp.lang.python.announce
-newsgroups and on the Python home page at https://www.python.org/; an RSS feed of
-news is available.
+Alpha, beta and release candidates releases are published in the same way as
+all other :ref:`python-releases` (but not advertised as heavily).
 
 You can also access the development version of Python through Git.  See
 `The Python Developer's Guide <https://devguide.python.org/>`_ for details.
@@ -295,22 +266,7 @@ Python in the real world
 How stable is Python?
 ---------------------
 
-Very stable.  New, stable releases have been coming out roughly every 6 to 18
-months since 1991, and this seems likely to continue.  As of version 3.9,
-Python will have a major new release every 12 months (:pep:`602`).
-
-The developers issue "bugfix" releases of older versions, so the stability of
-existing releases gradually improves.  Bugfix releases, indicated by a third
-component of the version number (e.g. 3.5.3, 3.6.2), are managed for stability;
-only fixes for known problems are included in a bugfix release, and it's
-guaranteed that interfaces will remain the same throughout a series of bugfix
-releases.
-
-The latest stable releases can always be found on the `Python download page
-<https://www.python.org/downloads/>`_.  There are two production-ready versions
-of Python: 2.x and 3.x. The recommended version is 3.x, which is supported by
-most widely used libraries.  Although 2.x is still widely used, `it is not
-maintained anymore <https://www.python.org/dev/peps/pep-0373/>`_.
+See :ref:`python-stability`.
 
 How many people are using Python?
 ---------------------------------
