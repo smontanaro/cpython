@@ -1,9 +1,9 @@
 
 .. _python-versioning:
 
-=========================================
-Python's Versioning and Development Cycle
-=========================================
+==============================================
+Python's Versioning and Stability Expectations
+==============================================
 
 
 Python Versions
