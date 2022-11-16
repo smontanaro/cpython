@@ -1,27 +1,4 @@
-"""A generally useful event scheduler class.
-
-Each instance of this class manages its own queue.
-No multi-threading is implied; you are supposed to hack that
-yourself, or use a single instance per application.
-
-Each instance is parametrized with two functions, one that is
-supposed to return the current time, one that is supposed to
-implement a delay.  You can implement real-time scheduling by
-substituting time and sleep from built-in module time, or you can
-implement simulated time by writing your own functions.  This can
-also be used to integrate scheduling with STDWIN events; the delay
-function is allowed to modify the queue.  Time can be expressed as
-integers or floating point numbers, as long as it is consistent.
-
-Events are specified by tuples (time, priority, action, argument, kwargs).
-As in UNIX, lower priority numbers mean higher priority; in this
-way the queue can be maintained as a priority queue.  Execution of the
-event means calling the action function, passing it the argument
-sequence in "argument" (remember that in Python, multiple function
-arguments are be packed in a sequence) and keyword parameters in "kwargs".
-The action function may be an instance method so it
-has another way to reference private data (besides global variables).
-"""
+"""A generally useful event scheduler class."""
 
 import time
 import heapq
@@ -49,6 +26,28 @@ arguments for the action.''')
 _sentinel = object()
 
 class scheduler:
+    """
+    Each instance of this class manages its own queue.
+    The scheduler is thread-safe.
+
+    Each instance is parameterized with two functions, one that is
+    supposed to return the current time, one that is supposed to implement
+    a delay.  You can implement real-time scheduling by substituting time
+    and sleep from built-in module time, or you can implement simulated
+    time by writing your own functions.  This can also be used to
+    integrate scheduling with various event handler modules; the delay
+    function is allowed to modify the queue.  Time can be expressed as
+    integers or floating point numbers, as long as it is consistent.
+
+    Events are specified by tuples (time, priority, action, argument,
+    kwargs).  As in UNIX, lower priority numbers mean higher priority; in
+    this way the queue can be maintained as a priority queue.  Execution
+    of the event means calling the action function, passing it the
+    argument sequence in "argument" and keyword parameters in "kwargs".
+    The action function may be any callable (e.g., an instance method) so
+    it has a way to reference private data not passed through via
+    argument.
+    """
 
     def __init__(self, timefunc=_time, delayfunc=time.sleep):
         """Initialize a new instance, passing the time and delay
