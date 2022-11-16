@@ -118,8 +118,8 @@ class scheduler:
         well-defined so run() may be called again.
 
         A questionable hack is added to allow other threads to run:
-        just after an event is executed, a delay of 0 is executed, to
-        avoid monopolizing the CPU when other threads are also
+        just after an event is executed, an empty delay is executed,
+        to avoid monopolizing the CPU when other threads are also
         runnable.
 
         """
@@ -148,7 +148,10 @@ class scheduler:
                 delayfunc(time - now)
             else:
                 action(*argument, **kwargs)
-                delayfunc(0)   # Let other threads run
+                # Let other threads run.  now - now is used to allow
+                # time-ish modules which use objects other than ints
+                # or floats to keep time, e.g., datetime.
+                delayfunc(now - now)
 
     @property
     def queue(self):
