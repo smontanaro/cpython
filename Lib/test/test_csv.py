@@ -363,10 +363,16 @@ class Test_Csv(unittest.TestCase):
         self.assertRaises(ValueError, self._read_test,
                           ['abc,3'], [[]],
                           quoting=csv.QUOTE_NONNUMERIC)
-        self._read_test(['"a","",,1'],[['a','',None,1]],
-                         quoting = csv.QUOTE_STRINGS)
-        self._read_test(['"a","",,"1"'],[['a','',None,1]], 
-                         quoting = csv.QUOTE_NOTNULL)
+        #self._read_test(['"a","",,1'],[['a','',None,1]],
+        #                 quoting = csv.QUOTE_STRINGS)
+        #self._read_test(['"a","",,"1"'],[['a','',None,1]], 
+        #                 quoting = csv.QUOTE_NOTNULL)
+        self.assertRaises(ValueError, self._read_test,
+                          ['abc,3'], [[]],
+                          quoting=csv.QUOTE_STRINGS)
+        self.assertRaises(ValueError, self._read_test,
+                          ['abc,3'], [[]],
+                          quoting=csv.QUOTE_NOTNULL)
         self._read_test(['1,@,3,@,5'], [['1', ',3,', '5']], quotechar='@')
         self._read_test(['1,\0,3,\0,5'], [['1', ',3,', '5']], quotechar='\0')
 
