@@ -89,6 +89,8 @@ class DictReader:
         self.restkey = restkey          # key to catch long rows
         self.restval = restval          # default value for short rows
         self.reader = reader(f, dialect, *args, **kwds)
+        if dialect.quoting in (QUOTE_STRINGS, QUOTE_NOTNULL):
+            raise ValueError("QUOTE_STRINGS, QUOTE_NOTNULL are not allowed when reading")
         self.dialect = dialect
         self.line_num = 0
 
