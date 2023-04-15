@@ -1045,6 +1045,14 @@ csv_reader(PyObject *module, PyObject *args, PyObject *keyword_args)
         return NULL;
     }
 
+    if (self->dialect->quoting == QUOTE_STRINGS ||
+        self->dialect->quoting == QUOTE_NOTNULL) {
+        PyErr_SetString(PyExc_TypeError,
+                        "QUOTE_STRINGS and QUOTE_NONE are currently not supported when reading");
+        Py_DECREF(self);
+        return NULL;
+    }
+
     PyObject_GC_Track(self);
     return (PyObject *)self;
 }
