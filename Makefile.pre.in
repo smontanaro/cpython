@@ -1833,7 +1833,8 @@ regen-cases:
 	$(UPDATE_FILE) $(srcdir)/Python/optimizer_cases.c.h $(srcdir)/Python/optimizer_cases.c.h.new
 	$(UPDATE_FILE) $(srcdir)/Lib/_opcode_metadata.py $(srcdir)/Lib/_opcode_metadata.py.new
 
-Python/frozen.o: $(FROZEN_FILES_OUT)
+Python/frozen.o: Python/frozen.c $(FROZEN_FILES_OUT)
+	$(CC) -c $(PY_CORE_CFLAGS) -o $@ $<
 
 # Generate DTrace probe macros, then rename them (PYTHON_ -> PyDTrace_) to
 # follow our naming conventions. dtrace(1) uses the output filename to generate
@@ -2641,7 +2642,7 @@ JIT_DEPS = \
 jit_stencils.h: $(JIT_DEPS)
 	@REGEN_JIT_COMMAND@
 
-Python/jit.o: @JIT_STENCILS_H@
+Python/jit.o: Python/jit.c @JIT_STENCILS_H@
 	$(CC) -c $(PY_CORE_CFLAGS) -o $@ $<
 
 .PHONY: regen-jit
@@ -2656,7 +2657,7 @@ regen-jit:
 # with -O2 or higher and strict aliasing miscompiles the ratio() function
 # causing rounding issues. Compile dtoa.c using -fno-strict-aliasing on clang.
 # https://bugs.llvm.org//show_bug.cgi?id=31928
-Python/dtoa.o:
+Python/dtoa.o: Python/dtoa.c
 	$(CC) -c $(PY_CORE_CFLAGS) $(CFLAGS_ALIASING) -o $@ $<
 
 # Run reindent on the library
