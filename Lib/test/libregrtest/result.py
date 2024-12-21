@@ -41,6 +41,7 @@ class State:
     REFLEAK = "REFLEAK"
     ENV_CHANGED = "ENV_CHANGED"
     RESOURCE_DENIED = "RESOURCE_DENIED"
+    WRONG_OS = "WRONG_OS"             # only valid on another operating system
     INTERRUPTED = "INTERRUPTED"
     WORKER_FAILED = "WORKER_FAILED"   # non-zero worker process exit code
     WORKER_BUG = "WORKER_BUG"         # exception when running a worker
@@ -66,6 +67,7 @@ class State:
         return state not in {
             State.SKIPPED,
             State.RESOURCE_DENIED,
+            State.WRONG_OS,
             State.INTERRUPTED,
             State.WORKER_FAILED,
             State.WORKER_BUG,
@@ -154,6 +156,8 @@ class TestResult:
                 return f"{red}{self.test_name} failed (env changed){reset}"
             case State.RESOURCE_DENIED:
                 return f"{yellow}{self.test_name} skipped (resource denied){reset}"
+            case State.WRONG_OS:
+                return f"{yellow}{self.test_name} skipped (wrong OS){reset}"
             case State.INTERRUPTED:
                 return f"{yellow}{self.test_name} interrupted{reset}"
             case State.WORKER_FAILED:
