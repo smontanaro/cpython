@@ -79,6 +79,9 @@ def import_module(name, deprecated=False, *, required_on=()):
         except ImportError as msg:
             if sys.platform.startswith(tuple(required_on)):
                 raise
+            if required_on:
+                # wrong OS - what to set here?
+                pass
             raise unittest.SkipTest(str(msg))
 
 
