@@ -1,5 +1,5 @@
-:mod:`csv` --- CSV File Reading and Writing
-===========================================
+:mod:`!csv` --- CSV File Reading and Writing
+============================================
 
 .. module:: csv
    :synopsis: Write and read tabular data to and from delimited files.
@@ -70,7 +70,7 @@ The :mod:`csv` module defines the following functions:
    section :ref:`csv-fmt-params`.
 
    Each row read from the csv file is returned as a list of strings.  No
-   automatic data type conversion is performed unless the ``QUOTE_NONNUMERIC`` format
+   automatic data type conversion is performed unless the :data:`QUOTE_NONNUMERIC` format
    option is specified (in which case unquoted fields are transformed into floats).
 
    A short usage example::
@@ -156,8 +156,10 @@ The :mod:`csv` module defines the following classes:
 
    The *fieldnames* parameter is a :term:`sequence`.  If *fieldnames* is
    omitted, the values in the first row of file *f* will be used as the
-   fieldnames.  Regardless of how the fieldnames are determined, the
-   dictionary preserves their original ordering.
+   fieldnames and will be omitted from the results. If
+   *fieldnames* is provided, they will be used and the first row will be
+   included in the results.  Regardless of how the fieldnames are determined,
+   the dictionary preserves their original ordering.
 
    If a row has more fields than fieldnames, the remaining data is put in a
    list and stored with the fieldname specified by *restkey* (which defaults
@@ -329,8 +331,14 @@ The :mod:`csv` module defines the following constants:
 
    Instructs :class:`writer` objects to quote all non-numeric fields.
 
-   Instructs :class:`reader` objects to convert all non-quoted fields to type *float*.
+   Instructs :class:`reader` objects to convert all non-quoted fields to type :class:`float`.
 
+   .. note::
+      Some numeric types, such as :class:`bool`, :class:`~fractions.Fraction`,
+      or :class:`~enum.IntEnum`, have a string representation that cannot be
+      converted to :class:`float`.
+      They cannot be read in the :data:`QUOTE_NONNUMERIC` and
+      :data:`QUOTE_STRINGS` modes.
 
 .. data:: QUOTE_NONE
 
@@ -347,8 +355,8 @@ The :mod:`csv` module defines the following constants:
    ``None``.  This is similar to :data:`QUOTE_ALL`, except that if a
    field value is ``None`` an empty (unquoted) string is written.
 
-   Instructs :class:`reader` objects to interpret an empty (unquoted) field as None and
-   to otherwise behave as :data:`QUOTE_ALL`.
+   Instructs :class:`reader` objects to interpret an empty (unquoted) field
+   as ``None`` and to otherwise behave as :data:`QUOTE_ALL`.
 
    .. versionadded:: 3.12
 
@@ -601,7 +609,7 @@ A slightly more advanced use of the reader --- catching and reporting errors::
            for row in reader:
                print(row)
        except csv.Error as e:
-           sys.exit('file {}, line {}: {}'.format(filename, reader.line_num, e))
+           sys.exit(f'file {filename}, line {reader.line_num}: {e}')
 
 And while the module doesn't directly support parsing strings, it can easily be
 done::

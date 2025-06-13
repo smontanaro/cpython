@@ -201,7 +201,7 @@ class Element:
 
     def __bool__(self):
         warnings.warn(
-            "Testing an element's truth value will raise an exception in "
+            "Testing an element's truth value will always return True in "
             "future versions.  "
             "Use specific 'len(elem)' or 'elem is not None' test instead.",
             DeprecationWarning, stacklevel=2
@@ -267,7 +267,11 @@ class Element:
 
         """
         # assert iselement(element)
-        self._children.remove(subelement)
+        try:
+            self._children.remove(subelement)
+        except ValueError:
+            # to align the error message with the C implementation
+            raise ValueError("Element.remove(x): element not found") from None
 
     def find(self, path, namespaces=None):
         """Find first matching element by tag name or path.
@@ -1320,6 +1324,11 @@ class XMLPullParser:
             else:
                 yield event
 
+    def flush(self):
+        if self._parser is None:
+            raise ValueError("flush() called after end of stream")
+        self._parser.flush()
+
 
 def XML(text, parser=None):
     """Parse XML document from string constant.
@@ -1726,6 +1735,15 @@ class XMLParser:
             del self.parser, self._parser
             del self.target, self._target
 
+    def flush(self):
+        was_enabled = self.parser.GetReparseDeferralEnabled()
+        try:
+            self.parser.SetReparseDeferralEnabled(False)
+            self.parser.Parse(b"", False)
+        except self._error as v:
+            self._raiseerror(v)
+        finally:
+            self.parser.SetReparseDeferralEnabled(was_enabled)
 
 # --------------------------------------------------------------------
 # C14N 2.0
