@@ -18,6 +18,8 @@ except ModuleNotFoundError:
     has_c_implementation = False
 
 support.requires('xpickle')
+if not support.is_resource_enabled('cpu'):
+    support.print_warning("without 'cpu' resource, many tests won't be run")
 
 is_windows = sys.platform.startswith('win')
 
